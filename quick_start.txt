@@ -1,0 +1,18 @@
+The simplest way to try gpudb is as follows.
+
+Step 1: install translator using the following command:
+
+python setup.py install
+
+Step 2: translate a ssb query using the following command:
+
+python translation.py test/ssb_test/q2_1.sql test/ssb_test/ssb.schema
+
+
+The outputs of the translation are in the result/GPUCODE direstory.
+driver.cu is the main entrance file.
+
+
+
+
+

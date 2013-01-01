@@ -1,0 +1,9 @@
+1. Linux 32-bit or 64-bit 
+
+2. Python (not Python3)
+
+3. Java and GCC are needed (for ANTLR)
+
+4. NVIDIA GPU
+
+5. CUDA tookit
