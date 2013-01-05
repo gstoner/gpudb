@@ -4,11 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <error.h>
+#include <unistd.h>
 #include "schema.h"
 #include "common.h"
 
 // write out ssb's data table in binary format
-void datewrite(FILE * fp){
+void datewrite(FILE * fp, char *outName){
 	struct ddate tmp;
 	char data [32] = {0};
 	char buf[512] = {0};
@@ -102,7 +103,7 @@ void datewrite(FILE * fp){
 	}
 }
 
-void lineorder(FILE *fp){
+void lineorder(FILE *fp, char *outName){
 	struct lineorder tmp;
 	char data[32] = {0};
 	char buf[512] = {0};
@@ -111,7 +112,7 @@ void lineorder(FILE *fp){
 
 	for(i=0;i<17;i++){
 		char path[32] = {0};
-		sprintf(path,"LINEORDER%d",i);
+		sprintf(path,"%s%d",outName,i);
 		out[i] = fopen(path,"w");
 	}
 
@@ -197,7 +198,7 @@ void lineorder(FILE *fp){
 	}
 }
 
-void part(FILE *fp){
+void part(FILE *fp, char *outName){
 	struct part tmp;
 	char data[32] = {0};
 	char buf[512] = {0};
@@ -206,7 +207,7 @@ void part(FILE *fp){
 
 	for(i=0;i<9;i++){
 		char path[32] = {0};
-		sprintf(path,"PART%d",i);
+		sprintf(path,"%s%d",outName,i);
 		out[i] = fopen(path,"w");
 	}
 
@@ -268,7 +269,7 @@ void part(FILE *fp){
 	}
 }
 
-void supplier(FILE *fp){
+void supplier(FILE *fp, char *outName){
 	struct supplier tmp;
 	char data[32] = {0};
 	char buf[512] = {0};
@@ -277,7 +278,7 @@ void supplier(FILE *fp){
 
 	for(i=0;i<7;i++){
 		char path[32] = {0};
-		sprintf(path,"SUPPLIER%d",i);
+		sprintf(path,"%s%d",outName,i);
 		out[i] = fopen(path,"w");
 	}
 
@@ -333,7 +334,7 @@ void supplier(FILE *fp){
 	}
 }
 
-void customer(FILE *fp){
+void customer(FILE *fp, char*outName){
 	struct customer tmp;
 	char data[32] = {0};
 	char buf[512] = {0};
@@ -342,7 +343,7 @@ void customer(FILE *fp){
 
 	for(i=0;i<8;i++){
 		char path[32] = {0};
-		sprintf(path,"CUSTOMER%d",i);
+		sprintf(path,"%s%d",outName,i);
 		out[i] = fopen(path,"w");
 	}
 
@@ -401,54 +402,74 @@ void customer(FILE *fp){
 	}
 }
 
+void usage(){
+	printf("gpuDBLoad Usage:\n");
+	printf("\t-l lineorder\tload table LINEORDER\n");
+	printf("\t-d date\t\tload table DATE\n");
+	printf("\t-c customer\tload table CUSTOMER\n");
+	printf("\t-s supplier\tload table SUPPLIER\n");
+	printf("\t-p part\t\tload table PART\n");
+	printf("\t-h\t\tprint usage information\n");
+}
 
 int main(int argc, char ** argv){
 	FILE * in = NULL, *out = NULL;
+	int table;
 
-	if (argc !=6){
-		printf("Usage error: date lo part customer supplier\n");
-		exit(-1);
+	opterr = 0;
+	while((table = getopt(argc,argv,"l:d:c:s:p:h")) != -1){
+		switch(table){
+			case 'l':	in = fopen(optarg,"r");
+					if(!in){
+						perror(argv[1]);
+						exit(-1);
+					}
+					lineorder(in,"LINEORDER");
+					fclose(in);
+					break;	
+			case 'd':	in = fopen(optarg,"r");
+					if(!in){
+						perror(argv[1]);
+						exit(-1);
+					}
+					datewrite(in,"DDATE");
+					fclose(in);
+					break;
+
+			case 'c':	in = fopen(optarg,"r");
+					if(!in){
+						perror(argv[1]);
+						exit(-1);
+					}
+					customer(in,"CUSTOMER");
+					fclose(in);
+					break;
+
+			case 's':	in = fopen(optarg,"r");
+					if(!in){
+						perror(argv[1]);
+						exit(-1);
+					}
+					supplier(in,"SUPPLIER");
+					fclose(in);
+					break;
+
+			case 'p':	in = fopen(optarg,"r");
+					if(!in){
+						perror(argv[1]);
+						exit(-1);
+					}
+					part(in,"PART");
+					fclose(in);
+					break;
+
+			case 'h': 	usage();
+					break;
+
+			default: 	usage();
+					break;
+		}
 	}
 
-	in = fopen(argv[1],"r");
-	if (!in){
-		perror(argv[1]);
-		exit(-1);
-	}
-
-	datewrite(in);
-	fclose(in);
-
-	in = fopen(argv[2],"r");
-	if (!in){
-		perror(argv[2]);
-		exit(-1);
-	}
-	lineorder(in);
-	fclose(in);
-
-	in = fopen(argv[3],"r");
-	if (!in){
-		perror(argv[3]);
-		exit(-1);
-	}
-	part(in);
-	fclose(in);
-
-	in = fopen(argv[4],"r");
-	if (!in){
-		perror(argv[4]);
-		exit(-1);
-	}
-	customer(in);
-	fclose(in);
-
-	in = fopen(argv[5],"r");
-	if (!in){
-		perror(argv[5]);
-		exit(-1);
-	}
-	supplier(in);
-	fclose(in);
 	return 0;
 }
