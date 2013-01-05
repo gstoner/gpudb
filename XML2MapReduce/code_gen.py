@@ -892,6 +892,8 @@ def generate_code(tree, filename):
             for i in range(0, totalAttr):
                 print >>fo, "\t\tif(" + tmpName + "->dataPos[" + str(i) + "] == MEM)"
                 print >>fo, "\t\t\tfree(" + tmpName + "->content[" + str(i) + "]);"
+                print >>fo, "\t\tif(" + tmpName + "->dataPos[" + str(i) + "] == UVA)"
+                print >>fo, "\t\t\tcudaHostFree(" + tmpName + "->content[" + str(i) + "]);"
                 print >>fo, "\t\telse"
                 print >>fo, "\t\t\tcudaFree(" + tmpName + "->content[" + str(i) + "]);"
         else:
@@ -902,6 +904,8 @@ def generate_code(tree, filename):
             for i in range(0, totalAttr):
                 print >>fo, "\t\t\tif(" + tmpName + "->dataPos[" + str(i) + "] == MEM)"
                 print >>fo, "\t\t\t\tfree(" + tmpName + "->content[" + str(i) + "]);"
+                print >>fo, "\t\t\telse if("+ tmpName + "->dataPos[" + str(i) + "] == UVA)"
+                print >>fo, "\t\t\t\tcudaHostFree(" + tmpName + "->content[" + str(i) + "]);"
                 print >>fo, "\t\t\telse"
                 print >>fo, "\t\t\t\tcudaFree(" + tmpName + "->content[" + str(i) + "]);"
 
