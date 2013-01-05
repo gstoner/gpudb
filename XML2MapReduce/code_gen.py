@@ -502,6 +502,7 @@ def generate_code(tree, filename):
             print >>fo, "\t" + relName + ".whereSize = (int *)malloc(sizeof(int)*" + str(len(whereList)) + ");"
             print >>fo, "\t" + relName + ".whereIndex = (int *)malloc(sizeof(int)*" + str(len(whereList)) + ");"
             print >>fo, "\t" + relName + ".whereFormat = (int *)malloc(sizeof(int)*" + str(len(whereList)) + ");"
+            print >>fo, "\t" + relName + ".wherePos = (int *)malloc(sizeof(int)*" + str(len(whereList)) + ");"
             print >>fo, "\t" + relName + ".content = (char **)malloc(sizeof(char *)*" + str(len(whereList)) + ");"
             if keepInGpu == 0:
                 print >>fo, "\t" + relName + ".keepInGpu = 0;"
@@ -519,6 +520,7 @@ def generate_code(tree, filename):
                 print >>fo, "\toutFd = open(\""+tn.table_name+str(colIndex)+"\",O_RDONLY);"
                 print >>fo, "\tread(outFd,&header, sizeof(struct columnHeader));"
                 print >>fo, "\t" + relName + ".whereFormat[" + str(i) + "] = header.format;"
+                print >>fo, "\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
                 print >>fo, "\toffset = sizeof(struct columnHeader);"
                 print >>fo, "\toutSize = lseek(outFd,offset,SEEK_END);"
                 print >>fo, "\t" + relName + ".whereSize[" + str(i) + "] = outSize;"
@@ -709,6 +711,7 @@ def generate_code(tree, filename):
             print >>fo, "\t\t" + relName + ".whereSize = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
             print >>fo, "\t\t" + relName + ".whereIndex = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
             print >>fo, "\t\t" + relName + ".whereFormat = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
+            print >>fo, "\t\t" + relName + ".wherePos = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
             print >>fo, "\t\t" + relName + ".content = (char **)malloc(sizeof(char *)*" + str(whereLen) + ");"
             if keepInGpu == 0:
                 print >>fo, "\t\t" + relName + ".keepInGpu = 0;"
@@ -729,7 +732,14 @@ def generate_code(tree, filename):
                 print >>fo, "\t\tif(header.format == UNCOMPRESSED){"
                 print >>fo, "\t\t\toffset = tupleOffset *" + colLen + " + sizeof(struct columnHeader);"
                 print >>fo, "\t\t\toutSize = nextScan *" + colLen + ";"
-                print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
+
+                if(UVA == 0)
+                    print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
+                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
+                else:
+                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
+                    print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaHostMalloc((void**)&"+relName+".content["+str(i)+"],outSize));"
+
                 print >>fo, "\t\t\toutTable =(char *) mmap(0,outSize + offset,PROT_READ,MAP_SHARED,outFd,0);\n"
                 print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"],outTable + offset,outSize);"
                 print >>fo, "\t\t\tmunmap(outTable, outSize + offset);"
@@ -1152,6 +1162,7 @@ def generate_code(tree, filename):
             print >>fo, "\t\t" + relName + ".whereSize = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
             print >>fo, "\t\t" + relName + ".whereIndex = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
             print >>fo, "\t\t" + relName + ".whereFormat = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
+            print >>fo, "\t\t" + relName + ".wherePos = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
             print >>fo, "\t\t" + relName + ".content = (char **)malloc(sizeof(char *)*" + str(whereLen) + ");"
             if keepInGpu == 0:
                 print >>fo, "\t\t" + relName + ".keepInGpu = 0;"
@@ -1173,7 +1184,12 @@ def generate_code(tree, filename):
                 print >>fo, "\t\tif(header.format == UNCOMPRESSED){"
                 print >>fo, "\t\t\toffset = tupleOffset *" + colLen + " + sizeof(struct columnHeader);"
                 print >>fo, "\t\t\toutSize = nextScan *" + colLen + ";"
-                print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
+                if UVA == 0:
+                    print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
+                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
+                else:
+                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
+                    print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaHostMalloc((void**)&"+relName+".content["+str(i)+"],outSize));"
                 print >>fo, "\t\t\toutTable =(char *) mmap(0,outSize + offset,PROT_READ,MAP_SHARED,outFd,0);"
                 print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"],outTable + offset,outSize);"
                 print >>fo, "\t\t\tmunmap(outTable, outSize + offset);"
