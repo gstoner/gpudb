@@ -43,6 +43,7 @@ enum {
 // data position
 	GPU,
 	MEM,
+	UVA,
 	DISK,
 	TMPFILE,
 
@@ -107,6 +108,7 @@ struct scanNode{
 	int * whereAttrSize;		// the size of each attribute in the where condition
 	int * whereSize;		// the total size of each column in the where condition
 	int * whereFormat;		// the format of the where attribute
+	int * wherePos;			// the location of the data
 	int * whereIndex;		// the index of each col in the table
 	struct whereCondition * filter;	// the where conditioin
 	char ** content;		// the content of the attributes used in the where condition

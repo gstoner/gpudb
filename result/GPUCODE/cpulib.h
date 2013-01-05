@@ -94,8 +94,12 @@ static void freeScan(struct scanNode * rel){
 
 	int i;
         for(i=0;i<rel->whereAttrNum;i++){
-                free(rel->content[i]);
+		if(rel->wherePos[i] == MEM)
+                	free(rel->content[i]);
+		else if (rel->wherePos[i] == UVA)
+			cudaFreeHost(rel->content[i]);
         }
+	free(rel->wherePos);
         free(rel->filter);
 	rel->filter = NULL;
         free(rel->content);
@@ -118,6 +122,8 @@ static void freeTable(struct tableNode * tn){
                 	free(tn->content[i]);
 		else if(tn->dataPos[i] == GPU)
 			cudaFree(tn->content[i]);
+		else if(tn->dataPos[i] == UVA)
+			cudaHostFree(tn->content[i]);
         }
 
 	free(tn->dataPos);
