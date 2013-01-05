@@ -39,7 +39,7 @@ keepInGpu = 1
 ### type 0: the most straight forward way, the join op will executed one by one from a bottom up fashion
 ### type 1: invisiable join from abadi's paper
 
-joinType = 0 
+joinType = config.joinType 
 
 def column_to_variable(col):
     res = ""
