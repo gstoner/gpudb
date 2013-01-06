@@ -40,6 +40,7 @@ keepInGpu = 1
 ### type 1: invisiable join from abadi's paper
 
 joinType = config.joinType 
+UVA = config.UVA
 
 def column_to_variable(col):
     res = ""
@@ -397,6 +398,7 @@ def generate_code(tree, filename):
     print >>fo, "#include \"common.h\""
     print >>fo, "#include \"schema.h\""
     print >>fo, "#include \"cpulib.h\""
+    print >>fo, "#include \"gpulib.h\""
     print >>fo, "#define BLOCK  (1024*1024*500)\n"
     print >>fo, "extern void tableScan(struct scanNode *,struct statistic *);"
     print >>fo, "extern struct tableNode* hashJoin(struct joinNode *, struct statistic *);"
@@ -733,12 +735,12 @@ def generate_code(tree, filename):
                 print >>fo, "\t\t\toffset = tupleOffset *" + colLen + " + sizeof(struct columnHeader);"
                 print >>fo, "\t\t\toutSize = nextScan *" + colLen + ";"
 
-                if(UVA == 0)
+                if UVA == 0:
                     print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
+                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
                 else:
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
-                    print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaHostMalloc((void**)&"+relName+".content["+str(i)+"],outSize));"
+                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
+                    print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
 
                 print >>fo, "\t\t\toutTable =(char *) mmap(0,outSize + offset,PROT_READ,MAP_SHARED,outFd,0);\n"
                 print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"],outTable + offset,outSize);"
@@ -893,7 +895,7 @@ def generate_code(tree, filename):
                 print >>fo, "\t\tif(" + tmpName + "->dataPos[" + str(i) + "] == MEM)"
                 print >>fo, "\t\t\tfree(" + tmpName + "->content[" + str(i) + "]);"
                 print >>fo, "\t\tif(" + tmpName + "->dataPos[" + str(i) + "] == UVA)"
-                print >>fo, "\t\t\tcudaHostFree(" + tmpName + "->content[" + str(i) + "]);"
+                print >>fo, "\t\t\tcudaFreeHost(" + tmpName + "->content[" + str(i) + "]);"
                 print >>fo, "\t\telse"
                 print >>fo, "\t\t\tcudaFree(" + tmpName + "->content[" + str(i) + "]);"
         else:
@@ -905,7 +907,7 @@ def generate_code(tree, filename):
                 print >>fo, "\t\t\tif(" + tmpName + "->dataPos[" + str(i) + "] == MEM)"
                 print >>fo, "\t\t\t\tfree(" + tmpName + "->content[" + str(i) + "]);"
                 print >>fo, "\t\t\telse if("+ tmpName + "->dataPos[" + str(i) + "] == UVA)"
-                print >>fo, "\t\t\t\tcudaHostFree(" + tmpName + "->content[" + str(i) + "]);"
+                print >>fo, "\t\t\t\tcudaFreeHost(" + tmpName + "->content[" + str(i) + "]);"
                 print >>fo, "\t\t\telse"
                 print >>fo, "\t\t\t\tcudaFree(" + tmpName + "->content[" + str(i) + "]);"
 
@@ -1190,10 +1192,10 @@ def generate_code(tree, filename):
                 print >>fo, "\t\t\toutSize = nextScan *" + colLen + ";"
                 if UVA == 0:
                     print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
+                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
                 else:
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
-                    print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaHostMalloc((void**)&"+relName+".content["+str(i)+"],outSize));"
+                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
+                    print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
                 print >>fo, "\t\t\toutTable =(char *) mmap(0,outSize + offset,PROT_READ,MAP_SHARED,outFd,0);"
                 print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"],outTable + offset,outSize);"
                 print >>fo, "\t\t\tmunmap(outTable, outSize + offset);"
@@ -1404,7 +1406,7 @@ def generate_code(tree, filename):
 def ysmart_code_gen(argv,input_path,output_path):
     pwd = os.getcwd()
     resultdir = "./result"
-    codedir = "./GPUCode"
+    codedir = "./GPUCODE"
 
     tree_node = ystree.ysmart_tree_gen(argv[1],argv[2])
 

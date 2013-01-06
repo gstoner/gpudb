@@ -123,7 +123,7 @@ static void freeTable(struct tableNode * tn){
 		else if(tn->dataPos[i] == GPU)
 			cudaFree(tn->content[i]);
 		else if(tn->dataPos[i] == UVA)
-			cudaHostFree(tn->content[i]);
+			cudaFreeHost(tn->content[i]);
         }
 
 	free(tn->dataPos);

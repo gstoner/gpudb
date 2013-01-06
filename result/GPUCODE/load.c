@@ -18,7 +18,7 @@ void datewrite(FILE * fp, char *outName){
 
 	for(i=0;i<17;i++){
 		char path[32] = {0};
-		sprintf(path,"DDATE%d",i);
+		sprintf(path,"%s%d",outName,i);
 		out[i] = fopen(path,"w");
 	}
 
