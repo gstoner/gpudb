@@ -26,6 +26,12 @@ endif
 loader: load.c
 	gcc -o gpuDBLoader load.c
 
+rle: rle.c
+	gcc -std=c99 rle.c -o rleCompression
+
+dict: dict.c
+	gcc -std=c99 dict.c -o dictCompression
+
 gpudb: gpu cpu
 	 $(NVCC) -pg tableScan.o hashJoin.o materialize.o groupby.o orderBy.o driver.o $(LDFLAGS) -o GPUDATABASE
 
