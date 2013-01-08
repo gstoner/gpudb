@@ -70,8 +70,6 @@ __global__ static void count_join_result_dict(int *num, int* psum, char* bucket,
 
 }
 
-#define WARPSIZE	32
-
 // transform the dictionary filter to the final filter than can be used to generate the result
 
 __global__ static void transform_dict_filter(int * dictFilter, char *fact, long tupleNum, int dNum,  int * filter){
@@ -616,7 +614,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_dim,primaryKeySize));
 			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_dim,jNode->rightTable->content[jNode->rightKeyIndex], primaryKeySize,cudaMemcpyHostToDevice));
 
-		}else if (jNode->rightTable->dataPos[jNode->rightKeyIndex] == GPU){
+		}else if (jNode->rightTable->dataPos[jNode->rightKeyIndex] == GPU || jNode->rightTable->dataPos[jNode->rightKeyIndex] == UVA){
 			gpu_dim = jNode->rightTable->content[jNode->rightKeyIndex];
 			dimInGpu = 1;
 		}
@@ -663,7 +661,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_fact, foreignKeySize));
 			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact,jNode->leftTable->content[jNode->leftKeyIndex], foreignKeySize,cudaMemcpyHostToDevice));
 
-		}else if (pos == GPU){
+		}else if (pos == GPU || pos == UVA){
 			gpu_fact = jNode->leftTable->content[jNode->leftKeyIndex];
 			fKeyInGpu = 1;
 		}
@@ -678,7 +676,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 			int dNum;
 			struct dictHeader * dheader;
 
-			if(pos == MEM){
+			if(pos == MEM || pos == UVA){
 				dheader = (struct dictHeader *) jNode->leftTable->content[jNode->leftKeyIndex];
 				dNum = dheader->dictNum;
 
@@ -726,7 +724,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
 		count = resPsum[threadNum-1] + cpu_count[threadNum-1];
 		res->tupleNum = count;
-		printf("%d\n",count);
+		printf("joinNum %d\n",count);
 
 		if(fKeyInGpu == 0){
 			CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_fact));
@@ -823,8 +821,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 					byteNum = dheader->bitNum/8;
 					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuDictHeader,sizeof(struct dictHeader)));
 					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader),cudaMemcpyHostToDevice));
-					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table + sizeof(struct dictHeader), colSize-sizeof(struct dictHeader),cudaMemcpyHostToDevice));
+					if(dataPos == MEM){
+						CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
+						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table + sizeof(struct dictHeader), colSize-sizeof(struct dictHeader),cudaMemcpyHostToDevice));
+					}else{
+						gpu_fact = table + sizeof(struct dictHeader);
+					}
 
 					if (attrSize == sizeof(int))
 						joinFact_dict_int<<<grid,block>>>(gpu_resPsum,gpu_fact, gpuDictHeader,byteNum,attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
@@ -882,8 +884,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 					byteNum = dheader->bitNum/8;
 					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuDictHeader,sizeof(struct dictHeader)));
 					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader),cudaMemcpyHostToDevice));
-					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table + sizeof(struct dictHeader), colSize-sizeof(struct dictHeader),cudaMemcpyHostToDevice));
+					if(dataPos == MEM){
+						CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
+						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table + sizeof(struct dictHeader), colSize-sizeof(struct dictHeader),cudaMemcpyHostToDevice));
+					}else{
+						gpu_fact = table + sizeof(struct dictHeader);
+					}
 
 					if(attrType == sizeof(int))
 						joinDim_dict_int<<<grid,block>>>(gpu_resPsum,gpu_fact, gpuDictHeader,byteNum,attrSize, jNode->leftTable->tupleNum, gpuFactFilter,gpu_result);

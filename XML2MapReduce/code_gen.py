@@ -679,7 +679,12 @@ def generate_code(tree, filename):
             print >>fo, "\t\t\toffset = tupleOffset * dheader.bitNum / 8 + sizeof(struct columnHeader) + sizeof(struct dictHeader);"
             print >>fo, "\t\t\toutSize = nextScan * dheader.bitNum / 8 + sizeof(struct dictHeader);"
             print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
-            print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
+
+            if UVA == 0:
+                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
+            else:
+                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+
             print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], &dheader, sizeof(struct dictHeader));"
             print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "] + sizeof(struct dictHeader), outTable+offset, outSize - sizeof(struct dictHeader));"
             print >>fo, "\t\t\tmunmap(outTable,outSize + offset);"
@@ -690,7 +695,12 @@ def generate_code(tree, filename):
             print >>fo, "\t\t\toffset = sizeof(struct columnHeader);"
             print >>fo, "\t\t\toutSize = lseek(outFd, 0, SEEK_END) - offset;"
             print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
-            print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
+
+            if UVA == 0:
+                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
+            else:
+                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+
             print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable+offset, outSize);"
             print >>fo, "\t\t\tmunmap(outTable,outSize + offset);"
             print >>fo, "\t\t\tclose(outFd);"

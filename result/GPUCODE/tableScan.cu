@@ -486,7 +486,6 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 	int threadNum = grid.x * block.x;
 	long totalTupleNum = sn->tn->tupleNum;
 	int attrNum;
-	int compress = 0;
 
 	attrNum = sn->whereAttrNum;
 	column = (char **) malloc(attrNum * sizeof(char *));
@@ -508,7 +507,7 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 		for(int j=0;j<sn->tn->totalAttr;j++){
 			if(sn->whereIndex[i] == sn->tn->attrIndex[j]){
 				whereFree[i] = -1;
-				colWherePos[j] = i; 
+				colWherePos[j] = i;
 			}
 		}
 	}
@@ -528,23 +527,7 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 
 	struct whereCondition *where = sn->filter;
 
-/*
-	for(int i=0;i<attrNum;i++){
-		if(sn->whereFormat[i] != UNCOMPRESSED){
-			compress = 1;
-			break;
-		}
-		if(sn->whereAttrType[i] != INT){
-			compress = 2;
-			break;
-		}
-	}
-*/
-
-	//if(compress == 0){
 	if(0){
-
-	//no compression on data and the type of all columns in predicate is int
 
 		char ** gpuColumn;
 		int * gpuWhere, *cpuWhere;
@@ -625,7 +608,12 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 			char * gpuDictHeader;
 			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictHeader,sizeof(struct dictHeader)));
 			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader), cudaMemcpyHostToDevice));
-			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index]+sizeof(struct dictHeader), sn->whereSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
+
+			if(sn->wherePos[index] == MEM)
+				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index]+sizeof(struct dictHeader), sn->whereSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
+			else
+				column[index] = sn->content[index] + sizeof(struct dictHeader);
+
 			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
 			CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuDictFilter, 0 ,dNum * sizeof(int)));
 
@@ -635,8 +623,13 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 			CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictHeader));
 
 		}else if(format == RLE){
-			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index], sn->whereSize[index], cudaMemcpyHostToDevice));
-			genScanFilter_rle<<<grid,block>>>(column[0],sn->whereAttrSize[0],sn->whereAttrType[0], totalTupleNum, sn->offset,gpuExp, where->andOr, gpuFilter);
+
+			if(sn->wherePos[index] == MEM)
+				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index], sn->whereSize[index], cudaMemcpyHostToDevice));
+			else
+				column[index] = sn->content[index];
+
+			genScanFilter_rle<<<grid,block>>>(column[index],sn->whereAttrSize[index],sn->whereAttrType[index], totalTupleNum, sn->offset,gpuExp, where->andOr, gpuFilter);
 		}
 
 		CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
@@ -669,7 +662,11 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &column[index] , sn->whereSize[index]));
 
 				if(format == DICT){
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index]+sizeof(struct dictHeader), sn->whereSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
+					if(sn->wherePos[index] == MEM)
+						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index]+sizeof(struct dictHeader), sn->whereSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
+					else
+						column[index] = sn->content[index] + sizeof(struct dictHeader);
+
 					struct dictHeader * dheader = (struct dictHeader *)sn->content[index];
 					dNum = dheader->dictNum;
 					byteNum = dheader->bitNum/8;
@@ -772,8 +769,9 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 	
 		if(whereFree[prev] == 1 && sn->wherePos[prev] == MEM)
 			CUDA_SAFE_CALL_NO_SYNC(cudaFree(column[prev]));
+
 		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuExp));
-	// end of compress !=0
+
 	}
 
 	countScanNum<<<grid,block>>>(gpuFilter,totalTupleNum,gpuCount);
@@ -801,13 +799,7 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 	scanCol = (char **) malloc(attrNum * sizeof(char *));
 	result = (char **) malloc(attrNum * sizeof(char *));
 	
-	compress = 0;
 	for(int i=0;i<attrNum;i++){
-
-		if(sn->tn->dataFormat[i] != UNCOMPRESSED)
-			compress = 1;
-		if(sn->tn->attrSize[i] != sizeof(int))
-			compress = 1;
 
 		int pos = colWherePos[i];
 
@@ -817,25 +809,24 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 			if(sn->tn->dataPos[i] == MEM)
 				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &scanCol[i] , sn->tn->attrTotalSize[i]));
 
-			if(sn->tn->dataFormat[i] == RLE)
-				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(scanCol[i], sn->tn->content[i], sn->tn->attrTotalSize[i], cudaMemcpyHostToDevice));
-			else if(sn->tn->dataFormat[i] == UNCOMPRESSED){
+			if(sn->tn->dataFormat[i] != DICT){
 				if(sn->tn->dataPos[i] == MEM)
 					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(scanCol[i], sn->tn->content[i], sn->tn->attrTotalSize[i], cudaMemcpyHostToDevice));
 				else
 					scanCol[i] = sn->tn->content[i];
 
-			}else
-				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(scanCol[i], sn->tn->content[i]+sizeof(struct dictHeader), sn->tn->attrTotalSize[i]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
+			}else{
+				if(sn->tn->dataPos[i] == MEM)
+					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(scanCol[i], sn->tn->content[i]+sizeof(struct dictHeader), sn->tn->attrTotalSize[i]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
+				else
+					scanCol[i] = sn->tn->content[i] + sizeof(struct dictHeader);
+			}
 		}
 
 		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &result[i], count * sn->tn->attrSize[i]));
 	}
 
-	//if(compress == 0){
 	if(0){
-
-// projected columns are uncompressed and int
 
 		char ** gpuColumn;
 		char ** gpuResult;
