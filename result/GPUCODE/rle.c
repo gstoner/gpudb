@@ -13,7 +13,7 @@
 int main(int argc, char ** argv){
 
 	if(argc != 3){
-		printf("./rle inputColumn outputColumn\n");
+		printf("./rleCompresssion inputColumn outputColumn\n");
 		exit(-1);
 	}
 

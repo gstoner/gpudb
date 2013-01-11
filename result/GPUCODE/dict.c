@@ -17,7 +17,7 @@ int main(int argc, char ** argv){
 	int res = 0;
 
 	if(argc !=3 ){
-		printf("Usage: dictEncoding inputColumn outputColumn\n");
+		printf("Usage: dictCompression inputColumn outputColumn\n");
 		exit(-1);
 	}
 
