@@ -98,8 +98,8 @@ static void primarySort(struct sortObject * obj, int num){
 
 int main(int argc, char **argv){
 
-	if(argc != 3){
-		printf("./primarySort inputPrefix outputPrefix\n");
+	if(argc != 4){
+		printf("./primarySort inputPrefix outputPrefix index\n");
 		exit(-1);
 	}
 
@@ -107,7 +107,7 @@ int main(int argc, char **argv){
 	int primaryIndex, largestIndex;
 	struct columnHeader header;
 
-	primaryIndex = 3;
+	primaryIndex = argv[3];
 	largestIndex = 16; 
 
 	char buf[32] = {0};
@@ -179,7 +179,7 @@ int main(int argc, char **argv){
 		close(inFd);
 
 		sprintf(buf,"%s%d",argv[2],i);
-		int outFd = open(buf, O_RDWR|O_CREAT);
+		int outFd = open(buf, O_RDWR|O_CREAT,S_IRWXU|S_IRUSR);
 		if(outFd == -1){
 			printf("Failed to create output column\n");
 			exit(-1);

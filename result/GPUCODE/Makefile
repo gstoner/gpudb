@@ -26,6 +26,9 @@ endif
 loader: load.c
 	gcc -o gpuDBLoader load.c
 
+sort: columnSort.c
+	gcc -o columnSort columnSort.c -std=c99 
+
 rle: rle.c
 	gcc -std=c99 rle.c -o rleCompression
 
