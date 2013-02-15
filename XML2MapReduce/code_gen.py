@@ -74,7 +74,7 @@ def generate_loader():
 
     schema = ystree.global_table_dict
 
-    fo = open("testload.c","w")
+    fo = open("load.c","w")
     print >>fo, "#define _FILE_OFFSET_BITS       64"
     print >>fo, "#define _LARGEFILE_SOURCE"
     print >>fo, "#include <stdio.h>"
