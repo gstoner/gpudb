@@ -1549,14 +1549,12 @@ def ysmart_code_gen(argv):
     resultdir = "./result"
     codedir = "./GPUCODE"
 
-    tree_node = ystree.ysmart_tree_gen(argv[1],argv[2])
+    if len(sys.argv) == 3:
+        tree_node = ystree.ysmart_tree_gen(argv[1],argv[2])
+    elif len(sys.argv) == 2:
+        tree_node = ystree.ysmart_tree_gen(argv[1], None)
 
-    if argv[2] is None:
-        generate_schema_file()
-        generate_loader()
-        exit(0)
-
-    elif tree_node is None:
+    if len(sys.argv) == 3 and tree_node is None:
         exit(-1)
 
     if os.path.exists(resultdir) is False:
@@ -1569,7 +1567,10 @@ def ysmart_code_gen(argv):
     os.chdir(codedir)
 
     generate_schema_file()
-    generate_code(tree_node)
+    generate_loader()
+
+    if len(sys.argv) == 3:
+        generate_code(tree_node)
 
     os.chdir(pwd)
 
