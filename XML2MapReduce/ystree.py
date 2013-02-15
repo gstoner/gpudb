@@ -4729,6 +4729,9 @@ def list_contain_exp(exp_list,exp):
 def ysmart_tree_gen(schema,xml_file):
 
     process_schema_in_a_file(schema)
+
+    if xml_file is None:
+        return None
     
     thenode = get_the_select_node_from_a_file(xml_file)
 

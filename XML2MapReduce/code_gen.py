@@ -69,6 +69,128 @@ def generate_schema_file():
     print >>fo, "#endif"
     fo.close()
 
+def generate_loader():
+    global schema
+
+    schema = ystree.global_table_dict
+
+    fo = open("testload.c","w")
+    print >>fo, "#define _FILE_OFFSET_BITS       64"
+    print >>fo, "#define _LARGEFILE_SOURCE"
+    print >>fo, "#include <stdio.h>"
+    print >>fo, "#include <stdlib.h>"
+    print >>fo, "#include <error.h>"
+    print >>fo, "#include <unistd.h>"
+    print >>fo, "#include <string.h>"
+    print >>fo, "#include <getopt.h>"
+    print >>fo, "#include \"schema.h\""
+    print >>fo, "#include \"common.h\""
+    print >>fo, "\n"
+
+    for tn in schema.keys():
+        attrLen = len(schema[tn].column_list)
+
+        print >>fo, "void " + tn.lower() + " (FILE *fp, char *outName){\n"
+
+        print >>fo, "\tstruct " + tn.lower() + " tmp;"
+        print >>fo, "\tchar data [64] = {0};"
+        print >>fo, "\tchar buf[512] = {0};"
+        print >>fo, "\tint count = 0, i = 0,prev = 0;"
+        print >>fo, "\tFILE * out[" + str(attrLen) + "];\n"
+
+        print >>fo, "\tfor(i=0;i<" + str(attrLen) + ";i++){"
+        print >>fo, "\t\tchar path[64] = {0};"
+        print >>fo, "\t\tsprintf(path,\"%s%d\",outName,i);"
+        print >>fo, "\t\tout[i] = fopen(path, \"w\");"
+        print >>fo, "\t}\n"
+
+        print >>fo, "\tstruct columnHeader header;"
+        print >>fo, "\tlong tupleNum = 0;"
+        print >>fo, "\twhile(fgets(buf,sizeof(buf),fp) !=NULL)"
+        print >>fo, "\t\ttupleNum ++;"
+
+        print >>fo, "\theader.tupleNum = tupleNum;"
+        print >>fo, "\theader.format = UNCOMPRESSED;"
+
+        print >>fo, "\tfseek(fp,0,SEEK_SET);"
+
+        print >>fo, "\tfor(i=0;i<" + str(attrLen) + ";i++){"
+        print >>fo, "\t\tfwrite(&header, sizeof(struct columnHeader), 1, out[i]);"
+        print >>fo, "\t}\n"
+
+        print >>fo, "\twhile(fgets(buf,sizeof(buf),fp)!= NULL){"
+        print >>fo, "\t\tfor(i = 0, prev = 0,count=0; buf[i] !='\\n';i++){"
+        print >>fo, "\t\t\tmemset(data,0,sizeof(data));"
+        print >>fo, "\t\t\tif (buf[i] == '|'){"
+        print >>fo, "\t\t\t\tstrncpy(data,buf+prev,i-prev);"
+        print >>fo, "\t\t\t\tprev = i+1;"
+        print >>fo, "\t\t\t\tswitch(count){"
+
+        for i in range(0,attrLen-1):
+            col = schema[tn].column_list[i]
+            print >>fo, "\t\t\t\t\t case " + str(i) + ":"
+
+            if col.column_type == "INTEGER" or col.column_type == "DATE":
+                print >>fo, "\t\t\t\t\t\ttmp."+str(col.column_name.lower()) + " = strtol(data,NULL,10);"
+                print >>fo, "\t\t\t\t\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(int),1,out["+str(i) + "]);"
+            elif col.column_type == "DECIMAL":
+                pass
+            elif col.column_type == "TEXT":
+                print >>fo, "\t\t\t\t\t\tstrcpy(tmp." + str(col.column_name.lower()) + ",data);"
+                print >>fo, "\t\t\t\t\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(tmp." +str(col.column_name.lower()) + "), 1, out[" + str(i) + "]);"
+
+            print >>fo, "\t\t\t\t\t\tbreak;"
+
+        print >>fo, "\t\t\t\t}"
+        print >>fo, "\t\t\t\tcount++;"
+
+        print >>fo, "\t\t\t}"
+        print >>fo, "\t\t}"
+
+        col = schema[tn].column_list[attrLen-1]
+        if col.column_type == "INTEGER" or col.column_type == "DATE":
+            print >>fo, "\t\ttmp."+str(col.column_name.lower()) + " = strtol(data,NULL,10);"
+            print >>fo, "\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(int),1,out["+str(attrLen-1) + "]);"
+        elif col.column_type == "DECIMAL":
+            pass
+        elif col.column_type == "TEXT":
+            print >>fo, "\t\tstrncpy(tmp." + str(col.column_name.lower()) + ",buf+prev,i-prev);"
+            print >>fo, "\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(tmp." +str(col.column_name.lower()) + "), 1, out[" + str(attrLen-1) + "]);"
+        print >>fo, "\t}\n"
+
+        print >>fo, "\tfor(i=0;i<" + str(attrLen) + ";i++){"
+        print >>fo, "\t\tfclose(out[i]);"
+        print >>fo, "\t}"
+
+        print >>fo, "\n}\n"
+
+    print >>fo, "int main(int argc, char ** argv){\n"
+    print >>fo, "\tFILE * in = NULL, *out = NULL;"
+    print >>fo, "\tint table;"
+    print >>fo, "\tint long_index;"
+
+    print >>fo, "\tstruct option long_options[] = {"
+    for i in range(0, len(schema.keys())):
+        print >>fo, "\t\t{\"" + schema.keys()[i].lower()+ "\",required_argument,0,'" + str(i) + "'},"
+    print >>fo, "\t};\n"
+
+    print >>fo, "\twhile((table=getopt_long(argc,argv,\"\",long_options,&long_index))!=-1){"
+    print >>fo, "\t\tswitch(table){"
+    for i in range(0, len(schema.keys())):
+        print >>fo, "\t\t\tcase '" + str(i) + "':"
+        print >>fo, "\t\t\t\tin = fopen(optarg,\"r\");"
+        print >>fo, "\t\t\t\t" + schema.keys()[i].lower() + "(in,\"" + schema.keys()[i] + "\");"
+        print >>fo, "\t\t\t\tfclose(in);"
+        print >>fo, "\t\t\t\tbreak;"
+    print >>fo, "\t\t}"
+    print >>fo, "\t}\n"
+
+    print >>fo, "\treturn 0;"
+
+    print >>fo, "}\n"
+
+    fo.close()
+
 class columnAttr(object):
     type = None
     size = None
@@ -383,7 +505,7 @@ def printMathFunc(fo,prefix, mathFunc):
         printMathFunc(fo,prefix1,mathFunc.leftOp)
         printMathFunc(fo,prefix2,mathFunc.rightOp)
 
-def generate_code(tree, filename):
+def generate_code(tree):
     fo = open("driver.cu","w")
 
     print >>fo, "#include <stdio.h>"
@@ -1422,14 +1544,19 @@ def generate_code(tree, filename):
 
     fo.close()
 
-def ysmart_code_gen(argv,input_path,output_path):
+def ysmart_code_gen(argv):
     pwd = os.getcwd()
     resultdir = "./result"
     codedir = "./GPUCODE"
 
     tree_node = ystree.ysmart_tree_gen(argv[1],argv[2])
 
-    if tree_node is None:
+    if argv[2] is None:
+        generate_schema_file()
+        generate_loader()
+        exit(0)
+
+    elif tree_node is None:
         exit(-1)
 
     if os.path.exists(resultdir) is False:
@@ -1442,8 +1569,7 @@ def ysmart_code_gen(argv,input_path,output_path):
     os.chdir(codedir)
 
     generate_schema_file()
-
-    generate_code(tree_node,config.queryname)
+    generate_code(tree_node)
 
     os.chdir(pwd)
 

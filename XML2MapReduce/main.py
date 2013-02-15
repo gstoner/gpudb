@@ -22,13 +22,8 @@ import config
 
 if __name__ == '__main__':
 
-    if len(sys.argv) !=6: 
+    if len(sys.argv) !=3:
         exit(19)
 
-    config.queryname = sys.argv[3]
-    config.scriptname = config.queryname + ".script"
-    config.input_path = sys.argv[4]
-    config.output_path = sys.argv[5]
-
-    code_gen.ysmart_code_gen(sys.argv,config.input_path,config.output_path)
+    code_gen.ysmart_code_gen(sys.argv)
 
