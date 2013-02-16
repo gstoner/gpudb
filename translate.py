@@ -37,8 +37,10 @@ def genXMLTree(queryFile, tmpFilePath):
 def genGPUCode(schemaFile, tmpFilePath):
     #print 'TODO: call job generation program in ./bin/'
     os.chdir(CURRENT_DIR)
-    cmd = 'python XML2MapReduce/main.py ' + schemaFile + ' ' + tmpFilePath 
-    print cmd
+    if tmpFilePath is None:
+        cmd = 'python XML2MapReduce/main.py ' + schemaFile
+    else:
+        cmd = 'python XML2MapReduce/main.py ' + schemaFile + ' ' + tmpFilePath 
     subprocess.check_call(cmd, shell=True)
 
 def print_usage():
