@@ -136,7 +136,8 @@ def generate_loader():
                 print >>fo, "\t\t\t\t\t\ttmp."+str(col.column_name.lower()) + " = strtol(data,NULL,10);"
                 print >>fo, "\t\t\t\t\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(int),1,out["+str(i) + "]);"
             elif col.column_type == "DECIMAL":
-                pass
+                print >>fo, "\t\t\t\t\t\ttmp."+str(col.column_name.lower()) + " = atof(data);"
+                print >>fo, "\t\t\t\t\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(float),1,out["+str(i) + "]);"
             elif col.column_type == "TEXT":
                 print >>fo, "\t\t\t\t\t\tstrcpy(tmp." + str(col.column_name.lower()) + ",data);"
                 print >>fo, "\t\t\t\t\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(tmp." +str(col.column_name.lower()) + "), 1, out[" + str(i) + "]);"
@@ -154,7 +155,8 @@ def generate_loader():
             print >>fo, "\t\ttmp."+str(col.column_name.lower()) + " = strtol(data,NULL,10);"
             print >>fo, "\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(int),1,out["+str(attrLen-1) + "]);"
         elif col.column_type == "DECIMAL":
-            pass
+            print >>fo, "\t\t\t\t\t\ttmp."+str(col.column_name.lower()) + " = atof(data);"
+            print >>fo, "\t\t\t\t\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(float),1,out["+str(i) + "]);"
         elif col.column_type == "TEXT":
             print >>fo, "\t\tstrncpy(tmp." + str(col.column_name.lower()) + ",buf+prev,i-prev);"
             print >>fo, "\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(tmp." +str(col.column_name.lower()) + "), 1, out[" + str(attrLen-1) + "]);"
