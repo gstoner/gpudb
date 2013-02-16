@@ -87,6 +87,8 @@ def generate_loader():
     print >>fo, "#include \"common.h\""
     print >>fo, "\n"
 
+    print >>fo, "static char delimiter = '|';"
+
     for tn in schema.keys():
         attrLen = len(schema[tn].column_list)
 
@@ -121,7 +123,7 @@ def generate_loader():
         print >>fo, "\twhile(fgets(buf,sizeof(buf),fp)!= NULL){"
         print >>fo, "\t\tfor(i = 0, prev = 0,count=0; buf[i] !='\\n';i++){"
         print >>fo, "\t\t\tmemset(data,0,sizeof(data));"
-        print >>fo, "\t\t\tif (buf[i] == '|'){"
+        print >>fo, "\t\t\tif (buf[i] == delimiter){"
         print >>fo, "\t\t\t\tstrncpy(data,buf+prev,i-prev);"
         print >>fo, "\t\t\t\tprev = i+1;"
         print >>fo, "\t\t\t\tswitch(count){"
@@ -172,6 +174,8 @@ def generate_loader():
     print >>fo, "\tstruct option long_options[] = {"
     for i in range(0, len(schema.keys())):
         print >>fo, "\t\t{\"" + schema.keys()[i].lower()+ "\",required_argument,0,'" + str(i) + "'},"
+
+    print >>fo, "\t\t{\"delimiter\",required_argument,0,'" +str(i+1) + "'}"
     print >>fo, "\t};\n"
 
     print >>fo, "\twhile((table=getopt_long(argc,argv,\"\",long_options,&long_index))!=-1){"
@@ -182,6 +186,10 @@ def generate_loader():
         print >>fo, "\t\t\t\t" + schema.keys()[i].lower() + "(in,\"" + schema.keys()[i] + "\");"
         print >>fo, "\t\t\t\tfclose(in);"
         print >>fo, "\t\t\t\tbreak;"
+
+    print >>fo, "\t\t\tcase '" + str(i+1) + "':"
+    print >>fo, "\t\t\t\tdelimiter = optarg[0];"
+    print >>fo, "\t\t\t\tbreak;"
     print >>fo, "\t\t}"
     print >>fo, "\t}\n"
 
