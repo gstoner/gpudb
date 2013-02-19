@@ -468,6 +468,7 @@ __global__ void static unpack_rle(char * fact, char * rle, long tupleNum, long t
 		}
 	}
 }
+
 static void gpuScan(struct scanNode *sn, struct statistic *pp){
 
 	char ** column;
@@ -921,8 +922,8 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 
 }
 
-
-/* Prerequisites:
+/*
+ * tableScan Prerequisites:
  *	1. the input data can be fit into GPU device memory
  *	2. input data are stored in host memory
  * 

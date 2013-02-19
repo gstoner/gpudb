@@ -502,33 +502,21 @@ __global__ void static joinDim_other(int *resPsum, char * dim, int attrSize, lon
 	}
 }
 
-static void buildHashPlan(long size, int * pass){
-	int gpuMem = getGpuGlobalMem(0);
 
-	*pass = 3*size / gpuMem + 1; 
-}
-
-static void joinPlan(struct joinNode *jNode,  int * pass, int * max){
-	int gpuMem = getGpuGlobalMem(0);
-	int i;
-	int maxAttrSize = -1;
-
-	for(i=0;i<jNode->leftOutputAttrNum;i++){
-		int index = jNode->leftOutputIndex[i];
-		if(maxAttrSize < jNode->leftTable->attrSize[index])
-			maxAttrSize = jNode->leftTable->attrSize[index];
-	}
-
-	for(i=0;i<jNode->rightOutputAttrNum;i++){
-		int index = jNode->rightOutputIndex[i];
-		if(maxAttrSize < jNode->rightTable->attrSize[index])
-			maxAttrSize = jNode->rightTable->attrSize[index];
-	}
-
-	*pass = (2 * maxAttrSize + sizeof(int)) * jNode->leftTable->tupleNum / gpuMem + 1;
-	*max = maxAttrSize;
-}
-
+/*
+ * hashJoin implements the foreign key join between a fact table and dimension table.
+ *
+ * Prerequisites:
+ *	1. the data to be joined can be fit into GPU device memory.
+ *	2. dimension table is not compressed
+ *	
+ * Input:
+ *	jNode: contains information about the two joined tables.
+ *	pp: records statistics such as kernel execution time
+ *
+ * Output:
+ * 	A new table node
+ */
 
 struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	struct tableNode * res = NULL;
@@ -543,7 +531,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	int * gpu_count,  *gpu_psum, *gpu_resPsum;
 
 	int defaultBlock = 2048;
-
 
 	dim3 grid(defaultBlock);
 	dim3 block(256);
@@ -600,43 +587,33 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_count,sizeof(int)*threadNum));
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_resPsum,sizeof(int)*threadNum));
 
-	int pass = 0;
-	buildHashPlan(primaryKeySize,&pass);
+	int dimInGpu = 0;
+	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_psum,HSIZE*sizeof(int)));
+	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_bucket, 2*primaryKeySize));
+	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_psum1,HSIZE*sizeof(int)));
 
-	if(pass == 1){
+	if(jNode->rightTable->dataPos[jNode->rightKeyIndex] == MEM){
+		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_dim,primaryKeySize));
+		CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_dim,jNode->rightTable->content[jNode->rightKeyIndex], primaryKeySize,cudaMemcpyHostToDevice));
 
-		int dimInGpu = 0;
-		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_psum,HSIZE*sizeof(int)));
-		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_bucket, 2*primaryKeySize));
-		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_psum1,HSIZE*sizeof(int)));
-
-		if(jNode->rightTable->dataPos[jNode->rightKeyIndex] == MEM){
-			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_dim,primaryKeySize));
-			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_dim,jNode->rightTable->content[jNode->rightKeyIndex], primaryKeySize,cudaMemcpyHostToDevice));
-
-		}else if (jNode->rightTable->dataPos[jNode->rightKeyIndex] == GPU || jNode->rightTable->dataPos[jNode->rightKeyIndex] == UVA){
-			gpu_dim = jNode->rightTable->content[jNode->rightKeyIndex];
-			dimInGpu = 1;
-		}
-
-		count_hash_num<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,gpu_hashNum);
-		cudaDeviceSynchronize();
-
-		scanImpl(gpu_hashNum,HSIZE,gpu_psum, pp);
-
-		CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_psum1,gpu_psum,sizeof(int)*HSIZE,cudaMemcpyDeviceToDevice));
-
-		build_hash_table<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,gpu_psum1,gpu_bucket);
-
-		if (dimInGpu == 0)
-			CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_dim));
-
-		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_psum1));
-
-	}else{
-		printf("Not supported yet: the size of dimension table is larger than the available GPU memory!");
-		exit(-1);
+	}else if (jNode->rightTable->dataPos[jNode->rightKeyIndex] == GPU || jNode->rightTable->dataPos[jNode->rightKeyIndex] == UVA){
+		gpu_dim = jNode->rightTable->content[jNode->rightKeyIndex];
+		dimInGpu = 1;
 	}
+
+	count_hash_num<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,gpu_hashNum);
+	cudaDeviceSynchronize();
+
+	scanImpl(gpu_hashNum,HSIZE,gpu_psum, pp);
+
+	CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_psum1,gpu_psum,sizeof(int)*HSIZE,cudaMemcpyDeviceToDevice));
+
+	build_hash_table<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,gpu_psum1,gpu_bucket);
+
+	if (dimInGpu == 0)
+		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_dim));
+
+	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_psum1));
 
 
 /*
@@ -646,405 +623,285 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	int *gpuFactFilter;
 	int maxAttrSize;
 
-	joinPlan(jNode, &pass, &maxAttrSize);
+	int fKeyInGpu = 0;
+	int pos = jNode->leftTable->dataPos[jNode->leftKeyIndex];
+	int format = jNode->leftTable->dataFormat[jNode->leftKeyIndex];
 
-	if(1){
+	long foreignKeySize = jNode->leftTable->attrTotalSize[jNode->leftKeyIndex];
+	long filterSize = jNode->leftTable->attrSize[jNode->leftKeyIndex] * jNode->leftTable->tupleNum;
 
-		int fKeyInGpu = 0;
-		int pos = jNode->leftTable->dataPos[jNode->leftKeyIndex];
-		int format = jNode->leftTable->dataFormat[jNode->leftKeyIndex];
+	if(pos == MEM){
+		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_fact, foreignKeySize));
+		CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact,jNode->leftTable->content[jNode->leftKeyIndex], foreignKeySize,cudaMemcpyHostToDevice));
 
-		long foreignKeySize = jNode->leftTable->attrTotalSize[jNode->leftKeyIndex];
-		long filterSize = jNode->leftTable->attrSize[jNode->leftKeyIndex] * jNode->leftTable->tupleNum;
+	}else if (pos == GPU || pos == UVA){
+		gpu_fact = jNode->leftTable->content[jNode->leftKeyIndex];
+		fKeyInGpu = 1;
+	}
 
-		if(pos == MEM){
-			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_fact, foreignKeySize));
-			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact,jNode->leftTable->content[jNode->leftKeyIndex], foreignKeySize,cudaMemcpyHostToDevice));
+	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuFactFilter,filterSize));
+	CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuFactFilter,0,filterSize));
 
-		}else if (pos == GPU || pos == UVA){
-			gpu_fact = jNode->leftTable->content[jNode->leftKeyIndex];
-			fKeyInGpu = 1;
+	if(format == UNCOMPRESSED)
+		count_join_result<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, gpu_count,gpuFactFilter);
+
+	else if(format == DICT){
+		int dNum;
+		struct dictHeader * dheader;
+
+		if(pos == MEM || pos == UVA){
+			dheader = (struct dictHeader *) jNode->leftTable->content[jNode->leftKeyIndex];
+			dNum = dheader->dictNum;
+
+		}else if (pos == GPU){
+			dheader = (struct dictHeader *) malloc(sizeof(struct dictHeader));
+			memset(dheader,0,sizeof(struct dictHeader));
+			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(dheader,gpu_fact,sizeof(struct dictHeader), cudaMemcpyDeviceToHost));
+			dNum = dheader->dictNum;
 		}
+		free(dheader);
 
-		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuFactFilter,filterSize));
-		CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuFactFilter,0,filterSize));
-
-		if(format == UNCOMPRESSED)
-			count_join_result<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, gpu_count,gpuFactFilter);
-
-		else if(format == DICT){
-			int dNum;
-			struct dictHeader * dheader;
-
-			if(pos == MEM || pos == UVA){
-				dheader = (struct dictHeader *) jNode->leftTable->content[jNode->leftKeyIndex];
-				dNum = dheader->dictNum;
-
-			}else if (pos == GPU){
-				dheader = (struct dictHeader *) malloc(sizeof(struct dictHeader));
-				memset(dheader,0,sizeof(struct dictHeader));
-				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(dheader,gpu_fact,sizeof(struct dictHeader), cudaMemcpyDeviceToHost));
-				dNum = dheader->dictNum;
-			}
-			free(dheader);
-
-			int * gpuDictFilter;
-			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
-			CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuDictFilter, 0 ,dNum * sizeof(int)));
+		int * gpuDictFilter;
+		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
+		CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuDictFilter, 0 ,dNum * sizeof(int)));
 
 
-			count_join_result_dict<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, dNum, gpuDictFilter);
-			CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
-
-			transform_dict_filter<<<grid,block>>>(gpuDictFilter, gpu_fact, jNode->leftTable->tupleNum, dNum, gpuFactFilter);
-			CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
-
-			CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictFilter));
-
-			filter_count<<<grid,block>>>(jNode->leftTable->tupleNum, gpu_count, gpuFactFilter);
-
-		}else if (format == RLE){
-
-			count_join_result_rle<<<512,64>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, jNode->leftTable->offset,gpuFactFilter);
-			CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
-
-			filter_count<<<grid, block>>>(jNode->leftTable->tupleNum, gpu_count, gpuFactFilter);
-		}
-
+		count_join_result_dict<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, dNum, gpuDictFilter);
 		CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
-		cpu_count = (int *) malloc(sizeof(int)*threadNum);
-		memset(cpu_count,0,sizeof(int)*threadNum);
-		CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(cpu_count,gpu_count,sizeof(int)*threadNum,cudaMemcpyDeviceToHost));
-		resPsum = (int *) malloc(sizeof(int)*threadNum);
-		memset(resPsum,0,sizeof(int)*threadNum);
-		scanImpl(gpu_count,threadNum,gpu_resPsum, pp);
+		transform_dict_filter<<<grid,block>>>(gpuDictFilter, gpu_fact, jNode->leftTable->tupleNum, dNum, gpuFactFilter);
+		CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
-		CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(resPsum,gpu_resPsum,sizeof(int)*threadNum,cudaMemcpyDeviceToHost));
+		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictFilter));
 
-		count = resPsum[threadNum-1] + cpu_count[threadNum-1];
-		res->tupleNum = count;
-		printf("joinNum %d\n",count);
+		filter_count<<<grid,block>>>(jNode->leftTable->tupleNum, gpu_count, gpuFactFilter);
 
-		if(fKeyInGpu == 0){
-			CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_fact));
+	}else if (format == RLE){
+
+		count_join_result_rle<<<512,64>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, jNode->leftTable->offset,gpuFactFilter);
+		CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
+
+		filter_count<<<grid, block>>>(jNode->leftTable->tupleNum, gpu_count, gpuFactFilter);
+	}
+
+	CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
+
+	cpu_count = (int *) malloc(sizeof(int)*threadNum);
+	memset(cpu_count,0,sizeof(int)*threadNum);
+	CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(cpu_count,gpu_count,sizeof(int)*threadNum,cudaMemcpyDeviceToHost));
+	resPsum = (int *) malloc(sizeof(int)*threadNum);
+	memset(resPsum,0,sizeof(int)*threadNum);
+	scanImpl(gpu_count,threadNum,gpu_resPsum, pp);
+
+	CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(resPsum,gpu_resPsum,sizeof(int)*threadNum,cudaMemcpyDeviceToHost));
+
+	count = resPsum[threadNum-1] + cpu_count[threadNum-1];
+	res->tupleNum = count;
+	printf("joinNum %d\n",count);
+
+	if(fKeyInGpu == 0){
+		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_fact));
+	}
+
+	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_bucket));
+		
+	free(resPsum);
+	free(cpu_count);
+
+	for(i=0; i<res->totalAttr; i++){
+		int index, pos;
+		long colSize = 0, resSize = 0;
+		int leftRight = 0;
+
+		int attrSize, attrType;
+		char * table;
+		int found = 0 , dataPos, format;
+
+		if (jNode->keepInGpu[i] == 1)
+			res->dataPos[i] = GPU;
+		else
+			res->dataPos[i] = MEM;
+
+		for(int k=0;k<jNode->leftOutputAttrNum;k++){
+			if (jNode->leftPos[k] == i){
+				found = 1;
+				leftRight = 0;
+				pos = k;
+				break;
+			}
 		}
-
-		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_bucket));
-			
-		free(resPsum);
-		free(cpu_count);
-
-		for(i=0; i<res->totalAttr; i++){
-			int index, pos;
-			long colSize = 0, resSize = 0;
-			int leftRight = 0;
-
-			int attrSize, attrType;
-			char * table;
-			int found = 0 , dataPos, format;
-
-			if (jNode->keepInGpu[i] == 1)
-				res->dataPos[i] = GPU;
-			else
-				res->dataPos[i] = MEM;
-
-			for(int k=0;k<jNode->leftOutputAttrNum;k++){
-				if (jNode->leftPos[k] == i){
+		if(!found){
+			for(int k=0;k<jNode->rightOutputAttrNum;k++){
+				if(jNode->rightPos[k] == i){
 					found = 1;
-					leftRight = 0;
+					leftRight = 1;
 					pos = k;
 					break;
 				}
 			}
-			if(!found){
-				for(int k=0;k<jNode->rightOutputAttrNum;k++){
-					if(jNode->rightPos[k] == i){
-						found = 1;
-						leftRight = 1;
-						pos = k;
-						break;
-					}
-				}
-			}
-
-			if(leftRight == 0){
-				index = jNode->leftOutputIndex[pos];
-				dataPos = jNode->leftTable->dataPos[index];
-				format = jNode->leftTable->dataFormat[index];
-
-				table = jNode->leftTable->content[index];
-				attrSize  = jNode->leftTable->attrSize[index];
-				attrType  = jNode->leftTable->attrType[index];
-				colSize = jNode->leftTable->attrTotalSize[index];
-
-				resSize = res->tupleNum * attrSize;
-			}else{
-				index = jNode->rightOutputIndex[pos];
-				dataPos = jNode->rightTable->dataPos[index];
-				format = jNode->rightTable->dataFormat[index];
-
-				table = jNode->rightTable->content[index];
-				attrSize = jNode->rightTable->attrSize[index];
-				attrType = jNode->rightTable->attrType[index];
-				colSize = jNode->rightTable->attrTotalSize[index];
-
-				resSize = attrSize * res->tupleNum;
-				leftRight = 1;
-			}
-
-
-			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_result,resSize));
-
-			if(leftRight == 0){
-				if(format == UNCOMPRESSED){
-
-					if(dataPos == MEM){
-						CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
-						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
-					}else{
-						gpu_fact = table;
-					}
-
-					if(attrSize == sizeof(int))
-						joinFact_int<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
-					else
-						joinFact_other<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
-
-				}else if (format == DICT){
-					struct dictHeader * dheader;
-					int byteNum;
-					char * gpuDictHeader;
-					assert(dataPos == MEM);
-
-					dheader = (struct dictHeader *)table;
-					byteNum = dheader->bitNum/8;
-					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuDictHeader,sizeof(struct dictHeader)));
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader),cudaMemcpyHostToDevice));
-					if(dataPos == MEM){
-						CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
-						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table + sizeof(struct dictHeader), colSize-sizeof(struct dictHeader),cudaMemcpyHostToDevice));
-					}else{
-						gpu_fact = table + sizeof(struct dictHeader);
-					}
-
-					if (attrSize == sizeof(int))
-						joinFact_dict_int<<<grid,block>>>(gpu_resPsum,gpu_fact, gpuDictHeader,byteNum,attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
-					else
-						joinFact_dict_other<<<grid,block>>>(gpu_resPsum,gpu_fact, gpuDictHeader,byteNum,attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
-
-					CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictHeader));
-
-				}else if (format == RLE){
-
-					if(dataPos == MEM){
-						CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
-						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
-					}else{
-						gpu_fact = table;
-					}
-
-					int dNum = (colSize - sizeof(struct rleHeader))/(3*sizeof(int));
-
-					char * gpuRle;
-					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuRle, jNode->leftTable->tupleNum * sizeof(int)));
-
-					unpack_rle<<<grid,block>>>(gpu_fact, gpuRle,jNode->leftTable->tupleNum, jNode->leftTable->offset, dNum);
-
-					CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
-
-					joinFact_int<<<grid,block>>>(gpu_resPsum,gpuRle, attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
-
-					CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuRle));
-
-				}
-
-			}else{
-				if(format == UNCOMPRESSED){
-
-					if(dataPos == MEM){
-						CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
-						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
-					}else{
-						gpu_fact = table;
-					}
-
-					if(attrType == sizeof(int))
-						joinDim_int<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum, gpuFactFilter,gpu_result);
-					else
-						joinDim_other<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum, gpuFactFilter,gpu_result);
-
-				}else if (format == DICT){
-					struct dictHeader * dheader;
-					int byteNum;
-					char * gpuDictHeader;
-					assert(dataPos == MEM);
-
-					dheader = (struct dictHeader *)table;
-					byteNum = dheader->bitNum/8;
-					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuDictHeader,sizeof(struct dictHeader)));
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader),cudaMemcpyHostToDevice));
-					if(dataPos == MEM){
-						CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
-						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table + sizeof(struct dictHeader), colSize-sizeof(struct dictHeader),cudaMemcpyHostToDevice));
-					}else{
-						gpu_fact = table + sizeof(struct dictHeader);
-					}
-
-					if(attrType == sizeof(int))
-						joinDim_dict_int<<<grid,block>>>(gpu_resPsum,gpu_fact, gpuDictHeader,byteNum,attrSize, jNode->leftTable->tupleNum, gpuFactFilter,gpu_result);
-					else
-						joinDim_dict_other<<<grid,block>>>(gpu_resPsum,gpu_fact, gpuDictHeader, byteNum, attrSize, jNode->leftTable->tupleNum, gpuFactFilter,gpu_result);
-					CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictHeader));
-
-				}else if (format == RLE){
-
-					if(dataPos == MEM){
-						CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
-						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
-					}else{
-						gpu_fact = table;
-					}
-
-					joinDim_rle<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum, jNode->rightTable->offset,gpuFactFilter,gpu_result);
-				}
-			}
-			cudaDeviceSynchronize();
-
-			
-			res->attrTotalSize[i] = resSize;
-			res->dataFormat[i] = UNCOMPRESSED;
-			if(res->dataPos[i] == MEM){
-				res->content[i] = (char *) malloc(resSize);
-				memset(res->content[i],0,resSize);
-				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(res->content[i],gpu_result,resSize,cudaMemcpyDeviceToHost));
-				CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_result));
-
-			}else if(res->dataPos[i] == GPU){
-				res->content[i] = gpu_result;
-			}
-			if(dataPos == MEM)
-				CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_fact));
-
 		}
 
-		CUDA_SAFE_CALL(cudaFree(gpuFactFilter));
+		if(leftRight == 0){
+			index = jNode->leftOutputIndex[pos];
+			dataPos = jNode->leftTable->dataPos[index];
+			format = jNode->leftTable->dataFormat[index];
 
-	}else{
+			table = jNode->leftTable->content[index];
+			attrSize  = jNode->leftTable->attrSize[index];
+			attrType  = jNode->leftTable->attrType[index];
+			colSize = jNode->leftTable->attrTotalSize[index];
 
-// will be updated later
-		printf("The size of fact table is too large.\n");
-		exit(-1);
+			resSize = res->tupleNum * attrSize;
+		}else{
+			index = jNode->rightOutputIndex[pos];
+			dataPos = jNode->rightTable->dataPos[index];
+			format = jNode->rightTable->dataFormat[index];
 
-		long scanUnit = jNode->leftTable->tupleNum / pass + 1 ;
+			table = jNode->rightTable->content[index];
+			attrSize = jNode->rightTable->attrSize[index];
+			attrType = jNode->rightTable->attrType[index];
+			colSize = jNode->rightTable->attrTotalSize[index];
 
-		CUDA_SAFE_CALL(cudaMalloc((void **)&gpu_fact, maxAttrSize * scanUnit));
-		CUDA_SAFE_CALL(cudaMalloc((void **)&gpuFactFilter,sizeof(int) * scanUnit));
-		char * tmpRes = (char *) malloc(maxAttrSize * scanUnit);
-
-		int ** filter = (int **) malloc(sizeof(int*)*pass);
-		int **gpuResArray = (int **) malloc(sizeof(int)*pass);
-
-		for(i=0;i<pass;i++){
-			filter[i] = (int *) malloc(sizeof(int) * scanUnit);
-			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&(gpuResArray[i]),sizeof(int)*threadNum));
+			resSize = attrSize * res->tupleNum;
+			leftRight = 1;
 		}
 
-		int hasCount = 0;
 
-		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_result,scanUnit * maxAttrSize));
+		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_result,resSize));
 
-		for(i=0; i<res->totalAttr;i++){
-			int index;
-			int leftRight = 0;
-			long offset = 0;
-			long restTuple = jNode->leftTable->tupleNum;
-			long nextScan = scanUnit;
-			
-			double curr = getCurrentTime();
-			sprintf(res->path[i],"%.0lf",curr);
-			int tmpFd = open(res->path[i],O_RDWR | O_CREAT, S_IRUSR | S_IRGRP | S_IROTH);
+		if(leftRight == 0){
+			if(format == UNCOMPRESSED){
 
-			int attrSize;
-
-			char * table;
-
-			if(i < jNode->leftOutputAttrNum){
-				index = jNode->leftOutputIndex[i];
-				table = jNode->leftTable->content[index];
-				attrSize  = jNode->leftTable->attrSize[index];
-				leftRight = 0;
-			}else{
-				index = jNode->rightOutputIndex[i - jNode->leftOutputAttrNum];
-				table = jNode->rightTable->content[index];
-				attrSize = jNode->rightTable->attrSize[index];
-				leftRight = 1;
-			}
-
-			for(int j=0; j<pass; j++){
-				if(restTuple < nextScan)
-					nextScan = restTuple;
-
-				if(hasCount == 0){
-
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact,jNode->leftTable->content[jNode->leftKeyIndex] + offset*sizeof(int), sizeof(int) * nextScan, cudaMemcpyHostToDevice));
-
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuFactFilter,0,nextScan * sizeof(int)));
-
-					count_join_result<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, nextScan,gpu_count,gpuFactFilter);
-					cudaDeviceSynchronize();
-
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(filter[j],gpuFactFilter,sizeof(int) * nextScan, cudaMemcpyDeviceToHost));
-					cpu_count = (int *) malloc(sizeof(int)*threadNum);
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(cpu_count,gpu_count,sizeof(int)*threadNum,cudaMemcpyDeviceToHost));
-
-					resPsum = (int *) malloc(sizeof(int)*threadNum);
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpu_resPsum,0,sizeof(int)*threadNum));
-					scanImpl(gpu_count,threadNum,gpu_resPsum, pp);
-
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(resPsum,gpu_resPsum,sizeof(int)*threadNum,cudaMemcpyDeviceToHost));
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuResArray[j],gpu_resPsum,sizeof(int)*threadNum,cudaMemcpyDeviceToDevice));
-
-					count = resPsum[threadNum-1] + cpu_count[threadNum-1];
-					printf("Join result num %d\n",count);
-					res->tupleNum += count;
-
+				if(dataPos == MEM){
+					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
+					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
 				}else{
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuFactFilter,filter[j],sizeof(int)*nextScan,cudaMemcpyHostToDevice));
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_resPsum,gpuResArray[j],sizeof(int)*threadNum,cudaMemcpyDeviceToDevice));
+					gpu_fact = table;
 				}
 
-				if(leftRight == 0){
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table + offset * attrSize, attrSize * nextScan,cudaMemcpyHostToDevice));
-					joinFact_other<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, nextScan,gpuFactFilter,gpu_result);
+				if(attrSize == sizeof(int))
+					joinFact_int<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
+				else
+					joinFact_other<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
+
+			}else if (format == DICT){
+				struct dictHeader * dheader;
+				int byteNum;
+				char * gpuDictHeader;
+				assert(dataPos == MEM);
+
+				dheader = (struct dictHeader *)table;
+				byteNum = dheader->bitNum/8;
+				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuDictHeader,sizeof(struct dictHeader)));
+				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader),cudaMemcpyHostToDevice));
+				if(dataPos == MEM){
+					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
+					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table + sizeof(struct dictHeader), colSize-sizeof(struct dictHeader),cudaMemcpyHostToDevice));
 				}else{
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, attrSize * jNode->rightTable->tupleNum,cudaMemcpyHostToDevice));
-					joinDim_other<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, nextScan,gpuFactFilter,gpu_result);
-				}	
+					gpu_fact = table + sizeof(struct dictHeader);
+				}
 
-				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(tmpRes,gpu_result, attrSize * count,cudaMemcpyDeviceToHost));
-				write(tmpFd, tmpRes, attrSize * count);
+				if (attrSize == sizeof(int))
+					joinFact_dict_int<<<grid,block>>>(gpu_resPsum,gpu_fact, gpuDictHeader,byteNum,attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
+				else
+					joinFact_dict_other<<<grid,block>>>(gpu_resPsum,gpu_fact, gpuDictHeader,byteNum,attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
 
-				restTuple -= nextScan;
-				offset += nextScan; 
+				CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictHeader));
+
+			}else if (format == RLE){
+
+				if(dataPos == MEM){
+					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
+					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
+				}else{
+					gpu_fact = table;
+				}
+
+				int dNum = (colSize - sizeof(struct rleHeader))/(3*sizeof(int));
+
+				char * gpuRle;
+				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuRle, jNode->leftTable->tupleNum * sizeof(int)));
+
+				unpack_rle<<<grid,block>>>(gpu_fact, gpuRle,jNode->leftTable->tupleNum, jNode->leftTable->offset, dNum);
+
+				CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
+
+				joinFact_int<<<grid,block>>>(gpu_resPsum,gpuRle, attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
+
+				CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuRle));
 
 			}
-			hasCount = 1;
 
-			res->content[i] = (char *) mmap(0,attrSize * res->tupleNum,PROT_READ,MAP_SHARED,tmpFd,0);
-		}
+		}else{
+			if(format == UNCOMPRESSED){
 
-		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_result));
-		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_fact));
-		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuFactFilter));
-		for(i=0;i<pass;i ++){
-			free(filter[i]);
-			CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuResArray[i]));
+				if(dataPos == MEM){
+					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
+					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
+				}else{
+					gpu_fact = table;
+				}
+
+				if(attrType == sizeof(int))
+					joinDim_int<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum, gpuFactFilter,gpu_result);
+				else
+					joinDim_other<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum, gpuFactFilter,gpu_result);
+
+			}else if (format == DICT){
+				struct dictHeader * dheader;
+				int byteNum;
+				char * gpuDictHeader;
+				assert(dataPos == MEM);
+
+				dheader = (struct dictHeader *)table;
+				byteNum = dheader->bitNum/8;
+				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuDictHeader,sizeof(struct dictHeader)));
+				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader),cudaMemcpyHostToDevice));
+				if(dataPos == MEM){
+					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
+					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table + sizeof(struct dictHeader), colSize-sizeof(struct dictHeader),cudaMemcpyHostToDevice));
+				}else{
+					gpu_fact = table + sizeof(struct dictHeader);
+				}
+
+				if(attrType == sizeof(int))
+					joinDim_dict_int<<<grid,block>>>(gpu_resPsum,gpu_fact, gpuDictHeader,byteNum,attrSize, jNode->leftTable->tupleNum, gpuFactFilter,gpu_result);
+				else
+					joinDim_dict_other<<<grid,block>>>(gpu_resPsum,gpu_fact, gpuDictHeader, byteNum, attrSize, jNode->leftTable->tupleNum, gpuFactFilter,gpu_result);
+				CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictHeader));
+
+			}else if (format == RLE){
+
+				if(dataPos == MEM){
+					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
+					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
+				}else{
+					gpu_fact = table;
+				}
+
+				joinDim_rle<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum, jNode->rightTable->offset,gpuFactFilter,gpu_result);
+			}
 		}
-		free(filter);
-		free(gpuResArray);
-		free(tmpRes);
+		cudaDeviceSynchronize();
+
+		
+		res->attrTotalSize[i] = resSize;
+		res->dataFormat[i] = UNCOMPRESSED;
+		if(res->dataPos[i] == MEM){
+			res->content[i] = (char *) malloc(resSize);
+			memset(res->content[i],0,resSize);
+			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(res->content[i],gpu_result,resSize,cudaMemcpyDeviceToHost));
+			CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_result));
+
+		}else if(res->dataPos[i] == GPU){
+			res->content[i] = gpu_result;
+		}
+		if(dataPos == MEM)
+			CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_fact));
+
 	}
+
+	CUDA_SAFE_CALL(cudaFree(gpuFactFilter));
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_count));
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_hashNum));
