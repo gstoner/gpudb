@@ -548,7 +548,7 @@ def generate_code(tree):
     print >>fo, "\tstruct statistic pp;"
     print >>fo, "\tpp.total = pp.kernel = 0;"
 
-    resultNode = "src"
+    resultNode = "result"
     joinAttr = JoinTranslation()
     aggNode = []
     orderbyNode = []
@@ -1556,7 +1556,7 @@ def generate_code(tree):
 
 def ysmart_code_gen(argv):
     pwd = os.getcwd()
-    resultdir = "./result"
+    resultdir = "./src"
     codedir = "./GPUCODE"
 
     if len(sys.argv) == 3:
