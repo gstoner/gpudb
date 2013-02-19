@@ -548,7 +548,7 @@ def generate_code(tree):
     print >>fo, "\tstruct statistic pp;"
     print >>fo, "\tpp.total = pp.kernel = 0;"
 
-    resultNode = "result"
+    resultNode = "src"
     joinAttr = JoinTranslation()
     aggNode = []
     orderbyNode = []
