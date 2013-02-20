@@ -211,7 +211,7 @@ __global__ void agg_cal(char ** content, int colNum, struct groupByExp* exp, int
 				}
 
 			}else if (func == SUM){
-				int tmpRes = calMathExp(content, exp[j].exp, i);	
+				int tmpRes = calMathExp(content, exp[j].exp, i);
 				atomicAdd(& ((int *)result[j])[offset], tmpRes);
 			}
 		}
@@ -219,11 +219,20 @@ __global__ void agg_cal(char ** content, int colNum, struct groupByExp* exp, int
 }
 
 
+/* 
+ * groupBy: group by the data and calculate. 
+ * 
+ * Prerequisite:
+ *	input data are not compressed
+ *
+ * Input:
+ *	gb: the groupby node which contains the input data and groupby information
+ *	pp: records the statistics such as kernel execution time 
+ *
+ * Return:
+ *	a new table node
+ */
 
-
-//assume all the data are uncompressed
-//if the data are compressed, uncompressed first.
-//the results will be in uncompressed format.
 
 struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 
