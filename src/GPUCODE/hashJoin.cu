@@ -546,9 +546,9 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	threadNum = grid.x * block.x;
 
 	res = (struct tableNode*) malloc(sizeof(struct tableNode));
-	initTable(res);	
+	initTable(res);
 	res->totalAttr = jNode->totalAttr;
-	res->tupleSize = jNode->tupleSize; 
+	res->tupleSize = jNode->tupleSize;
 	res->attrType = (int *) malloc(res->totalAttr * sizeof(int));
 	res->attrSize = (int *) malloc(res->totalAttr * sizeof(int));
 	res->attrTotalSize = (int *) malloc(res->totalAttr * sizeof(int));
