@@ -31,6 +31,7 @@ import copy
 import ystree
 import correlation
 import config
+import pickle
 
 schema = None
 keepInGpu = 1 
@@ -1558,11 +1559,13 @@ def ysmart_code_gen(argv):
     pwd = os.getcwd()
     resultdir = "./src"
     codedir = "./GPUCODE"
+    schemaFile = None 
 
     if len(sys.argv) == 3:
         tree_node = ystree.ysmart_tree_gen(argv[1],argv[2])
+
     elif len(sys.argv) == 2:
-        tree_node = ystree.ysmart_tree_gen(argv[1], None)
+        schemaFile = ystree.ysmart_get_schema(argv[1])
 
     if len(sys.argv) == 3 and tree_node is None:
         exit(-1)
@@ -1581,6 +1584,11 @@ def ysmart_code_gen(argv):
 
     if len(sys.argv) == 3:
         generate_code(tree_node)
+
+    if schemaFile is not None:
+        metaFile = open(".metadata",'wb')
+        pickle.dump(schemaFile, metaFile)
+        metaFile.close()
 
     os.chdir(pwd)
 

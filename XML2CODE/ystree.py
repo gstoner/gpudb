@@ -2577,6 +2577,8 @@ def process_schema_in_a_file(schema_name):
         #print table_name, a_table
         global_table_dict[table_name] = a_table
 
+    return global_table_dict
+
 
 def debug_global_tables():
     
@@ -4724,6 +4726,10 @@ def list_contain_exp(exp_list,exp):
             return True
 
     return False
+
+def ysmart_get_schema(schema):
+
+    return process_schema_in_a_file(schema)
 
 
 def ysmart_tree_gen(schema,xml_file):

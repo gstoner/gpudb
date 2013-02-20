@@ -38,9 +38,9 @@ def genGPUCode(schemaFile, tmpFilePath):
     #print 'TODO: call job generation program in ./bin/'
     os.chdir(CURRENT_DIR)
     if tmpFilePath is None:
-        cmd = 'python XML2MapReduce/main.py ' + schemaFile
+        cmd = 'python XML2CODE/main.py ' + schemaFile
     else:
-        cmd = 'python XML2MapReduce/main.py ' + schemaFile + ' ' + tmpFilePath 
+        cmd = 'python XML2CODE/main.py ' + schemaFile + ' ' + tmpFilePath 
     subprocess.check_call(cmd, shell=True)
 
 def print_usage():
