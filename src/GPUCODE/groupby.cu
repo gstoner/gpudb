@@ -131,8 +131,8 @@ __global__ void count_group_num(int *num, int tupleNum, int *totalCount){
 
 //fix me here: to make things simple, assume all the operands are int.
 
-__device__ static int calMathExp(char **content, struct mathExp exp, int pos){
-	int res ;
+__device__ static float calMathExp(char **content, struct mathExp exp, int pos){
+	float res ;
 
 	if(exp.op == NOOP){
 		if (exp.opType == CONS)
@@ -158,12 +158,12 @@ __device__ static int calMathExp(char **content, struct mathExp exp, int pos){
 	return res;
 }
 
-__global__ void agg_cal_cons(char ** content, int colNum, struct groupByExp* exp, int * gbType, int * gbSize, long tupleNum, int * key, int *psum, int *keyBool, char ** result){
+__global__ void agg_cal_cons(char ** content, int colNum, struct groupByExp* exp, int * gbType, int * gbSize, long tupleNum, int * key, int *psum,  char ** result){
 
         int stride = blockDim.x * gridDim.x;
         int index = blockIdx.x * blockDim.x + threadIdx.x;
-	int buf[4];
-	for(int i=0;i<4;i++)
+	float buf[32];
+	for(int i=0;i<32;i++)
 		buf[i] = 0;
 
         for(int i=index;i<tupleNum;i+=stride){
@@ -171,19 +171,19 @@ __global__ void agg_cal_cons(char ** content, int colNum, struct groupByExp* exp
 		for(int j=0;j<colNum;j++){
 			int func = exp[j].func;
 			if (func == SUM){
-				int tmpRes = calMathExp(content, exp[j].exp, i);	
+				float tmpRes = calMathExp(content, exp[j].exp, i);
 				buf[j] += tmpRes;
 			}
 		}
         }
 
 	for(int i=0;i<colNum;i++)
-		((int *)result[i])[0] = buf[i];
+		atomicAdd(&((float *)result[i])[0], buf[i]);
 }
 
 
 
-__global__ void agg_cal(char ** content, int colNum, struct groupByExp* exp, int * gbType, int * gbSize, long tupleNum, int * key, int *psum, int *keyBool, char ** result){
+__global__ void agg_cal(char ** content, int colNum, struct groupByExp* exp, int * gbType, int * gbSize, long tupleNum, int * key, int *psum,  char ** result){
 
         int stride = blockDim.x * gridDim.x;
         int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -211,8 +211,8 @@ __global__ void agg_cal(char ** content, int colNum, struct groupByExp* exp, int
 				}
 
 			}else if (func == SUM){
-				int tmpRes = calMathExp(content, exp[j].exp, i);
-				atomicAdd(& ((int *)result[j])[offset], tmpRes);
+				float tmpRes = calMathExp(content, exp[j].exp, i);
+				atomicAdd(& ((float *)result[j])[offset], tmpRes);
 			}
 		}
         }
@@ -349,15 +349,13 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 
 	for(int i=0; i<res->totalAttr;i++){
 		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&result[i], res->tupleNum * res->attrSize[i]));
+		CUDA_SAFE_CALL_NO_SYNC(cudaMemset(result[i], 0, res->tupleNum * res->attrSize[i]));
 		res->content[i] = result[i]; 
 		res->dataPos[i] = GPU;
 		res->attrTotalSize[i] = res->tupleNum * res->attrSize[i];
 		CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(&gpuResult[i], &result[i], sizeof(char *), cudaMemcpyHostToDevice));
 	}
 
-	int * keyBool;
-        CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&keyBool,sizeof(int)*HSIZE));
-        CUDA_SAFE_CALL_NO_SYNC(cudaMemset(keyBool, 0, sizeof(int)*HSIZE));
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuGbType, sizeof(int)*res->totalAttr));
 	CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuGbType, res->attrType, sizeof(int)*res->totalAttr, cudaMemcpyHostToDevice));
@@ -380,11 +378,11 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 	gpuGbColNum = res->totalAttr;
 
 	if(gbConstant !=1){
-		agg_cal<<<grid,block>>>(gpuContent, gpuGbColNum, gpuGbExp, gpuGbType, gpuGbSize, gpuTupleNum, gpuGbKey, gpu_psum, keyBool, gpuResult);
+		agg_cal<<<grid,block>>>(gpuContent, gpuGbColNum, gpuGbExp, gpuGbType, gpuGbSize, gpuTupleNum, gpuGbKey, gpu_psum,  gpuResult);
 		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuGbKey));
 		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_psum));
 	}else
-		agg_cal_cons<<<grid,block>>>(gpuContent, gpuGbColNum, gpuGbExp, gpuGbType, gpuGbSize, gpuTupleNum, gpuGbKey, gpu_psum, keyBool, gpuResult);
+		agg_cal_cons<<<grid,block>>>(gpuContent, gpuGbColNum, gpuGbExp, gpuGbType, gpuGbSize, gpuTupleNum, gpuGbKey, gpu_psum, gpuResult);
 
 	for(int i=0; i<gb->table->totalAttr;i++){
 		if(gb->table->dataPos[i]==MEM)
@@ -393,7 +391,6 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 	free(column);
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuContent));
 
-	CUDA_SAFE_CALL_NO_SYNC(cudaFree(keyBool));
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuGbExp));
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuResult));
 

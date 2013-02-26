@@ -123,8 +123,8 @@ def generate_loader():
 
         print >>fo, "\twhile(fgets(buf,sizeof(buf),fp)!= NULL){"
         print >>fo, "\t\tfor(i = 0, prev = 0,count=0; buf[i] !='\\n';i++){"
-        print >>fo, "\t\t\tmemset(data,0,sizeof(data));"
         print >>fo, "\t\t\tif (buf[i] == delimiter){"
+        print >>fo, "\t\t\t\tmemset(data,0,sizeof(data));"
         print >>fo, "\t\t\t\tstrncpy(data,buf+prev,i-prev);"
         print >>fo, "\t\t\t\tprev = i+1;"
         print >>fo, "\t\t\t\tswitch(count){"
@@ -153,11 +153,15 @@ def generate_loader():
 
         col = schema[tn].column_list[attrLen-1]
         if col.column_type == "INTEGER" or col.column_type == "DATE":
+            print >>fo, "\t\tmemset(data,0,sizeof(data));"
+            print >>fo, "\t\tstrncpy(data,buf+prev,i-prev);"
             print >>fo, "\t\ttmp."+str(col.column_name.lower()) + " = strtol(data,NULL,10);"
             print >>fo, "\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(int),1,out["+str(attrLen-1) + "]);"
         elif col.column_type == "DECIMAL":
-            print >>fo, "\t\t\t\t\t\ttmp."+str(col.column_name.lower()) + " = atof(data);"
-            print >>fo, "\t\t\t\t\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(float),1,out["+str(i) + "]);"
+            print >>fo, "\t\tmemset(data,0,sizeof(data));"
+            print >>fo, "\t\tstrncpy(data,buf+prev,i-prev);"
+            print >>fo, "\t\ttmp."+str(col.column_name.lower()) + " = atof(data);"
+            print >>fo, "\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(float),1,out["+str(i) + "]);"
         elif col.column_type == "TEXT":
             print >>fo, "\t\tstrncpy(tmp." + str(col.column_name.lower()) + ",buf+prev,i-prev);"
             print >>fo, "\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(tmp." +str(col.column_name.lower()) + "), 1, out[" + str(attrLen-1) + "]);"
@@ -718,6 +722,7 @@ def generate_code(tree):
     #### the type 0 join  starts ###
 
         selectOnly = len(joinAttr.dimTables) == 0
+        hasWhere = 0
         factName = joinAttr.factTables[0].table_name.lower() + "Table"
         totalAttr = len(joinAttr.factTables[0].select_list.tmp_exp_list)
         print >>fo, "\tstruct tableNode *" + factName + " = (struct tableNode*)malloc(sizeof(struct tableNode));" 
@@ -841,6 +846,7 @@ def generate_code(tree):
             print >>fo, "\t\t}"
 
         if joinAttr.factTables[0].where_condition is not None:
+            hasWhere = 1
             whereExp = joinAttr.factTables[0].where_condition.where_condition_exp
             whereList = []
             relList = []
@@ -972,6 +978,10 @@ def generate_code(tree):
             if selectOnly == 0:
                 print >>fo, "\t\tfreeScan(&" + relName + ");\n"
 
+        else:
+            hasWhere = 0
+            relName =  factName
+
 
         for i in range(0,len(joinAttr.dimTables)):
             jName = "jNode" + str(i)
@@ -1052,7 +1062,10 @@ def generate_code(tree):
                 print >>fo, "\t\t\tcudaFree(" + tmpName + "->content[" + str(i) + "]);"
         else:
             print >>fo, "\t\tif(pass !=1){"
-            print >>fo, "\t\t\tmergeIntoTable("+resultNode+"," + relName + ".tn, &pp);"
+            if hasWhere != 0:
+                print >>fo, "\t\t\tmergeIntoTable("+resultNode+"," + relName + ".tn, &pp);"
+            else:
+                print >>fo, "\t\t\tmergeIntoTable("+resultNode+"," + relName + ",&pp);"
 
             tmpName = joinAttr.factTables[0].table_name.lower() + "Table"
             for i in range(0, totalAttr):
@@ -1064,9 +1077,14 @@ def generate_code(tree):
                 print >>fo, "\t\t\t\tcudaFree(" + tmpName + "->content[" + str(i) + "]);"
 
             print >>fo, "\t\t}else{"
-            print >>fo, "\t\t\t"+resultNode+" = " + relName + ".tn;" 
+            if hasWhere != 0:
+                print >>fo, "\t\t\t"+resultNode+" = " + relName + ".tn;" 
+            else:
+                print >>fo, "\t\t\t"+resultNode+" = " + relName + ";"
             print >>fo, "\t\t}"
-            print >>fo, "\t\tfreeScan(&" + relName + ");\n"
+
+            if hasWhere != 0:
+                print >>fo, "\t\tfreeScan(&" + relName + ");\n"
 
 
         print >>fo, "\t\ttupleOffset += tupleUnit;"
