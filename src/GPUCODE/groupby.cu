@@ -369,8 +369,8 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 	for(int i=0;i<res->totalAttr;i++){
 		struct mathExp * tmpMath;
 		if(gb->gbExp[i].exp.opNum == 2){
-			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&tmpMath, sizeof(struct mathExp)));
-			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(tmpMath,gb->gbExp[i].exp.exp,sizeof(struct mathExp), cudaMemcpyHostToDevice));
+			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&tmpMath, 2* sizeof(struct mathExp)));
+			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(tmpMath,gb->gbExp[i].exp.exp,2*sizeof(struct mathExp), cudaMemcpyHostToDevice));
 			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(&(gpuGbExp[i].exp.exp), &tmpMath, sizeof(struct mathExp *), cudaMemcpyHostToDevice));
 		}
 	}

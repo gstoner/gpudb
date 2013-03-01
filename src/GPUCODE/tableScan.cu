@@ -452,7 +452,7 @@ __global__ void static unpack_rle(char * fact, char * rle, long tupleNum, long t
 			if(tcount > tupleNum)
 				tcount = tupleNum;
 			for(int k=0;k<tcount;k++){
-				((int*)rle)[k] = fvalue; 
+				((int*)rle)[k] = fvalue;
 			}
 
 		}else if ((fpos + fcount) > (tupleOffset + tupleNum)){
@@ -469,7 +469,38 @@ __global__ void static unpack_rle(char * fact, char * rle, long tupleNum, long t
 	}
 }
 
-static void gpuScan(struct scanNode *sn, struct statistic *pp){
+/*
+ * tableScan Prerequisites:
+ *	1. the input data can be fit into GPU device memory
+ *	2. input data are stored in host memory
+ * 
+ * Input:
+ *	sn: contains the data to be scanned and the predicate information
+ *	pp: records statistics such kernel execution time and PCIe transfer time 
+ *
+ * Output:
+ *	A new table node
+ */
+
+struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
+
+	struct tableNode *res = NULL;
+
+	res = (struct tableNode *) malloc(sizeof(struct tableNode));
+
+	res->totalAttr = sn->tn->totalAttr;
+	res->tupleSize = sn->tn->tupleSize;
+
+	res->attrType = (int *) malloc(sizeof(int) * res->totalAttr);
+	res->attrSize = (int *) malloc(sizeof(int) * res->totalAttr);
+	res->attrTotalSize = (int *) malloc(sizeof(int) * res->totalAttr);
+	res->attrIndex = (int *) malloc(sizeof(int) * res->totalAttr);
+	res->dataPos = (int *) malloc(sizeof(int) * res->totalAttr);
+	res->dataFormat = (int *) malloc(sizeof(int) * res->totalAttr);
+	res->content = (char **) malloc(sizeof(char *) * res->totalAttr);
+
+	memcpy(res->attrType, sn->tn->attrType, sizeof(int) * res->totalAttr);
+	memcpy(res->attrSize, sn->tn->attrSize, sizeof(int) * res->totalAttr);
 
 	char ** column;
 	int *gpuCount;
@@ -482,7 +513,7 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 	int blockNum = sn->tn->tupleNum / block.x + 1;
 
 	if(blockNum<1024)
-		grid = blockNum;
+		grid = blockNum; 
 
 	int threadNum = grid.x * block.x;
 	long totalTupleNum = sn->tn->tupleNum;
@@ -776,7 +807,7 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 	}
 
 	countScanNum<<<grid,block>>>(gpuFilter,totalTupleNum,gpuCount);
-	cudaDeviceSynchronize();
+	CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
 	scanImpl(gpuCount,threadNum,gpuPsum, pp);
 
@@ -786,8 +817,7 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 	CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(&tmp2, &gpuPsum[threadNum-1], sizeof(int), cudaMemcpyDeviceToHost));
 
 	count = tmp1+tmp2;
-	sn->tn->tupleNum = count;
-	printf("scanNum %d\n",count);
+	res->tupleNum = count;
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuCount));
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuTotalCount));
@@ -886,29 +916,24 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
-
-	for(int i=0;i< attrNum;i++){
+	for(int i=0;i<attrNum;i++){
 
 		if(sn->tn->dataPos[i] == MEM)
 			CUDA_SAFE_CALL_NO_SYNC(cudaFree(scanCol[i]));
 
-		if(sn->tn->dataPos[i] == MEM)
-			free(sn->tn->content[i]);
-		else
-			CUDA_SAFE_CALL_NO_SYNC(cudaFreeHost(sn->tn->content[i]));
+		int colSize = res->tupleNum * res->attrSize[i];
 
-		int colSize = sn->tn->tupleNum * sn->tn->attrSize[i];
-
-		sn->tn->dataFormat[i] = UNCOMPRESSED;
+		res->attrTotalSize[i] = colSize;
+		res->dataFormat[i] = UNCOMPRESSED;
 
 		if(sn->keepInGpu == 1){
-			sn->tn->dataPos[i] = GPU;
-			sn->tn->content[i] = result[i];
+			res->dataPos[i] = GPU;
+			res->content[i] = result[i];
 		}else{
-			sn->tn->dataPos[i] = MEM;
-			sn->tn->content[i] = (char *)malloc(colSize);
-			memset(sn->tn->content[i],0,colSize);
-			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(sn->tn->content[i],result[i],colSize ,cudaMemcpyDeviceToHost));
+			res->dataPos[i] = MEM;
+			res->content[i] = (char *)malloc(colSize);
+			memset(res->content[i],0,colSize);
+			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(res->content[i],result[i],colSize ,cudaMemcpyDeviceToHost));
 			CUDA_SAFE_CALL(cudaFree(result[i]));
 		}
 	}
@@ -920,26 +945,8 @@ static void gpuScan(struct scanNode *sn, struct statistic *pp){
 	free(scanCol);
 	free(result);
 
-}
-
-/*
- * tableScan Prerequisites:
- *	1. the input data can be fit into GPU device memory
- *	2. input data are stored in host memory
- * 
- * Input:
- *	sn: contains the data to be scanned and the predicate information
- *	pp: records statistics such kernel execution time and PCIe transfer time 
- */
-
-void  tableScan(struct scanNode * sn, struct statistic *pp){
-
-	if(sn->hasWhere == 0){
-		return;
-	}else{
-
-		gpuScan(sn, pp);
-
-	}
+	return res;
 
 }
+
+

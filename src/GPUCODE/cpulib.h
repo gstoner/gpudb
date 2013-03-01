@@ -82,30 +82,6 @@ static void mergeIntoTable(struct tableNode *dst, struct tableNode * src, struct
 	pp->total += timeE/(1000*1000) ;
 }
 
-static void freeScan(struct scanNode * rel){
-        free(rel->whereAttrType);
-	rel->whereAttrType = NULL;
-        free(rel->whereAttrSize);
-	rel->whereAttrSize = NULL;
-	free(rel->whereSize);
-	rel->whereSize = NULL;
-	free(rel->whereFormat);
-	rel->whereFormat = NULL;
-
-	int i;
-        for(i=0;i<rel->whereAttrNum;i++){
-		if(rel->wherePos[i] == MEM)
-                	free(rel->content[i]);
-		else if (rel->wherePos[i] == UVA)
-			cudaFreeHost(rel->content[i]);
-        }
-	free(rel->wherePos);
-        free(rel->filter);
-	rel->filter = NULL;
-        free(rel->content);
-	rel->content = NULL;
-}
-
 static void freeTable(struct tableNode * tn){
         free(tn->attrType);
 	tn->attrType = NULL;
@@ -130,6 +106,31 @@ static void freeTable(struct tableNode * tn){
 	tn->dataPos = NULL;
         free(tn->content);
 	tn->content = NULL;
+}
+
+static void freeScan(struct scanNode * rel){
+        free(rel->whereAttrType);
+	rel->whereAttrType = NULL;
+        free(rel->whereAttrSize);
+	rel->whereAttrSize = NULL;
+	free(rel->whereSize);
+	rel->whereSize = NULL;
+	free(rel->whereFormat);
+	rel->whereFormat = NULL;
+
+	int i;
+        for(i=0;i<rel->whereAttrNum;i++){
+		if(rel->wherePos[i] == MEM)
+                	free(rel->content[i]);
+		else if (rel->wherePos[i] == UVA)
+			cudaFreeHost(rel->content[i]);
+        }
+	free(rel->wherePos);
+        free(rel->filter);
+	rel->filter = NULL;
+        free(rel->content);
+	rel->content = NULL;
+	freeTable(rel->tn);
 }
 
 static void freeMathExp(struct mathExp exp){
