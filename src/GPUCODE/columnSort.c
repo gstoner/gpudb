@@ -107,7 +107,7 @@ int main(int argc, char **argv){
 	int primaryIndex, largestIndex;
 	struct columnHeader header;
 
-	primaryIndex = argv[3];
+	primaryIndex = atoi(argv[3]);
 	largestIndex = 16; 
 
 	char buf[32] = {0};
