@@ -543,7 +543,10 @@ def generate_code(tree):
     print >>fo, "#include \"gpulib.h\""
     print >>fo, "#define BLOCK  (1024*1024*5)\n"
     print >>fo, "extern struct tableNode* tableScan(struct scanNode *,struct statistic *);"
-    print >>fo, "extern struct tableNode* hashJoin(struct joinNode *, struct statistic *);"
+    if joinType == 0:
+        print >>fo, "extern struct tableNode* hashJoin(struct joinNode *, struct statistic *);"
+    else:
+        print >>fo, "extern struct tableNode* inviJoin(struct joinNode *, struct statistic *);"
     print >>fo, "extern struct tableNode* groupBy(struct groupByNode *,struct statistic *);"
     print >>fo, "extern struct tableNode* orderBy(struct orderByNode *, struct statistic *);"
     print >>fo, "extern void materializeCol(struct materializeNode * mn, struct statistic *);"
@@ -1513,7 +1516,7 @@ def generate_code(tree):
 
         print >>fo, "\t\t" + jName + ".factTable = " + resName + ";"
 
-        print >>fo, "\t\tstruct tableNode *join1 = hashJoin(&" + jName + ", &pp);"
+        print >>fo, "\t\tstruct tableNode *join1 = inviJoin(&" + jName + ", &pp);"
 
         print >>fo, "\t\tfreeTable(" + resName + ");"
 
