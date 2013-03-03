@@ -81,6 +81,7 @@ struct scanNode{
 	int whereAttrNum;		// the number of attributes in the where condition
 	int * whereSize;
 	int * whereFormat;
+	int * wherePos;
 	int * whereIndex;
 	int * whereAttrType;		// the type of each attribute in the where condition
 	int * whereAttrSize;		// the size of each attribute in the where condition
