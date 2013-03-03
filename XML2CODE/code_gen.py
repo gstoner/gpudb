@@ -85,9 +85,7 @@ def generate_loader():
     print >>fo, "#include <string.h>"
     print >>fo, "#include <getopt.h>"
     print >>fo, "#include \"schema.h\""
-    if joinType ==0:
-        print >>fo, "#include \"common.h\""
-    print >>fo, "\n"
+    print >>fo, "#include \"common.h\""
 
     print >>fo, "static char delimiter = '|';"
 
