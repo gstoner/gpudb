@@ -9,6 +9,7 @@
 #include <cuda.h>
 #include <time.h>
 #include "common.h"
+#include "hashJoin.h"
 #include "gpulib.h"
 #include "cpulib.h"
 #include "hash.h"
