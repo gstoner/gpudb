@@ -85,7 +85,10 @@ def generate_loader():
     print >>fo, "#include <string.h>"
     print >>fo, "#include <getopt.h>"
     print >>fo, "#include \"schema.h\""
-    print >>fo, "#include \"common.h\""
+    if joinType ==0:
+        print >>fo, "#include \"common.h\""
+    else:
+        print >>fo, "#include \"inviCommon.h\""
     print >>fo, "\n"
 
     print >>fo, "static char delimiter = '|';"
@@ -1324,7 +1327,7 @@ def generate_code(tree):
             print >>fo, "\t\t" + factName + "->dataFormat[" + str(i) + "] = header.format;"
             print >>fo, "\t\tif(header.format == UNCOMPRESSED){"
             print >>fo, "\t\t\toffset = tupleOffset *" + colLen + "+sizeof(struct columnHeader);"
-            print >>fo, "\t\t\toutSize = nextScan*" + colLen + "T"
+            print >>fo, "\t\t\toutSize = nextScan*" + colLen + ";"
             print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
 
             if UVA == 0:
