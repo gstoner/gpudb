@@ -7,7 +7,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <cuda.h>
-#include "common.h"
+#include "inviCommon.h"
 #include "gpulib.h"
 #include "scanImpl.cu"
 
