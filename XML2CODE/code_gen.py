@@ -87,8 +87,6 @@ def generate_loader():
     print >>fo, "#include \"schema.h\""
     if joinType ==0:
         print >>fo, "#include \"common.h\""
-    else:
-        print >>fo, "#include \"inviCommon.h\""
     print >>fo, "\n"
 
     print >>fo, "static char delimiter = '|';"
@@ -535,7 +533,10 @@ def generate_code(tree):
     print >>fo, "#include <string.h>"
     print >>fo, "#include <unistd.h>"
     print >>fo, "#include <time.h>"
-    print >>fo, "#include \"common.h\""
+    if joinType == 0:
+        print >>fo, "#include \"common.h\""
+    else:
+        print >>fo, "#include \"inviCommon.h\""
     print >>fo, "#include \"schema.h\""
     print >>fo, "#include \"cpulib.h\""
     print >>fo, "#include \"gpulib.h\""
