@@ -1174,7 +1174,7 @@ def generate_code(tree):
         for i in range(0, dimNum):
             print >>fo, "\t" + jName + ".dimIndex[" + str(i) + "] = " + str(joinAttr.dimIndex[i]) + ";"
             print >>fo, "\t" + jName + ".factIndex[" + str(i) + "] = " + str(factIndex[i]) + ";"
-            dimName = joinAttr.dimTables[i].table_name.lower() + "Table"
+            dimName = joinAttr.dimTables[i].table_name.lower() + "Res"
             print >>fo, "\t" + jName + ".dimTable["+str(i) + "] = " + dimName + ";\n"
 
         print >>fo, "\t" + jName + ".totalAttr = " + str(outputNum) + ";"
