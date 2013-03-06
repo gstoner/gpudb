@@ -43,6 +43,7 @@ enum {
 // data position
 	GPU,
 	MEM,
+	PINNED,
 	UVA,
 	DISK,
 	TMPFILE,
