@@ -41,7 +41,7 @@ keepInGpu = 1
 ### type 1: invisiable join from abadi's paper
 
 joinType = config.joinType 
-UVA = config.UVA
+POS = config.POS
 
 def column_to_variable(col):
     res = ""
@@ -609,7 +609,14 @@ def generate_code(tree):
             print >>fo, "\t" + tnName+"->attrSize["+str(i) + "] = "+ colLen + ";"
             print >>fo, "\t" + tnName+"->attrIndex["+str(i) + "] = "+ str(colIndex) + ";"
             print >>fo, "\t" + tnName+"->attrType[" + str(i) + "] = " + ctype + ";"
-            print >>fo, "\t" + tnName+"->dataPos[" + str(i) + "] = MEM;"
+            if POS == 0:
+                print >>fo, "\t" + tnName+"->dataPos[" + str(i) + "] = MEM;"
+            elif POS == 1:
+                print >>fo, "\t" + tnName+"->dataPos[" + str(i) + "] = PINNED;"
+            elif POS == 2:
+                print >>fo, "\t" + tnName+"->dataPos[" + str(i) + "] = UVA;"
+            else:
+                print >>fo, "\t" + tnName+"->dataPos[" + str(i) + "] = MEM;"
 
             print >>fo, "\toutFd = open(\""+tn.table_name+str(colIndex)+"\",O_RDONLY);"
             print >>fo, "\tread(outFd,&header, sizeof(struct columnHeader));"
@@ -622,7 +629,14 @@ def generate_code(tree):
 
             print >>fo, "\toutSize = lseek(outFd,offset,SEEK_END);"
             print >>fo, "\t" + tnName + "->attrTotalSize[" + str(i) + "] = outSize;"
-            print >>fo, "\t"+tnName+"->content["+str(i)+"] = (char *) malloc(outSize);"
+
+            if POS == 1:
+                print >>fo, "\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void **)&" + tnName+"->content["+str(i)+"],outSize));"
+            elif POS == 2:
+                print >>fo, "\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void **)&" + tnName+"->content["+str(i)+"],outSize));"
+            else:
+                print >>fo, "\t"+tnName+"->content["+str(i)+"] = (char *) malloc(outSize);"
+
             print >>fo, "\toutTable =(char *) mmap(0,outSize + offset ,PROT_READ,MAP_SHARED,outFd,0);\n"
             print >>fo, "\tmemcpy("+tnName+"->content["+str(i)+"],outTable + offset,outSize);"
             print >>fo, "\tmunmap(outTable,outSize+offset);"
@@ -673,11 +687,27 @@ def generate_code(tree):
                 print >>fo, "\toutFd = open(\""+tn.table_name+str(colIndex)+"\",O_RDONLY);"
                 print >>fo, "\tread(outFd,&header, sizeof(struct columnHeader));"
                 print >>fo, "\t" + relName + ".whereFormat[" + str(i) + "] = header.format;"
-                print >>fo, "\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
+
+                if POS == 0:
+                    print >>fo, "\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
+                elif POS == 1:
+                    print >>fo, "\t" + relName + ".wherePos[" + str(i) + "] = PINNED;"
+                elif POS == 2:
+                    print >>fo, "\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
+                else:
+                    print >>fo, "\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
+
                 print >>fo, "\toffset = sizeof(struct columnHeader);"
                 print >>fo, "\toutSize = lseek(outFd,offset,SEEK_END);"
                 print >>fo, "\t" + relName + ".whereSize[" + str(i) + "] = outSize;"
-                print >>fo, "\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
+
+                if POS == 1:
+                    print >>fo, "\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
+                elif POS == 2:
+                    print >>fo, "\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
+                else:
+                    print >>fo, "\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
+
                 print >>fo, "\toutTable =(char *) mmap(0,outSize + offset,PROT_READ,MAP_SHARED,outFd,0);\n"
                 print >>fo, "\tmemcpy("+relName+".content["+str(i)+"],outTable + offset,outSize);"
                 print >>fo, "\tmunmap(outTable,outSize + offset);"
@@ -822,10 +852,14 @@ def generate_code(tree):
             print >>fo, "\t\t" + factName + "->attrSize[" + str(i) + "] = " + colLen + ";"
             print >>fo, "\t\t" + factName + "->attrIndex[" + str(i) + "] = " + str(colIndex) + ";"
 
-            if UVA == 0:
+            if POS == 0:
                 print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = MEM;"
-            else:
+            elif POS == 1:
+                print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = PINNED;"
+            elif POS == 2:
                 print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = UVA;"
+            else:
+                print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = MEM;"
 
         tupleSize += ";\n"
         print >>fo, "\t\t" + factName + "->tupleSize = " + tupleSize 
@@ -845,10 +879,14 @@ def generate_code(tree):
             print >>fo, "\t\t\toutSize = nextScan*" + colLen + ";"
             print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
 
-            if UVA == 0:
+            if POS == 0:
                 print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
-            else:
+            elif POS == 1:
                 print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+            elif POS == 2:
+                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+            else:
+                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
 
             print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable+offset, outSize);"
             print >>fo, "\t\t\tmunmap(outTable,outSize + offset);"
@@ -861,10 +899,14 @@ def generate_code(tree):
             print >>fo, "\t\t\toutSize = nextScan * dheader.bitNum / 8 + sizeof(struct dictHeader);"
             print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
 
-            if UVA == 0:
+            if POS == 0:
                 print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
-            else:
+            elif POS == 1:
                 print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+            elif POS == 2:
+                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+            else:
+                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
 
             print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], &dheader, sizeof(struct dictHeader));"
             print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "] + sizeof(struct dictHeader), outTable+offset, outSize - sizeof(struct dictHeader));"
@@ -877,10 +919,14 @@ def generate_code(tree):
             print >>fo, "\t\t\toutSize = lseek(outFd, 0, SEEK_END) - offset;"
             print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
 
-            if UVA == 0:
+            if POS == 0:
                 print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
-            else:
+            elif POS == 1:
                 print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+            elif POS == 2:
+                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+            else:
+                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
 
             print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable+offset, outSize);"
             print >>fo, "\t\t\tmunmap(outTable,outSize + offset);"
@@ -938,12 +984,18 @@ def generate_code(tree):
                 print >>fo, "\t\t\toffset = tupleOffset *" + colLen + " + sizeof(struct columnHeader);"
                 print >>fo, "\t\t\toutSize = nextScan *" + colLen + ";"
 
-                if UVA == 0:
+                if POS == 0:
                     print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
                     print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
-                else:
+                elif POS == 1:
+                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = PINNED;"
+                    print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
+                elif POS == 2:
                     print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
                     print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
+                else:
+                    print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
+                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
 
                 print >>fo, "\t\t\toutTable =(char *) mmap(0,outSize + offset,PROT_READ,MAP_SHARED,outFd,0);\n"
                 print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"],outTable + offset,outSize);"
@@ -1313,10 +1365,14 @@ def generate_code(tree):
             print >>fo, "\t\t" + factName + "->attrSize[" + str(i) + "] = " + colLen + ";"
             print >>fo, "\t\t" + factName + "->attrIndex[" + str(i) + "] = " + str(colIndex) + ";"
 
-            if UVA == 0:
+            if POS == 0:
                 print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = MEM;"
-            else:
+            elif POS == 1:
+                print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = PINNED;"
+            elif POS == 2:
                 print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = UVA;"
+            else:
+                print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = MEM;"
 
         tupleSize += ";\n"
         print >>fo, "\t\t" + factName + "->tupleSize = " + tupleSize
@@ -1335,10 +1391,14 @@ def generate_code(tree):
             print >>fo, "\t\t\toutSize = nextScan*" + colLen + ";"
             print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
 
-            if UVA == 0:
+            if POS == 0:
                 print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
-            else:
+            elif POS == 1:
                 print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+            elif POS == 2:
+                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+            else:
+                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
 
             print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable+offset, outSize);"
             print >>fo, "\t\t\tmunmap(outTable,outSize + offset);"
@@ -1351,10 +1411,14 @@ def generate_code(tree):
             print >>fo, "\t\t\toutSize = nextScan * dheader.bitNum / 8 + sizeof(struct dictHeader);"
             print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
 
-            if UVA == 0 :
+            if POS == 0 :
                 print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
-            else:
+            elif POS == 1:
                 print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+            elif POS == 2:
+                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+            else:
+                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
 
             print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], &dheader, sizeof(struct dictHeader));"
             print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "] + sizeof(struct dictHeader), outTable+offset, outSize - sizeof(struct dictHeader));"
@@ -1366,10 +1430,14 @@ def generate_code(tree):
             print >>fo, "\t\t\toutSize = lseek(outFd, 0, SEEK_END) - offset;"
             print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
 
-            if UVA == 0:
+            if POS == 0:
                 print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
-            else:
+            elif POS == 1:
                 print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+            elif POS == 2:
+                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+            else:
+                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
 
             print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable+offset, outSize);"
             print >>fo, "\t\t\tmunmap(outTable,outSize + offset);"
@@ -1425,12 +1493,18 @@ def generate_code(tree):
                 print >>fo, "\t\t\toffset = tupleOffset *" + colLen + " + sizeof(struct columnHeader);"
                 print >>fo, "\t\t\toutSize = nextScan *" + colLen + ";"
 
-                if UVA == 0:
+                if POS == 0:
                     print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
                     print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
-                else:
+                elif POS == 1:
+                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = PINNED;"
+                    print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
+                elif POS == 2:
                     print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
                     print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
+                else:
+                    print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
+                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
 
                 print >>fo, "\t\t\toutTable =(char *) mmap(0,outSize + offset,PROT_READ,MAP_SHARED,outFd,0);"
                 print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"],outTable + offset,outSize);"
