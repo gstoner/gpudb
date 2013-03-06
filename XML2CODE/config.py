@@ -16,4 +16,4 @@
 """
 
 joinType = 0
-UVA = 0
+POS = 0
