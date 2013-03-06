@@ -138,7 +138,6 @@ struct tableNode{
 	int * attrSize;			// the size of each attributes
 	int * attrTotalSize;		// the total size of each attribute
 	int * attrIndex;		// the index of each attribute in the table
-	char **path;			// the file path of each column if exists on disk
 	char **content;			// the actual content of each attribute, organized by columns
 	int * dataPos;			// the position of the data, whether in disk, memory or GPU global memory
 	int * dataFormat;		// the format of each column

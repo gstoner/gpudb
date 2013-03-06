@@ -15,7 +15,6 @@ static void initTable(struct tableNode * tn){
 	tn->attrSize = NULL;
 	tn->attrTotalSize = NULL;
 	tn->dataFormat = NULL;
-	tn->path = NULL;
 	tn->dataPos = NULL;
 	tn->content = NULL;
 }
