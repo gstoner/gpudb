@@ -503,9 +503,9 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 	memcpy(res->attrSize, sn->tn->attrSize, sizeof(int) * res->totalAttr);
 
 	char ** column;
-	int *gpuCount;
+	int * gpuCount;
 	int * gpuFilter;
-	int  *gpuPsum;
+	int * gpuPsum;
 
 	dim3 grid(1024);
 	dim3 block(256);
@@ -530,12 +530,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 		printf("Failed to allocate host memory\n");
 		exit(-1);
 	}
-	for(int i=0;i<attrNum;i++)
-		whereFree[i] = 1;
+
 	for(int i=0;i<sn->tn->totalAttr;i++)
 		colWherePos[i] = -1;
 
 	for(int i=0;i<attrNum;i++){
+		whereFree[i] = 1;
 		for(int j=0;j<sn->tn->totalAttr;j++){
 			if(sn->whereIndex[i] == sn->tn->attrIndex[j]){
 				whereFree[i] = -1;
@@ -607,13 +607,13 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 		int *gpuDictFilter;
 
-		if(sn->wherePos[index] == MEM)
+		if(sn->wherePos[index] == MEM || sn->wherePos[index] == PINNED)
 			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &column[index], sn->whereSize[index]));
 
 		if(format == UNCOMPRESSED){
-			if(sn->wherePos[index] == MEM)
+			if(sn->wherePos[index] == MEM || sn->wherePos[index] == PINNED)
 				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index], sn->whereSize[index], cudaMemcpyHostToDevice));
-			else
+			else if (sn->wherePos[index] == UVA)
 				column[index] = sn->content[index];
 
 			if(sn->whereAttrType[index] == INT){
@@ -641,9 +641,9 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictHeader,sizeof(struct dictHeader)));
 			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader), cudaMemcpyHostToDevice));
 
-			if(sn->wherePos[index] == MEM)
+			if(sn->wherePos[index] == MEM || sn->wherePos[index] == PINNED)
 				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index]+sizeof(struct dictHeader), sn->whereSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
-			else
+			else if (sn->wherePos[index] == UVA)
 				column[index] = sn->content[index] + sizeof(struct dictHeader);
 
 			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
@@ -656,9 +656,9 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 		}else if(format == RLE){
 
-			if(sn->wherePos[index] == MEM)
+			if(sn->wherePos[index] == MEM || sn->wherePos[index] == PINNED)
 				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index], sn->whereSize[index], cudaMemcpyHostToDevice));
-			else
+			else if (sn->wherePos[index] == UVA)
 				column[index] = sn->content[index];
 
 			genScanFilter_rle<<<grid,block>>>(column[index],sn->whereAttrSize[index],sn->whereAttrType[index], totalTupleNum, sn->offset,gpuExp, where->andOr, gpuFilter);
@@ -687,16 +687,16 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 					dictFinal = where->andOr;
 				}
 
-				if(whereFree[prev] == 1 && sn->wherePos[prev] == MEM)
+				if(whereFree[prev] == 1 && (sn->wherePos[prev] == MEM || sn->wherePos[prev] == PINNED))
 					CUDA_SAFE_CALL_NO_SYNC(cudaFree(column[prev]));
 
-				if(sn->wherePos[index] == MEM)
+				if(sn->wherePos[index] == MEM || sn->wherePos[index] == PINNED)
 					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &column[index] , sn->whereSize[index]));
 
 				if(format == DICT){
-					if(sn->wherePos[index] == MEM)
+					if(sn->wherePos[index] == MEM || sn->wherePos[index] == PINNED)
 						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index]+sizeof(struct dictHeader), sn->whereSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
-					else
+					else if (sn->wherePos[index] == UVA)
 						column[index] = sn->content[index] + sizeof(struct dictHeader);
 
 					struct dictHeader * dheader = (struct dictHeader *)sn->content[index];
@@ -714,9 +714,9 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 					CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictHeader));
 
 				}else{
-					if(sn->wherePos[index] == MEM)
+					if(sn->wherePos[index] == MEM || sn->wherePos[index] == PINNED)
 						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index], sn->whereSize[index], cudaMemcpyHostToDevice));
-					else
+					else if (sn->wherePos[index] == UVA)
 						column[index] = sn->content[index];
 				}
 
@@ -799,7 +799,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 			CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictFilter));
 		}
 	
-		if(whereFree[prev] == 1 && sn->wherePos[prev] == MEM)
+		if(whereFree[prev] == 1 && (sn->wherePos[prev] == MEM || sn->wherePos[prev] == PINNED))
 			CUDA_SAFE_CALL_NO_SYNC(cudaFree(column[prev]));
 
 		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuExp));
@@ -837,17 +837,17 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 		if(pos != -1){
 			scanCol[i] = column[pos];
 		}else{
-			if(sn->tn->dataPos[i] == MEM)
+			if(sn->tn->dataPos[i] == MEM || sn->tn->dataPos[i] == PINNED)
 				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &scanCol[i] , sn->tn->attrTotalSize[i]));
 
 			if(sn->tn->dataFormat[i] != DICT){
-				if(sn->tn->dataPos[i] == MEM)
+				if(sn->tn->dataPos[i] == MEM || sn->tn->dataPos[i] == PINNED)
 					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(scanCol[i], sn->tn->content[i], sn->tn->attrTotalSize[i], cudaMemcpyHostToDevice));
 				else
 					scanCol[i] = sn->tn->content[i];
 
 			}else{
-				if(sn->tn->dataPos[i] == MEM)
+				if(sn->tn->dataPos[i] == MEM || sn->tn->dataPos[i] == PINNED)
 					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(scanCol[i], sn->tn->content[i]+sizeof(struct dictHeader), sn->tn->attrTotalSize[i]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
 				else
 					scanCol[i] = sn->tn->content[i] + sizeof(struct dictHeader);
@@ -920,6 +920,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 		if(sn->tn->dataPos[i] == MEM)
 			CUDA_SAFE_CALL_NO_SYNC(cudaFree(scanCol[i]));
+		else if(sn->tn->dataPos[i] == PINNED)
+			CUDA_SAFE_CALL_NO_SYNC(cudaFreeHost(scanCol[i]));
 
 		int colSize = res->tupleNum * res->attrSize[i];
 
