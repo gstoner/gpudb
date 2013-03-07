@@ -612,10 +612,8 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
 	build_hash_table<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,gpu_psum1,gpu_bucket);
 
-	if (dataPos == MEM)
+	if (dataPos == MEM || dataPos == PINNED)
 		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_dim));
-	else if(dataPos == PINNED)
-		CUDA_SAFE_CALL_NO_SYNC(cudaFreeHost(gpu_dim));
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_psum1));
 
@@ -701,10 +699,8 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	res->tupleNum = count;
 	printf("joinNum %d\n",count);
 
-	if(dataPos == MEM){
+	if(dataPos == MEM || dataPos == PINNED){
 		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_fact));
-	}else if(dataPos == PINNED){
-		CUDA_SAFE_CALL_NO_SYNC(cudaFreeHost(gpu_fact));
 	}
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_bucket));
@@ -903,10 +899,8 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 		}else if(res->dataPos[i] == GPU){
 			res->content[i] = gpu_result;
 		}
-		if(dataPos == MEM)
+		if(dataPos == MEM || dataPos == PINNED)
 			CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_fact));
-		else if(dataPos == PINNED)
-			CUDA_SAFE_CALL_NO_SYNC(cudaFreeHost(gpu_fact));
 
 	}
 

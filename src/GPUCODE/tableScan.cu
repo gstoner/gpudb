@@ -918,10 +918,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 	for(int i=0;i<attrNum;i++){
 
-		if(sn->tn->dataPos[i] == MEM)
+		if(sn->tn->dataPos[i] == MEM || sn->tn->dataPos[i] == PINNED)
 			CUDA_SAFE_CALL_NO_SYNC(cudaFree(scanCol[i]));
-		else if(sn->tn->dataPos[i] == PINNED)
-			CUDA_SAFE_CALL_NO_SYNC(cudaFreeHost(scanCol[i]));
 
 		int colSize = res->tupleNum * res->attrSize[i];
 
