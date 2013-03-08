@@ -604,7 +604,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	}
 
 	count_hash_num<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,gpu_hashNum);
-	cudaDeviceSynchronize();
 
 	scanImpl(gpu_hashNum,HSIZE,gpu_psum, pp);
 
@@ -667,10 +666,8 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
 
 		count_join_result_dict<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, dNum, gpuDictFilter);
-		CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
 		transform_dict_filter<<<grid,block>>>(gpuDictFilter, gpu_fact, jNode->leftTable->tupleNum, dNum, gpuFactFilter);
-		CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
 		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictFilter));
 
@@ -679,12 +676,10 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	}else if (format == RLE){
 
 		count_join_result_rle<<<512,64>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, jNode->leftTable->offset,gpuFactFilter);
-		CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
 		filter_count<<<grid, block>>>(jNode->leftTable->tupleNum, gpu_count, gpuFactFilter);
 	}
 
-	CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
 	cpu_count = (int *) malloc(sizeof(int)*threadNum);
 	memset(cpu_count,0,sizeof(int)*threadNum);
@@ -826,7 +821,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
 				unpack_rle<<<grid,block>>>(gpu_fact, gpuRle,jNode->leftTable->tupleNum, jNode->leftTable->offset, dNum);
 
-				CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
 				joinFact_int<<<grid,block>>>(gpu_resPsum,gpuRle, attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
 
@@ -884,9 +878,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 				joinDim_rle<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum, jNode->rightTable->offset,gpuFactFilter,gpu_result);
 			}
 		}
-
-		CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
-
 		
 		res->attrTotalSize[i] = resSize;
 		res->dataFormat[i] = UNCOMPRESSED;
