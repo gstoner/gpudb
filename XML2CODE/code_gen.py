@@ -804,7 +804,7 @@ def generate_code(tree):
                 break
 
 
-        print >>fo, "\tint pass = totalTupleNum / BLOCK + 1;"
+        print >>fo, "\tint pass = (totalTupleNum + BLOCK-1)/ BLOCK;"
         print >>fo, "\tlong tupleUnit = totalTupleNum / pass;"
         print >>fo, "\tlong nextScan = tupleUnit;"
         print >>fo, "\tlong restTuple = totalTupleNum;"
@@ -1318,7 +1318,7 @@ def generate_code(tree):
                 
 
         totalAttr = len(joinAttr.factTables[0].select_list.tmp_exp_list)
-        print >>fo, "\tint pass = totalTupleNum / BLOCK + 1;"
+        print >>fo, "\tint pass = (totalTupleNum + BLOCK -1)/ BLOCK ;"
         print >>fo, "\tlong tupleUnit = totalTupleNum / pass;"
         print >>fo, "\tlong nextScan = tupleUnit;"
         print >>fo, "\tlong restTuple = totalTupleNum;"
