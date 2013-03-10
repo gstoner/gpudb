@@ -281,6 +281,16 @@ __global__ static void genScanFilter_or_int_eq(char *col, long tupleNum, int whe
 		filter[i] |= con;
 	}
 }
+__global__ static void genScanFilter_or_float_eq(char *col, long tupleNum, float where, int * filter){
+        int stride = blockDim.x * gridDim.x;
+        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int con;
+
+	for(long i = tid; i<tupleNum;i+=stride){
+		con = ((float*)col)[i] == where; 
+		filter[i] |= con;
+	}
+}
 __global__ static void genScanFilter_or_int_gth(char *col, long tupleNum, int where, int * filter){
         int stride = blockDim.x * gridDim.x;
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -292,6 +302,16 @@ __global__ static void genScanFilter_or_int_gth(char *col, long tupleNum, int wh
 	}
 }
 
+__global__ static void genScanFilter_or_float_gth(char *col, long tupleNum, float where, int * filter){
+        int stride = blockDim.x * gridDim.x;
+        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int con;
+
+	for(long i = tid; i<tupleNum;i+=stride){
+		con = ((float*)col)[i] > where; 
+		filter[i] |= con;
+	}
+}
 __global__ static void genScanFilter_or_int_lth(char *col, long tupleNum, int where, int * filter){
         int stride = blockDim.x * gridDim.x;
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -299,6 +319,16 @@ __global__ static void genScanFilter_or_int_lth(char *col, long tupleNum, int wh
 
 	for(long i = tid; i<tupleNum;i+=stride){
 		con = ((int*)col)[i] < where; 
+		filter[i] |= con;
+	}
+}
+__global__ static void genScanFilter_or_float_lth(char *col, long tupleNum, float where, int * filter){
+        int stride = blockDim.x * gridDim.x;
+        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int con;
+
+	for(long i = tid; i<tupleNum;i+=stride){
+		con = ((float*)col)[i] < where; 
 		filter[i] |= con;
 	}
 }
@@ -312,6 +342,16 @@ __global__ static void genScanFilter_or_int_geq(char *col, long tupleNum, int wh
 		filter[i] |= con;
 	}
 }
+__global__ static void genScanFilter_or_float_geq(char *col, long tupleNum, float where, int * filter){
+        int stride = blockDim.x * gridDim.x;
+        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int con;
+
+	for(long i = tid; i<tupleNum;i+=stride){
+		con = ((float*)col)[i] >= where;
+		filter[i] |= con;
+	}
+}
 __global__ static void genScanFilter_or_int_leq(char *col, long tupleNum, int where, int * filter){
         int stride = blockDim.x * gridDim.x;
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -319,6 +359,16 @@ __global__ static void genScanFilter_or_int_leq(char *col, long tupleNum, int wh
 
 	for(long i = tid; i<tupleNum;i+=stride){
 		con = ((int*)col)[i] <= where; 
+		filter[i] |= con;
+	}
+}
+__global__ static void genScanFilter_or_float_leq(char *col, long tupleNum, float where, int * filter){
+        int stride = blockDim.x * gridDim.x;
+        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int con;
+
+	for(long i = tid; i<tupleNum;i+=stride){
+		con = ((float*)col)[i] <= where; 
 		filter[i] |= con;
 	}
 }
@@ -513,7 +563,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 	int blockNum = sn->tn->tupleNum / block.x + 1;
 
 	if(blockNum<1024)
-		grid = blockNum; 
+		grid = blockNum;
 
 	int threadNum = grid.x * block.x;
 	long totalTupleNum = sn->tn->tupleNum;
@@ -629,6 +679,21 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 					genScanFilter_or_int_geq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
 				else if (rel == LEQ)
 					genScanFilter_or_int_leq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+
+			}else if (sn->whereAttrType[index] == FLOAT){
+				int rel = where->exp[0].relation;
+				float whereValue = *((int*) where->exp[0].content);
+				if(rel==EQ)
+					genScanFilter_or_float_eq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+				else if(rel == GTH)
+					genScanFilter_or_float_gth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+				else if(rel == LTH)
+					genScanFilter_or_float_lth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+				else if(rel == GEQ)
+					genScanFilter_or_float_geq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+				else if (rel == LEQ)
+					genScanFilter_or_float_leq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+
 			}else
 				genScanFilter_or<<<grid,block>>>(column[index],sn->whereAttrSize[index],sn->whereAttrType[index], totalTupleNum, gpuExp, gpuFilter);
 
@@ -755,6 +820,34 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 							genScanFilter_or_int_leq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
 					}
 
+				} else if (sn->whereAttrType[index] == FLOAT){
+					if(where->andOr == AND){
+						int rel = where->exp[i].relation;
+						float whereValue = *((int*) where->exp[i].content);
+						if(rel==EQ)
+							genScanFilter_and_float_eq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+						else if(rel == GTH)
+							genScanFilter_and_float_gth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+						else if(rel == LTH)
+							genScanFilter_and_float_lth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+						else if(rel == GEQ)
+							genScanFilter_and_float_geq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+						else if (rel == LEQ)
+							genScanFilter_and_float_leq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+					}else{
+						int rel = where->exp[i].relation;
+						float whereValue = *((int*) where->exp[i].content);
+						if(rel==EQ)
+							genScanFilter_or_float_eq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+						else if(rel == GTH)
+							genScanFilter_or_float_gth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+						else if(rel == LTH)
+							genScanFilter_or_float_lth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+						else if(rel == GEQ)
+							genScanFilter_or_float_geq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+						else if (rel == LEQ)
+							genScanFilter_or_float_leq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+					}
 				}else{
 					if(where->andOr == AND)
 						genScanFilter_and<<<grid,block>>>(column[index],sn->whereAttrSize[index],sn->whereAttrType[index], totalTupleNum, gpuExp, gpuFilter);
