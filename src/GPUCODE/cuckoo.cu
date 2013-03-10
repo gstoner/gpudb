@@ -516,7 +516,7 @@ __global__ void static shuffle_data(char *dim,int tupleNum,int bucketNum, int *s
 	for(int i=startIndex;i<tupleNum;i+=stride){
 		int key = ((int *)dim)[i];
 		int bk = start[i];
-		int pos = offset[bk] + bucketStart[bk];
+		int pos = offset[i] + bucketStart[bk];
 		((int*)result)[pos] = key;
 		rid[pos] = i;
 	}
@@ -542,9 +542,9 @@ __global__ void static cuckooHash(char *dim, int * rid, int * bucketStart,int* b
 
 	for(int i=threadIdx.x;i<SUBSIZE;i+=blockDim.x){
 		done[i] = 0;
-		sub1[2*i] = sub1[2*i+1] = 0;
-		sub2[2*i] = sub2[2*i+1] = 0;
-		sub3[2*i] = sub3[2*i+1] = 0;
+		sub1[2*i] = sub1[2*i+1] = -1;
+		sub2[2*i] = sub2[2*i+1] = -1;
+		sub3[2*i] = sub3[2*i+1] = -1;
 	}
 
 	__syncthreads();
@@ -610,7 +610,7 @@ __global__ void static cuckooHash(char *dim, int * rid, int * bucketStart,int* b
 		count ++;
 		seed += 113;
 
-	} while (!buildFinish && count <25);
+	} while (!buildFinish);
 
 	__syncthreads();
 
@@ -755,8 +755,6 @@ struct tableNode * cuckooHashJoin(struct joinNode *jNode, struct statistic *pp){
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuRid,jNode->rightTable->tupleNum * sizeof(int)));
 
 	shuffle_data<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,bucketNum,gpuBucketStart,gpuBucketOffset,gpuBucketPsum, gpuBucketData, gpuRid);
-
-	int htNum = 3;
 
 	char * gpuHash;
 	int * gpuSeeds;
