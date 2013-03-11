@@ -1,7 +1,8 @@
 #ifndef __SSB_COMMON__
 #define __SSB_COMMON__
 
-#define BILLION 1000000000
+#define BILLION 	1000000000
+#define BLOCKNUM	134217728	//128*1024*1024
 
 enum {
 
