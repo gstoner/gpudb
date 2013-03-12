@@ -112,7 +112,7 @@ static void freeScan(struct scanNode * rel){
         for(i=0;i<rel->whereAttrNum;i++){
 		if(rel->wherePos[i] == MEM)
                 	munmap(rel->content[i], rel->whereSize[i]);
-		else if (rel->dataPos[i] == GPU)
+		else if (rel->wherePos[i] == GPU)
 			cudaFree(rel->content[i]);
 		else if (rel->wherePos[i] == UVA || rel->wherePos[i] == PINNED)
 			cudaFreeHost(rel->content[i]);
