@@ -2,7 +2,7 @@
 #define __SSB_COMMON__
 
 #define BILLION 	1000000000
-#define BLOCKNUM	134217728	//128*1024*1024
+#define BLOCKNUM	(16*1024*1024)	//the number of tuples in a block. the number should be a multiple of 4096
 
 enum {
 
@@ -69,6 +69,7 @@ struct columnHeader{
 	int blockTotal;		//the total number of blocks that this column is divided into
 	int blockId;		//the block id of the current block
 	int format;		//the format of the current block
+	char padding[4076];	//for futher use
 };
 
 //if the column is compressed using dictionary encoding method,
