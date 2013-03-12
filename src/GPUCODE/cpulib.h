@@ -82,6 +82,17 @@ static void mergeIntoTable(struct tableNode *dst, struct tableNode * src, struct
 }
 
 static void freeTable(struct tableNode * tn){
+        int i;
+
+        for(i=0;i<tn->totalAttr;i++){
+		if(tn->dataPos[i] == MEM)
+                	munmap(tn->content[i], tn->attrTotalSize[i]);
+		else if(tn->dataPos[i] == GPU)
+			cudaFree(tn->content[i]);
+		else if(tn->dataPos[i] == UVA || tn->dataPos[i] == PINNED)
+			cudaFreeHost(tn->content[i]);
+        }
+
         free(tn->attrType);
 	tn->attrType = NULL;
         free(tn->attrSize);
@@ -90,17 +101,6 @@ static void freeTable(struct tableNode * tn){
 	tn->attrTotalSize = NULL;
 	free(tn->dataFormat);
 	tn->dataFormat = NULL;
-        int i;
-
-        for(i=0;i<tn->totalAttr;i++){
-		if(tn->dataPos[i] == MEM)
-                	free(tn->content[i]);
-		else if(tn->dataPos[i] == GPU)
-			cudaFree(tn->content[i]);
-		else if(tn->dataPos[i] == UVA || tn->dataPos[i] == PINNED)
-			cudaFreeHost(tn->content[i]);
-        }
-
 	free(tn->dataPos);
 	tn->dataPos = NULL;
         free(tn->content);
@@ -108,6 +108,16 @@ static void freeTable(struct tableNode * tn){
 }
 
 static void freeScan(struct scanNode * rel){
+	int i;
+        for(i=0;i<rel->whereAttrNum;i++){
+		if(rel->wherePos[i] == MEM)
+                	munmap(rel->content[i], rel->whereSize[i]);
+		else if (rel->dataPos[i] == GPU)
+			cudaFree(rel->content[i]);
+		else if (rel->wherePos[i] == UVA || rel->wherePos[i] == PINNED)
+			cudaFreeHost(rel->content[i]);
+        }
+
         free(rel->whereAttrType);
 	rel->whereAttrType = NULL;
         free(rel->whereAttrSize);
@@ -117,13 +127,6 @@ static void freeScan(struct scanNode * rel){
 	free(rel->whereFormat);
 	rel->whereFormat = NULL;
 
-	int i;
-        for(i=0;i<rel->whereAttrNum;i++){
-		if(rel->wherePos[i] == MEM)
-                	free(rel->content[i]);
-		else if (rel->wherePos[i] == UVA || rel->wherePos[i] == PINNED)
-			cudaFreeHost(rel->content[i]);
-        }
 	free(rel->wherePos);
         free(rel->filter);
 	rel->filter = NULL;
