@@ -62,13 +62,13 @@ enum {
 	NOOP
 };
 
-//header of each column
-//tupleNum: the total number of tuples in this column
-//format: is this column compressed and in which format
+//header of each block in the column 
 
 struct columnHeader{
-	long tupleNum;
-	int format;
+	long tupleNum;		//the total number of tuples in this column
+	int blockTotal;		//the total number of blocks that this column is divided into
+	int blockId;		//the block id of the current block
+	int format;		//the format of the current block
 };
 
 //if the column is compressed using dictionary encoding method,
