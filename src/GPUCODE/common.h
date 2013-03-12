@@ -65,11 +65,12 @@ enum {
 //header of each block in the column 
 
 struct columnHeader{
-	long tupleNum;		//the total number of tuples in this column
+	long tupleNum;		//the number of tuples in this block
+	long totalTupleNum;	//the total number of tuples in this column
 	int blockTotal;		//the total number of blocks that this column is divided into
 	int blockId;		//the block id of the current block
 	int format;		//the format of the current block
-	char padding[4076];	//for futher use
+	char padding[4068];	//for futher use
 };
 
 //if the column is compressed using dictionary encoding method,
