@@ -126,8 +126,9 @@ int main(int argc, char **argv){
 		exit(-1);
 	}
 
-	long size = header.tupleNum * sizeof(int);
-	long tupleNum = header.tupleNum;
+	long size = header.totalTupleNum * sizeof(int);
+	long tupleNum = header.totalTupleNum;
+	int blockTotal = header.blockTotal;
 
 	char * raw = (char *) malloc(size);
 	if(!raw){
@@ -135,9 +136,32 @@ int main(int argc, char **argv){
 		exit(-1);
 	}
 
-	char *outTable =(char *) mmap(0,size + sizeof(struct columnHeader),PROT_READ,MAP_SHARED,inFd, 0);
-        memcpy(raw,outTable + sizeof(struct columnHeader),size);
-        munmap(outTable,size + sizeof(struct columnHeader));
+	long offset = sizeof(struct columnHeader);
+	long inOffset = 0;
+	size = header.tupleNum * sizeof(int);
+
+	char *outTable =(char *) mmap(0,size,PROT_READ,MAP_SHARED,inFd, offset);
+
+	memcpy(raw + inOffset, outTable, size);
+        munmap(outTable,size);
+	offset += size;
+	inOffset += size;
+
+	for(int i=1;i<blockTotal;i++){
+		lseek(inFd, offset,SEEK_SET);
+
+		read(inFd,&header,sizeof(struct columnHeader));
+		offset += sizeof(struct columnHeader);
+		size = header.tupleNum * sizeof(int); 
+		outTable =(char *) mmap(0,size,PROT_READ,MAP_SHARED,inFd, offset);
+
+		memcpy(raw + inOffset, outTable, size);
+        	munmap(outTable,size);
+
+		offset += size;
+		inOffset += size;
+	}
+
         close(inFd);
 
 	struct sortObject * obj = (struct sortObject *) malloc(sizeof(struct sortObject ) * tupleNum);
@@ -148,7 +172,7 @@ int main(int argc, char **argv){
 	}
 
 	for(int i=0;i<tupleNum;i++){
-		obj[i].key = ((int *)raw)[i]; 
+		obj[i].key = ((int *)raw)[i];
 		obj[i].id = i;
 	}
 
@@ -164,8 +188,8 @@ int main(int argc, char **argv){
 			printf("Failed to open input column\n");
 			exit(-1);
 		}
-		size = lseek(inFd,sizeof(struct columnHeader),SEEK_END);
-		int tupleSize = size/tupleNum;
+		size = lseek(inFd,0,SEEK_END);
+		int tupleSize = (size - blockTotal*sizeof(struct columnHeader))/tupleNum;
 
 		raw = (char *) malloc(size);
 		if(!raw){
@@ -173,9 +197,23 @@ int main(int argc, char **argv){
 			exit(-1);
 		}
 
-		outTable = (char *) mmap(0,size + sizeof(struct columnHeader),PROT_READ,MAP_SHARED,inFd, 0);
-		memcpy(raw,outTable + sizeof(struct columnHeader),size);
-		munmap(outTable,size + sizeof(struct columnHeader));
+		inOffset = 0;
+		offset = 0;
+
+		for(int j=0;j<blockTotal;j++){
+			lseek(inFd, offset, SEEK_SET);
+			read(inFd, &header,sizeof(struct columnHeader));
+			offset += sizeof(struct columnHeader);
+			size = header.tupleNum * tupleSize;
+			outTable = (char *) mmap(0,size ,PROT_READ,MAP_SHARED,inFd, offset);
+
+			memcpy(raw+inOffset, outTable,size);
+			munmap(outTable,size);
+
+			offset += size;
+			inOffset += size;
+		}
+
 		close(inFd);
 
 		sprintf(buf,"%s%d",argv[2],i);
@@ -185,9 +223,44 @@ int main(int argc, char **argv){
 			exit(-1);
 		}
 
+		header.totalTupleNum = tupleNum;
+		header.blockId = 0;
+		header.blockTotal = blockTotal;
+		header.format = UNCOMPRESSED;
+
+		long tupleUnit, tupleRemain, tupleCount;
+		tupleRemain = tupleNum;
+		tupleCount = 0;
+
+		if(tupleNum > BLOCKNUM)
+			tupleUnit = BLOCKNUM;
+		else
+			tupleUnit = tupleNum;
+
+		header.tupleNum = tupleUnit;
 		write(outFd, &header, sizeof(struct columnHeader));
 
 		for(int j=0;j<tupleNum;j++){
+
+			int writeHeader = 0;
+			tupleCount ++;
+
+			if(tupleCount > BLOCKNUM){
+				tupleCount = 1;
+				tupleRemain -= BLOCKNUM;
+				if(tupleRemain > BLOCKNUM)
+					tupleUnit = BLOCKNUM;
+				else
+					tupleUnit = tupleRemain;
+				header.tupleNum = tupleUnit;
+				header.blockId ++;
+				writeHeader = 1;
+			}
+
+			if(writeHeader == 1){
+				write(outFd,&header, sizeof(struct columnHeader));
+			}
+
 			int id = obj[j].id;
 			write(outFd, raw+id*tupleSize, tupleSize);
 		}
