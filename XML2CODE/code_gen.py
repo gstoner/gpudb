@@ -126,9 +126,16 @@ def generate_loader():
 
         print >>fo, "\tfseek(fp,0,SEEK_SET);"
 
-        print >>fo, "\tfor(i=0;i<" + str(attrLen) + ";i++){"
-        print >>fo, "\t\tfwrite(&header, sizeof(struct columnHeader), 1, out[i]);"
-        print >>fo, "\t}\n"
+        for i in range(0,attrLen):
+            col = schema[tn].column_list[i]
+            if col.column_type == "INTEGER" or col.column_type == "DATE":
+                print >>fo, "\theader.blockSize = header.tupleNum * sizeof(int);"
+            elif col.column_type == "DECIMAL":
+                print >>fo, "\theader.blockSize = header.tupleNum * sizeof(float);"
+            elif col.column_type == "TEXT":
+                print >>fo, "\theader.blockSize = header.tupleNum * " + str(col.column_others) + ";"
+
+            print >>fo, "\tfwrite(&header, sizeof(struct columnHeader), 1, out[" + str(i) + "]);"
 
         print >>fo, "\twhile(fgets(buf,sizeof(buf),fp)!= NULL){"
 
@@ -159,18 +166,21 @@ def generate_loader():
 
             if col.column_type == "INTEGER" or col.column_type == "DATE":
                 print >>fo, "\t\t\t\t\t\tif(writeHeader == 1){"
+                print >>fo, "\t\t\t\t\t\t\theader.blockSize = header.tupleNum * sizeof(int);"
                 print >>fo, "\t\t\t\t\t\t\tfwrite(&header,sizeof(struct columnHeader),1,out[" + str(i) + "]);"
                 print >>fo, "\t\t\t\t\t\t}"
                 print >>fo, "\t\t\t\t\t\ttmp."+str(col.column_name.lower()) + " = strtol(data,NULL,10);"
                 print >>fo, "\t\t\t\t\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(int),1,out["+str(i) + "]);"
             elif col.column_type == "DECIMAL":
                 print >>fo, "\t\t\t\t\t\tif(writeHeader == 1){"
+                print >>fo, "\t\t\t\t\t\t\theader.blockSize = header.tupleNum * sizeof(float);"
                 print >>fo, "\t\t\t\t\t\t\tfwrite(&header,sizeof(struct columnHeader),1,out[" + str(i) + "]);"
                 print >>fo, "\t\t\t\t\t\t}"
                 print >>fo, "\t\t\t\t\t\ttmp."+str(col.column_name.lower()) + " = atof(data);"
                 print >>fo, "\t\t\t\t\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(float),1,out["+str(i) + "]);"
             elif col.column_type == "TEXT":
                 print >>fo, "\t\t\t\t\t\tif(writeHeader == 1){"
+                print >>fo, "\t\t\t\t\t\t\theader.blockSize = header.tupleNum * " + str(col.column_others) + ";"
                 print >>fo, "\t\t\t\t\t\t\tfwrite(&header,sizeof(struct columnHeader),1,out[" + str(i) + "]);"
                 print >>fo, "\t\t\t\t\t\t}"
                 print >>fo, "\t\t\t\t\t\tstrcpy(tmp." + str(col.column_name.lower()) + ",data);"
@@ -187,6 +197,7 @@ def generate_loader():
         col = schema[tn].column_list[attrLen-1]
         if col.column_type == "INTEGER" or col.column_type == "DATE":
             print >>fo, "\t\tif(writeHeader == 1){"
+            print >>fo, "\t\t\theader.blockSize = header.tupleNum * sizeof(int);"
             print >>fo, "\t\t\tfwrite(&header,sizeof(struct columnHeader),1,out[" + str(attrLen-1) + "]);"
             print >>fo, "\t\t}"
             print >>fo, "\t\tmemset(data,0,sizeof(data));"
@@ -195,6 +206,7 @@ def generate_loader():
             print >>fo, "\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(int),1,out["+str(attrLen-1) + "]);"
         elif col.column_type == "DECIMAL":
             print >>fo, "\t\tif(writeHeader == 1){"
+            print >>fo, "\t\t\theader.blockSize = header.tupleNum * sizeof(float);"
             print >>fo, "\t\t\tfwrite(&header,sizeof(struct columnHeader),1,out[" + str(attrLen-1) + "]);"
             print >>fo, "\t\t}"
             print >>fo, "\t\tmemset(data,0,sizeof(data));"
@@ -203,6 +215,7 @@ def generate_loader():
             print >>fo, "\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(float),1,out["+str(i) + "]);"
         elif col.column_type == "TEXT":
             print >>fo, "\t\tif(writeHeader == 1){"
+            print >>fo, "\t\t\theader.blockSize = header.tupleNum * " + str(col.column_others) + ";"
             print >>fo, "\t\t\tfwrite(&header,sizeof(struct columnHeader),1,out[" + str(attrLen-1) + "]);"
             print >>fo, "\t\t}"
             print >>fo, "\t\tstrncpy(tmp." + str(col.column_name.lower()) + ",buf+prev,i-prev);"
@@ -892,7 +905,6 @@ def generate_code(tree):
         print >>fo, "\toffset = 0;"
         print >>fo, "\ttupleOffset = 0;"
         print >>fo, "\tfor(int i=0;i<blockTotal;i++){\n"
-        print >>fo, "\t\tlong nextScan = header.tupleNum;\n"
 
         totalAttr = len(joinAttr.factTables[0].select_list.tmp_exp_list)
         print >>fo, "\t\tstruct tableNode *" + factName + " = (struct tableNode*)malloc(sizeof(struct tableNode));" 
@@ -904,7 +916,6 @@ def generate_code(tree):
         print >>fo, "\t\t" + factName + "->dataPos = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
         print >>fo, "\t\t" + factName + "->dataFormat = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
         print >>fo, "\t\t" + factName + "->content = (char **) malloc(sizeof(char *)*" + str(totalAttr) + ");"
-        print >>fo, "\t\t" + factName + "->tupleNum = nextScan;"
 
         tupleSize = "0"
         for i in range(0,totalAttr):
@@ -956,64 +967,22 @@ def generate_code(tree):
             print >>fo, "\t\tread(outFd, &header, sizeof(struct columnHeader));"
             print >>fo, "\t\toffset += sizeof(struct columnHeader);"
             print >>fo, "\t\t" + factName + "->dataFormat[" + str(i) + "] = header.format;"
-            print >>fo, "\t\tif(header.format == UNCOMPRESSED){"
-            print >>fo, "\t\t\toutSize = header.tupleNum*" + colLen + ";"
-            print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
+            print >>fo, "\t\toutSize = header.blockSize;"
+            print >>fo, "\t\toutTable = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
 
             if POS == 0:
-                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
+                print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
             elif POS == 1:
-                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-                print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable+offset, outSize);"
+                print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+                print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable+offset, outSize);"
             elif POS == 2:
-                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-                print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable+offset, outSize);"
+                print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+                print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable+offset, outSize);"
             else:
-                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
+                print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
 
-            print >>fo, "\t\t\tclose(outFd);"
-            print >>fo, "\t\t\t" + factName + "->attrTotalSize[" + str(i) + "] = outSize;"
-            print >>fo, "\t\t}else if (header.format == DICT){"
-            print >>fo, "\t\t\tstruct dictHeader dheader;"
-            print >>fo, "\t\t\tread(outFd, &dheader, sizeof(struct dictHeader));"
-            print >>fo, "\t\t\toffset = tupleOffset * dheader.bitNum / 8 + sizeof(struct columnHeader) + sizeof(struct dictHeader);"
-            print >>fo, "\t\t\toutSize = header.tupleNum * dheader.bitNum / 8 + sizeof(struct dictHeader);"
-            print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
-
-            if POS == 0:
-                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
-            elif POS == 1:
-                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-            elif POS == 2:
-                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-            else:
-                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
-
-            print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], &dheader, sizeof(struct dictHeader));"
-            print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "] + sizeof(struct dictHeader), outTable+offset, outSize - sizeof(struct dictHeader));"
-            print >>fo, "\t\t\tmunmap(outTable,outSize + offset);"
-            print >>fo, "\t\t\tclose(outFd);"
-            print >>fo, "\t\t\t" + factName + "->attrTotalSize[" + str(i) + "] = outSize;"
-            print >>fo, "\t\t}else if (header.format == RLE){"
-            print >>fo, "\t\t\t" + factName + "->offset = tupleOffset;"
-            print >>fo, "\t\t\toffset = sizeof(struct columnHeader);"
-            print >>fo, "\t\t\toutSize = lseek(outFd, 0, SEEK_END) - offset;"
-            print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
-
-            if POS == 0:
-                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
-            elif POS == 1:
-                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-            elif POS == 2:
-                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-            else:
-                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
-
-            print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable+offset, outSize);"
-            print >>fo, "\t\t\tmunmap(outTable,outSize + offset);"
-            print >>fo, "\t\t\tclose(outFd);"
-            print >>fo, "\t\t\t" + factName + "->attrTotalSize[" + str(i) + "] = outSize;"
-            print >>fo, "\t\t}"
+            print >>fo, "\t\tclose(outFd);"
+            print >>fo, "\t\t" + factName + "->attrTotalSize[" + str(i) + "] = outSize;"
 
         print >>fo, "\t\t" + factName + "->tupleNum = header.tupleNum;"
 
@@ -1066,51 +1035,26 @@ def generate_code(tree):
                 print >>fo, "\t\tread(outFd, &header, sizeof(struct columnHeader));"
                 print >>fo, "\t\toffset += sizeof(struct columnHeader);"
                 print >>fo, "\t\t" + relName + ".whereFormat[" + str(i) + "] = header.format;"
-                print >>fo, "\t\tif(header.format == UNCOMPRESSED){"
-                print >>fo, "\t\t\toutSize = header.tupleNum *" + colLen + ";"
-                print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
+                print >>fo, "\t\t\toutSize = header.blockSize;"
+                print >>fo, "\t\toutTable = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
 
                 if POS == 0:
-                    print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = outTable;"
-                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
+                    print >>fo, "\t\t"+relName+".content["+str(i)+"] = outTable;"
+                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
                 elif POS == 1:
-                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = PINNED;"
-                    print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
-                    print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"],outTable,outSize);"
+                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = PINNED;"
+                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
+                    print >>fo, "\t\tmemcpy("+relName+".content["+str(i)+"],outTable,outSize);"
                 elif POS == 2:
-                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
-                    print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
-                    print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"],outTable,outSize);"
+                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
+                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
+                    print >>fo, "\t\tmemcpy("+relName+".content["+str(i)+"],outTable,outSize);"
                 else:
-                    print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = outTable;"
-                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
+                    print >>fo, "\t\t"+relName+".content["+str(i)+"] = outTable;"
+                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
 
-                print >>fo, "\t\t\tclose(outFd);"
-                print >>fo, "\t\t\t"+relName+".whereSize["+str(i)+"] = outSize;"
-                print >>fo, "\t\t}else if(header.format == DICT){"
-                print >>fo, "\t\t\tstruct dictHeader dheader;"
-                print >>fo, "\t\t\tread(outFd, &dheader, sizeof(struct dictHeader));"
-                print >>fo, "\t\t\toffset = tupleOffset * dheader.bitNum / 8 + sizeof(struct columnHeader) + sizeof(struct dictHeader);"
-                print >>fo, "\t\t\toutSize = header.tupleNum * dheader.bitNum / 8 + sizeof(struct dictHeader);"
-                print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
-                print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);\n"
-                print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"],&dheader, sizeof(struct dictHeader));"
-                print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"] + sizeof(dictHeader),outTable + offset,outSize - sizeof(struct dictHeader));"
-                print >>fo, "\t\t\tmunmap(outTable, outSize + offset);"
-                print >>fo, "\t\t\tclose(outFd);"
-                print >>fo, "\t\t\t"+relName+".whereSize["+str(i)+"] = outSize;"
-                print >>fo, "\t\t}else if (header.format == RLE){"
-                print >>fo, "\t\t\t" + relName + ".offset = tupleOffset;"
-                print >>fo, "\t\t\toffset = sizeof(struct columnHeader);"
-                print >>fo, "\t\t\toutSize = lseek(outFd,0,SEEK_END) - offset;"
-                print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
-                print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
-                print >>fo, "\t\t\toutTable =(char *) mmap(0,outSize + offset,PROT_READ,MAP_SHARED,outFd,0);\n"
-                print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"],outTable + offset,outSize);"
-                print >>fo, "\t\t\tmunmap(outTable, outSize + offset);"
-                print >>fo, "\t\t\tclose(outFd);"
-                print >>fo, "\t\t\t"+relName+".whereSize["+str(i)+"] = outSize;"
-                print >>fo, "\t\t}"
+                print >>fo, "\t\tclose(outFd);"
+                print >>fo, "\t\t"+relName+".whereSize["+str(i)+"] = outSize;"
 
             print >>fo, "\t\t" + relName + ".filter = (struct whereCondition *)malloc(sizeof(struct whereCondition));"
 
@@ -1285,8 +1229,8 @@ def generate_code(tree):
             if setTupleNum == 0:
                 setTupleNum = 1
                 print >>fo, "\toutFd = open(\"" + joinAttr.factTables[0].table_name + str(colIndex) + "\",O_RDONLY);"
-                print >>fo, "\tread(outFd,&header,sizeof(columnHeader));"
-                print >>fo, "\tlong totalTupleNum = header.tupleNum;" 
+                print >>fo, "\tread(outFd, &header, sizeof(struct columnHeader));"
+                print >>fo, "\tblockTotal = header.blockTotal;" 
                 print >>fo, "\tclose(outFd);"
 
         factIndex = []
@@ -1403,16 +1347,10 @@ def generate_code(tree):
                 
 
         totalAttr = len(joinAttr.factTables[0].select_list.tmp_exp_list)
-        print >>fo, "\tint pass = (totalTupleNum + BLOCK -1)/ BLOCK ;"
-        print >>fo, "\tlong tupleUnit = totalTupleNum / pass;"
-        print >>fo, "\tlong nextScan = tupleUnit;"
-        print >>fo, "\tlong restTuple = totalTupleNum;"
-        print >>fo, "\tlong tupleOffset = 0;"
+        print >>fo, "\ttupleOffset = 0;"
         print >>fo, "\toffset = 0;\n"
 
-        print >>fo, "\tfor(int i=0;i<pass;i++){\n"
-        print >>fo, "\t\tif(restTuple < nextScan)"
-        print >>fo, "\t\t\tnextScan = restTuple;\n"
+        print >>fo, "\tfor(int i=0;i<blockTotal;i++){\n"
 
         print >>fo, "\t\tstruct tableNode *" + factName + " = (struct tableNode*)malloc(sizeof(struct tableNode));"
         print >>fo, "\t\t" + factName + "->totalAttr = " + str(totalAttr) + ";"
@@ -1423,7 +1361,6 @@ def generate_code(tree):
         print >>fo, "\t\t" + factName + "->dataPos = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
         print >>fo, "\t\t" + factName + "->dataFormat = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
         print >>fo, "\t\t" + factName + "->content = (char **) malloc(sizeof(char *)*" + str(totalAttr) + ");"
-        print >>fo, "\t\t" + factName + "->tupleNum = nextScan;"
 
         tupleSize = "0"
         for i in range(0,totalAttr):
@@ -1469,66 +1406,29 @@ def generate_code(tree):
             colLen = type_length(joinAttr.factTables[0].table_name, colIndex, colType)
 
             print >>fo, "\t\toutFd = open(\"" + joinAttr.factTables[0].table_name + str(colIndex) + "\", O_RDONLY);"
+            print >>fo, "\t\toffset = i*sizeof(struct columnHeader) + tupleOffset * " +str(colLen) + ";"
+            print >>fo, "\t\tlseek(outFd,offset,SEEK_SET);"
             print >>fo, "\t\tread(outFd, &header, sizeof(struct columnHeader));"
+            print >>fo, "\t\toffset += sizeof(struct columnHeader);"
             print >>fo, "\t\t" + factName + "->dataFormat[" + str(i) + "] = header.format;"
-            print >>fo, "\t\tif(header.format == UNCOMPRESSED){"
-            print >>fo, "\t\t\toffset = tupleOffset *" + colLen + "+sizeof(struct columnHeader);"
-            print >>fo, "\t\t\toutSize = nextScan*" + colLen + ";"
-            print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
+            print >>fo, "\t\toutSize = header.blockSize;" 
+            print >>fo, "\t\toutTable = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
 
             if POS == 0:
-                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
+                print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
             elif POS == 1:
-                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+                print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+                print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
             elif POS == 2:
-                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+                print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+                print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
             else:
-                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
+                print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
 
-            print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable+offset, outSize);"
-            print >>fo, "\t\t\tmunmap(outTable,outSize + offset);"
-            print >>fo, "\t\t\tclose(outFd);"
-            print >>fo, "\t\t\t" + factName + "->attrTotalSize[" + str(i) + "] = outSize;"
-            print >>fo, "\t\t}else if (header.format == DICT){"
-            print >>fo, "\t\t\tstruct dictHeader dheader;"
-            print >>fo, "\t\t\tread(outFd, &dheader, sizeof(struct dictHeader));"
-            print >>fo, "\t\t\toffset = tupleOffset * dheader.bitNum / 8 + sizeof(struct columnHeader) + sizeof(struct dictHeader);"
-            print >>fo, "\t\t\toutSize = nextScan * dheader.bitNum / 8 + sizeof(struct dictHeader);"
-            print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
+            print >>fo, "\t\tclose(outFd);"
+            print >>fo, "\t\t" + factName + "->attrTotalSize[" + str(i) + "] = outSize;"
 
-            if POS == 0 :
-                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
-            elif POS == 1:
-                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-            elif POS == 2:
-                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-            else:
-                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
-
-            print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], &dheader, sizeof(struct dictHeader));"
-            print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "] + sizeof(struct dictHeader), outTable+offset, outSize - sizeof(struct dictHeader));"
-            print >>fo, "\t\t\tmunmap(outTable,outSize + offset);"
-            print >>fo, "\t\t\tclose(outFd);"
-            print >>fo, "\t\t\t" + factName + "->attrTotalSize[" + str(i) + "] = outSize;"
-            print >>fo, "\t\t}else if (header.format == RLE){"
-            print >>fo, "\t\t\toffset = sizeof(struct columnHeader);"
-            print >>fo, "\t\t\toutSize = lseek(outFd, 0, SEEK_END) - offset;"
-            print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
-
-            if POS == 0:
-                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
-            elif POS == 1:
-                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-            elif POS == 2:
-                print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-            else:
-                print >>fo, "\t\t\t" + factName + "->content[" + str(i) + "] = (char *) malloc(outSize);\n"
-
-            print >>fo, "\t\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable+offset, outSize);"
-            print >>fo, "\t\t\tmunmap(outTable,outSize + offset);"
-            print >>fo, "\t\t\tclose(outFd);"
-            print >>fo, "\t\t\t" + factName + "->attrTotalSize[" + str(i) + "] = outSize;"
-            print >>fo, "\t\t}"
+        print >>fo, "\t\t" + factName + "->tupleNum = header.tupleNum;"
 
         if joinAttr.factTables[0].where_condition is not None:
             hasWhere = 1
@@ -1572,54 +1472,31 @@ def generate_code(tree):
                 print >>fo, "\t\t" + relName + ".whereAttrSize["+str(i) + "] = " + str(colLen) + ";"
                 print >>fo, "\t\t" + relName + ".whereIndex["+str(i) + "] = " + str(colIndex) + ";"
                 print >>fo, "\t\toutFd = open(\""+joinAttr.factTables[0].table_name+str(colIndex)+"\",O_RDONLY);"
+                print >>fo, "\t\toffset = i*sizeof(struct columnHeader) + tupleOffset *" + str(colLen) + ";"
+                print >>fo, "\t\tlseek(outFd,offset,SEEK_SET);"
                 print >>fo, "\t\tread(outFd, &header, sizeof(struct columnHeader));"
+                print >>fo, "\t\toffset += sizeof(struct columnHeader)"
                 print >>fo, "\t\t" + relName + ".whereFormat[" + str(i) + "] = header.format;"
-                print >>fo, "\t\tif(header.format == UNCOMPRESSED){"
-                print >>fo, "\t\t\toffset = tupleOffset *" + colLen + " + sizeof(struct columnHeader);"
-                print >>fo, "\t\t\toutSize = nextScan *" + colLen + ";"
+                print >>fo, "\t\toutSize = header.blockSize;" 
+                print >>fo, "\t\toutTable =(char *) mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
 
                 if POS == 0:
-                    print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
-                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
+                    print >>fo, "\t\t"+relName+".content["+str(i)+"] = outTable;"
+                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
                 elif POS == 1:
-                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = PINNED;"
-                    print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
+                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = PINNED;"
+                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
+                    print >>fo, "\t\tmemcpy("+relName+".content["+str(i)+"],outTable,outSize);"
                 elif POS == 2:
-                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
-                    print >>fo, "\t\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
+                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
+                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
+                    print >>fo, "\t\tmemcpy("+relName+".content["+str(i)+"],outTable,outSize);"
                 else:
-                    print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
-                    print >>fo, "\t\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
+                    print >>fo, "\t\t"+relName+".content["+str(i)+"] = outTable;"
+                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
 
-                print >>fo, "\t\t\toutTable =(char *) mmap(0,outSize + offset,PROT_READ,MAP_SHARED,outFd,0);"
-                print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"],outTable + offset,outSize);"
-                print >>fo, "\t\t\tmunmap(outTable, outSize + offset);"
-                print >>fo, "\t\t\tclose(outFd);"
-                print >>fo, "\t\t\t"+relName+".whereSize["+str(i)+"] = outSize;"
-                print >>fo, "\t\t}else if(header.format == DICT){"
-                print >>fo, "\t\t\tstruct dictHeader dheader;"
-                print >>fo, "\t\t\tread(outFd, &dheader, sizeof(struct dictHeader));"
-                print >>fo, "\t\t\toffset = tupleOffset * dheader.bitNum / 8 + sizeof(struct columnHeader) + sizeof(struct dictHeader);"
-                print >>fo, "\t\t\toutSize = nextScan * dheader.bitNum / 8 + sizeof(struct dictHeader);"
-                print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
-                print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
-                print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"],&dheader, sizeof(struct dictHeader));"
-                print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"] + sizeof(dictHeader),outTable + offset,outSize - sizeof(struct dictHeader));"
-                print >>fo, "\t\t\tmunmap(outTable, outSize + offset);"
-                print >>fo, "\t\t\tclose(outFd);"
-                print >>fo, "\t\t\t"+relName+".whereSize["+str(i)+"] = outSize;"
-                print >>fo, "\t\t}else if (header.format == RLE){"
-                print >>fo, "\t\t\t" + relName + ".offset = tupleOffset;"
-                print >>fo, "\t\t\toffset = sizeof(struct columnHeader);"
-                print >>fo, "\t\t\toutSize = lseek(outFd,0,SEEK_END) - offset;"
-                print >>fo, "\t\t\toutTable = (char *)mmap(0,outSize+offset,PROT_READ,MAP_SHARED,outFd,0);"
-                print >>fo, "\t\t\t"+relName+".content["+str(i)+"] = (char *) malloc(outSize);"
-                print >>fo, "\t\t\toutTable =(char *) mmap(0,outSize + offset,PROT_READ,MAP_SHARED,outFd,0);"
-                print >>fo, "\t\t\tmemcpy("+relName+".content["+str(i)+"],outTable + offset,outSize);"
-                print >>fo, "\t\t\tmunmap(outTable, outSize + offset);"
-                print >>fo, "\t\t\tclose(outFd);"
-                print >>fo, "\t\t\t"+relName+".whereSize["+str(i)+"] = outSize;"
-                print >>fo, "\t\t}"
+                print >>fo, "\t\tclose(outFd);"
+                print >>fo, "\t\t"+relName+".whereSize["+str(i)+"] = outSize;"
 
             print >>fo, "\t\t" + relName + ".filter = (struct whereCondition *)malloc(sizeof(struct whereCondition));"
 
@@ -1673,6 +1550,7 @@ def generate_code(tree):
             hasWhere = 0
             print >>fo, "\t\tstruct tableNode * " + resName + " = " + factName + ";"
 
+        print >>fo, "\t\ttupleOffset += header.tupleNum;"
         print >>fo, "\t\t" + jName + ".factTable = " + resName + ";"
 
         print >>fo, "\t\tstruct tableNode *join1 = inviJoin(&" + jName + ", &pp);"
@@ -1684,8 +1562,6 @@ def generate_code(tree):
         print >>fo, "\t\t\tfreeTable(join1);"
         print >>fo, "\t\t}else"
         print >>fo, "\t\t\t" + resultNode + "=join1;"
-        print >>fo, "\t\ttupleOffset +=tupleUnit;"
-        print >>fo, "\t\trestTuple -= nextScan;"
 
         print >>fo, "\t}\n"
 
