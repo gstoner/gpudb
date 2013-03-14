@@ -108,30 +108,12 @@ static void freeTable(struct tableNode * tn){
 }
 
 static void freeScan(struct scanNode * rel){
-	int i;
-        for(i=0;i<rel->whereAttrNum;i++){
-		if(rel->wherePos[i] == MEM)
-                	munmap(rel->content[i], rel->whereSize[i]);
-		else if (rel->wherePos[i] == GPU)
-			cudaFree(rel->content[i]);
-		else if (rel->wherePos[i] == UVA || rel->wherePos[i] == PINNED)
-			cudaFreeHost(rel->content[i]);
-        }
-
-        free(rel->whereAttrType);
-	rel->whereAttrType = NULL;
-        free(rel->whereAttrSize);
-	rel->whereAttrSize = NULL;
-	free(rel->whereSize);
-	rel->whereSize = NULL;
-	free(rel->whereFormat);
-	rel->whereFormat = NULL;
-
-	free(rel->wherePos);
+	free(rel->whereIndex);
+	rel->whereIndex = NULL;
+	free(rel->outputIndex);
+	rel->outputIndex = NULL;
         free(rel->filter);
 	rel->filter = NULL;
-        free(rel->content);
-	rel->content = NULL;
 	freeTable(rel->tn);
 }
 

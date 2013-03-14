@@ -590,11 +590,11 @@ __global__ void static unpack_rle(char * fact, char * rle, long tupleNum, long t
 struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 	struct tableNode *res = NULL;
+	int tupleSize = 0;
 
 	res = (struct tableNode *) malloc(sizeof(struct tableNode));
 
-	res->totalAttr = sn->tn->totalAttr;
-	res->tupleSize = sn->tn->tupleSize;
+	res->totalAttr = sn->outputNum;
 
 	res->attrType = (int *) malloc(sizeof(int) * res->totalAttr);
 	res->attrSize = (int *) malloc(sizeof(int) * res->totalAttr);
@@ -604,8 +604,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 	res->dataFormat = (int *) malloc(sizeof(int) * res->totalAttr);
 	res->content = (char **) malloc(sizeof(char *) * res->totalAttr);
 
-	memcpy(res->attrType, sn->tn->attrType, sizeof(int) * res->totalAttr);
-	memcpy(res->attrSize, sn->tn->attrSize, sizeof(int) * res->totalAttr);
+	for(int i=0;i<res->totalAttr;i++){
+		int index = sn->outputIndex[i];
+		res->attrType[i] = sn->tn->attrType[i];
+		res->attrSize[i] = sn->tn->attrSize[i];
+	}
 
 	char ** column;
 	int * gpuCount;
@@ -628,21 +631,21 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 	column = (char **) malloc(attrNum * sizeof(char *));
 
 	int * whereFree = (int *)malloc(attrNum * sizeof(int));
-	int * colWherePos = (int *)malloc(sn->tn->totalAttr * sizeof(int));
+	int * colWherePos = (int *)malloc(sn->outputNum * sizeof(int));
 
 
-	if(!column){
+	if(!column || !whereFree || !colWherePos){
 		printf("Failed to allocate host memory\n");
 		exit(-1);
 	}
 
-	for(int i=0;i<sn->tn->totalAttr;i++)
+	for(int i=0;i<sn->outputNum;i++)
 		colWherePos[i] = -1;
 
 	for(int i=0;i<attrNum;i++){
 		whereFree[i] = 1;
-		for(int j=0;j<sn->tn->totalAttr;j++){
-			if(sn->whereIndex[i] == sn->tn->attrIndex[j]){
+		for(int j=0;j<sn->outputNum;j++){
+			if(sn->whereIndex[i] == sn->outputIndex[j]){
 				whereFree[i] = -1;
 				colWherePos[j] = i;
 			}
@@ -664,47 +667,18 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 	struct whereCondition *where = sn->filter;
 
-	if(0){
-
-		char ** gpuColumn;
-		int * gpuWhere, *cpuWhere;
-		int * gpuRel, *cpuRel;
-
-		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuColumn,sizeof(char *) *where->expNum));
-		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuWhere, sizeof(int) * where->expNum));
-		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuRel, sizeof(int) * where->expNum));
-
-		cpuWhere = (int*)malloc(sizeof(int)* where->expNum);
-		cpuRel = (int*)malloc(sizeof(int)* where->expNum);
-
-		int index, prev = -1;
-		for(int i=0;i<where->expNum;i++){
-			index = where->exp[i].index;
-			cpuWhere[i] = *(int *) (where->exp[i].content);
-			cpuRel[i] = where->exp[i].relation;
-			if(prev != index){
-				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &column[index] , sn->whereSize[index]));
-				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index], sn->whereSize[index], cudaMemcpyHostToDevice));
-				prev = index;
-			}
-			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(&gpuColumn[i],&column[index], sizeof(char*), cudaMemcpyHostToDevice));
-		}
-
-		CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuWhere,cpuWhere, sizeof(int)* where->expNum, cudaMemcpyHostToDevice));
-		CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuRel,cpuRel, sizeof(int)* where->expNum, cudaMemcpyHostToDevice));
-
-		genScanFilter<<<grid,block>>>(gpuColumn, where->expNum,totalTupleNum, gpuRel,gpuWhere,gpuFilter);
-
-
-	}else{
+	if(1){
 
 		struct whereExp * gpuExp;
 		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuExp, sizeof(struct whereExp)));
 		CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuExp, &where->exp[0], sizeof(struct whereExp), cudaMemcpyHostToDevice));
 
-		int index = where->exp[0].index;
-		int prev = index;
-		int format = sn->whereFormat[index];
+		int whereIndex = where->exp[0].index;
+		int index = sn->whereIndex[whereIndex];
+		int prevWhere = whereIndex;
+		int prevIndex = index;
+
+		int format = sn->tn->dataFormat[index];
 
 		int prevFormat = format;
 		int dNum;
@@ -712,48 +686,48 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 		int *gpuDictFilter;
 
-		if(sn->wherePos[index] == MEM || sn->wherePos[index] == PINNED)
-			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &column[index], sn->whereSize[index]));
+		if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &column[whereIndex], sn->tn->attrTotalSize[index]));
 
 		if(format == UNCOMPRESSED){
-			if(sn->wherePos[index] == MEM || sn->wherePos[index] == PINNED)
-				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index], sn->whereSize[index], cudaMemcpyHostToDevice));
-			else if (sn->wherePos[index] == UVA)
-				column[index] = sn->content[index];
+			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index], sn->tn->attrTotalSize[index], cudaMemcpyHostToDevice));
+			else if (sn->tn->dataPos[index] == UVA)
+				column[whereIndex] = sn->tn->content[index];
 
-			if(sn->whereAttrType[index] == INT){
+			if(sn->tn->attrType[index] == INT){
 				int rel = where->exp[0].relation;
 				int whereValue = *((int*) where->exp[0].content);
 				if(rel==EQ)
-					genScanFilter_or_int_eq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+					genScanFilter_or_int_eq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 				else if(rel == GTH)
-					genScanFilter_or_int_gth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+					genScanFilter_or_int_gth<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 				else if(rel == LTH)
-					genScanFilter_or_int_lth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+					genScanFilter_or_int_lth<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 				else if(rel == GEQ)
-					genScanFilter_or_int_geq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+					genScanFilter_or_int_geq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 				else if (rel == LEQ)
-					genScanFilter_or_int_leq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+					genScanFilter_or_int_leq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 
-			}else if (sn->whereAttrType[index] == FLOAT){
+			}else if (sn->tn->attrType[index] == FLOAT){
 				int rel = where->exp[0].relation;
 				float whereValue = *((int*) where->exp[0].content);
 				if(rel==EQ)
-					genScanFilter_or_float_eq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+					genScanFilter_or_float_eq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 				else if(rel == GTH)
-					genScanFilter_or_float_gth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+					genScanFilter_or_float_gth<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 				else if(rel == LTH)
-					genScanFilter_or_float_lth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+					genScanFilter_or_float_lth<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 				else if(rel == GEQ)
-					genScanFilter_or_float_geq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+					genScanFilter_or_float_geq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 				else if (rel == LEQ)
-					genScanFilter_or_float_leq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+					genScanFilter_or_float_leq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 
 			}else
-				genScanFilter_or<<<grid,block>>>(column[index],sn->whereAttrSize[index],sn->whereAttrType[index], totalTupleNum, gpuExp, gpuFilter);
+				genScanFilter_or<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, gpuExp, gpuFilter);
 
 		}else if(format == DICT){
-			struct dictHeader * dheader = (struct dictHeader *)sn->content[index];
+			struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[index];
 			dNum = dheader->dictNum;
 			byteNum = dheader->bitNum/8;
 
@@ -761,27 +735,27 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictHeader,sizeof(struct dictHeader)));
 			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader), cudaMemcpyHostToDevice));
 
-			if(sn->wherePos[index] == MEM || sn->wherePos[index] == PINNED)
-				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index]+sizeof(struct dictHeader), sn->whereSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
-			else if (sn->wherePos[index] == UVA)
-				column[index] = sn->content[index] + sizeof(struct dictHeader);
+			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index]+sizeof(struct dictHeader), sn->tn->attrSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
+			else if (sn->tn->dataPos[index] == UVA)
+				column[whereIndex] = sn->tn->content[index] + sizeof(struct dictHeader);
 
 			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
 			CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuDictFilter, 0 ,dNum * sizeof(int)));
 
-			genScanFilter_dict_or<<<grid,block>>>(gpuDictHeader,sn->whereAttrSize[index],sn->whereAttrType[index],dNum, gpuExp,gpuDictFilter);
+			genScanFilter_dict_or<<<grid,block>>>(gpuDictHeader,sn->tn->attrSize[index],sn->tn->attrType[index],dNum, gpuExp,gpuDictFilter);
 			CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
 			CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictHeader));
 
 		}else if(format == RLE){
 
-			if(sn->wherePos[index] == MEM || sn->wherePos[index] == PINNED)
-				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index], sn->whereSize[index], cudaMemcpyHostToDevice));
-			else if (sn->wherePos[index] == UVA)
-				column[index] = sn->content[index];
+			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index], sn->tn->attrTotalSize[index], cudaMemcpyHostToDevice));
+			else if (sn->tn->dataPos[index] == UVA)
+				column[whereIndex] = sn->tn->content[index];
 
-			genScanFilter_rle<<<grid,block>>>(column[index],sn->whereAttrSize[index],sn->whereAttrType[index], totalTupleNum, sn->offset,gpuExp, where->andOr, gpuFilter);
+			genScanFilter_rle<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, 0,gpuExp, where->andOr, gpuFilter);
 		}
 
 		CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
@@ -790,36 +764,37 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 		int dictFinal = OR;
 
 		for(int i=1;i<where->expNum;i++){
-			index = where->exp[i].index;
-			format = sn->whereFormat[index];
+			whereIndex = where->exp[i].index;
+			index = sn->whereIndex[whereIndex];
+			format = sn->tn->dataFormat[index];
 
 			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuExp, &where->exp[i], sizeof(struct whereExp), cudaMemcpyHostToDevice));
 
-			if(prev != index){
+			if(prevIndex != index){
 				if(prevFormat == DICT){
 					if(dictFinal == OR)
-						transform_dict_filter_or<<<grid,block>>>(gpuDictFilter, column[prev], totalTupleNum, dNum, gpuFilter,byteNum);
+						transform_dict_filter_or<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter,byteNum);
 					else
-						transform_dict_filter_and<<<grid,block>>>(gpuDictFilter, column[prev], totalTupleNum, dNum, gpuFilter,byteNum);
+						transform_dict_filter_and<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter,byteNum);
 
 					CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 					CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictFilter));
 					dictFinal = where->andOr;
 				}
 
-				if(whereFree[prev] == 1 && (sn->wherePos[prev] == MEM || sn->wherePos[prev] == PINNED))
-					CUDA_SAFE_CALL_NO_SYNC(cudaFree(column[prev]));
+				if(whereFree[prevWhere] == 1 && (sn->tn->dataPos[prevIndex] == MEM || sn->tn->dataPos[prevIndex] == PINNED))
+					CUDA_SAFE_CALL_NO_SYNC(cudaFree(column[prevWhere]));
 
-				if(sn->wherePos[index] == MEM || sn->wherePos[index] == PINNED)
-					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &column[index] , sn->whereSize[index]));
+				if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &column[whereIndex] , sn->tn->attrTotalSize[index]));
 
 				if(format == DICT){
-					if(sn->wherePos[index] == MEM || sn->wherePos[index] == PINNED)
-						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index]+sizeof(struct dictHeader), sn->whereSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
-					else if (sn->wherePos[index] == UVA)
-						column[index] = sn->content[index] + sizeof(struct dictHeader);
+					if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index]+sizeof(struct dictHeader), sn->tn->attrTotalSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
+					else if (sn->tn->dataPos[index] == UVA)
+						column[whereIndex] = sn->tn->content[index] + sizeof(struct dictHeader);
 
-					struct dictHeader * dheader = (struct dictHeader *)sn->content[index];
+					struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[index];
 					dNum = dheader->dictNum;
 					byteNum = dheader->bitNum/8;
 
@@ -829,90 +804,91 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
 					CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuDictFilter, 0 ,dNum * sizeof(int)));
 
-					genScanFilter_dict_or<<<grid,block>>>(gpuDictHeader,sn->whereAttrSize[index],sn->whereAttrType[index],dNum, gpuExp,gpuDictFilter);
+					genScanFilter_dict_or<<<grid,block>>>(gpuDictHeader,sn->tn->attrSize[index],sn->tn->attrType[index],dNum, gpuExp,gpuDictFilter);
 					dictFilter= -1;
 					CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictHeader));
 
 				}else{
-					if(sn->wherePos[index] == MEM || sn->wherePos[index] == PINNED)
-						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index], sn->whereSize[index], cudaMemcpyHostToDevice));
-					else if (sn->wherePos[index] == UVA)
-						column[index] = sn->content[index];
+					if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index], sn->tn->attrTotalSize[index], cudaMemcpyHostToDevice));
+					else if (sn->tn->dataPos[index] == UVA)
+						column[whereIndex] = sn->tn->content[index];
 				}
 
-				prev = index;
+				prevIndex = index;
+				prevWhere = whereIndex;
 				prevFormat = format;
 			}
 
 
 			if(format == UNCOMPRESSED){
-				if(sn->whereAttrType[index] == INT){
+				if(sn->tn->attrType[index] == INT){
 					if(where->andOr == AND){
 						int rel = where->exp[i].relation;
 						int whereValue = *((int*) where->exp[i].content);
 						if(rel==EQ)
-							genScanFilter_and_int_eq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_and_int_eq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if(rel == GTH)
-							genScanFilter_and_int_gth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_and_int_gth<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if(rel == LTH)
-							genScanFilter_and_int_lth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_and_int_lth<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if(rel == GEQ)
-							genScanFilter_and_int_geq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_and_int_geq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if (rel == LEQ)
-							genScanFilter_and_int_leq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_and_int_leq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 					}else{
 						int rel = where->exp[i].relation;
 						int whereValue = *((int*) where->exp[i].content);
 						if(rel==EQ)
-							genScanFilter_or_int_eq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_or_int_eq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if(rel == GTH)
-							genScanFilter_or_int_gth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_or_int_gth<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if(rel == LTH)
-							genScanFilter_or_int_lth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_or_int_lth<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if(rel == GEQ)
-							genScanFilter_or_int_geq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_or_int_geq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if (rel == LEQ)
-							genScanFilter_or_int_leq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_or_int_leq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 					}
 
-				} else if (sn->whereAttrType[index] == FLOAT){
+				} else if (sn->tn->attrType[index] == FLOAT){
 					if(where->andOr == AND){
 						int rel = where->exp[i].relation;
 						float whereValue = *((int*) where->exp[i].content);
 						if(rel==EQ)
-							genScanFilter_and_float_eq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_and_float_eq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if(rel == GTH)
-							genScanFilter_and_float_gth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_and_float_gth<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if(rel == LTH)
-							genScanFilter_and_float_lth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_and_float_lth<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if(rel == GEQ)
-							genScanFilter_and_float_geq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_and_float_geq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if (rel == LEQ)
-							genScanFilter_and_float_leq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_and_float_leq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 					}else{
 						int rel = where->exp[i].relation;
 						float whereValue = *((int*) where->exp[i].content);
 						if(rel==EQ)
-							genScanFilter_or_float_eq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_or_float_eq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if(rel == GTH)
-							genScanFilter_or_float_gth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_or_float_gth<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if(rel == LTH)
-							genScanFilter_or_float_lth<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_or_float_lth<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if(rel == GEQ)
-							genScanFilter_or_float_geq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_or_float_geq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 						else if (rel == LEQ)
-							genScanFilter_or_float_leq<<<grid,block>>>(column[index],totalTupleNum, whereValue, gpuFilter);
+							genScanFilter_or_float_leq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 					}
 				}else{
 					if(where->andOr == AND)
-						genScanFilter_and<<<grid,block>>>(column[index],sn->whereAttrSize[index],sn->whereAttrType[index], totalTupleNum, gpuExp, gpuFilter);
+						genScanFilter_and<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, gpuExp, gpuFilter);
 					else
-						genScanFilter_or<<<grid,block>>>(column[index],sn->whereAttrSize[index],sn->whereAttrType[index], totalTupleNum, gpuExp, gpuFilter);
+						genScanFilter_or<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, gpuExp, gpuFilter);
 				}
 
 			}else if(format == DICT){
 
-				struct dictHeader * dheader = (struct dictHeader *)sn->content[index];
+				struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[index];
 				dNum = dheader->dictNum;
 				byteNum = dheader->bitNum/8;
 
@@ -922,9 +898,9 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 				if(dictFilter != -1){
 					if(where->andOr == AND)
-						genScanFilter_dict_and<<<grid,block>>>(gpuDictHeader,sn->whereAttrSize[index],sn->whereAttrType[index],dNum, gpuExp,gpuDictFilter);
+						genScanFilter_dict_and<<<grid,block>>>(gpuDictHeader,sn->tn->attrSize[index],sn->tn->attrType[index],dNum, gpuExp,gpuDictFilter);
 					else
-						genScanFilter_dict_or<<<grid,block>>>(gpuDictHeader,sn->whereAttrSize[index],sn->whereAttrType[index],dNum, gpuExp,gpuDictFilter);
+						genScanFilter_dict_or<<<grid,block>>>(gpuDictHeader,sn->tn->attrSize[index],sn->tn->attrType[index],dNum, gpuExp,gpuDictFilter);
 				}
 				dictFilter = 0;
 
@@ -932,7 +908,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 			}else if (format == RLE){
 				//CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index], sn->whereSize[index], cudaMemcpyHostToDevice));
-				genScanFilter_rle<<<grid,block>>>(column[index],sn->whereAttrSize[index],sn->whereAttrType[index], totalTupleNum, sn->offset,gpuExp, where->andOr, gpuFilter);
+				genScanFilter_rle<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, 0, gpuExp, where->andOr, gpuFilter);
 
 			}
 
@@ -941,14 +917,14 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 		if(prevFormat == DICT){
 			if(dictFinal == AND)
-				transform_dict_filter_and<<<grid,block>>>(gpuDictFilter, column[prev], totalTupleNum, dNum, gpuFilter, byteNum);
+				transform_dict_filter_and<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter, byteNum);
 			else
-				transform_dict_filter_or<<<grid,block>>>(gpuDictFilter, column[prev], totalTupleNum, dNum, gpuFilter, byteNum);
+				transform_dict_filter_or<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter, byteNum);
 			CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictFilter));
 		}
 	
-		if(whereFree[prev] == 1 && (sn->wherePos[prev] == MEM || sn->wherePos[prev] == PINNED))
-			CUDA_SAFE_CALL_NO_SYNC(cudaFree(column[prev]));
+		if(whereFree[prevWhere] == 1 && (sn->tn->dataPos[prevIndex] == MEM || sn->tn->dataPos[prevIndex] == PINNED))
+			CUDA_SAFE_CALL_NO_SYNC(cudaFree(column[prevWhere]));
 
 		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuExp));
 
@@ -966,14 +942,14 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 	count = tmp1+tmp2;
 	res->tupleNum = count;
+	printf("scanNum %d\n",count);
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuCount));
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuTotalCount));
 
-
 	char **result, **scanCol;
 
-	attrNum = sn->tn->totalAttr;
+	attrNum = sn->outputNum;
 
 	scanCol = (char **) malloc(attrNum * sizeof(char *));
 	result = (char **) malloc(attrNum * sizeof(char *));
@@ -981,56 +957,46 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 	for(int i=0;i<attrNum;i++){
 
 		int pos = colWherePos[i];
+		int index = sn->outputIndex[i];
 
 		if(pos != -1){
 			scanCol[i] = column[pos];
 		}else{
-			if(sn->tn->dataPos[i] == MEM || sn->tn->dataPos[i] == PINNED)
-				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &scanCol[i] , sn->tn->attrTotalSize[i]));
+			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &scanCol[i] , sn->tn->attrTotalSize[index]));
 
-			if(sn->tn->dataFormat[i] != DICT){
-				if(sn->tn->dataPos[i] == MEM || sn->tn->dataPos[i] == PINNED)
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(scanCol[i], sn->tn->content[i], sn->tn->attrTotalSize[i], cudaMemcpyHostToDevice));
+			if(sn->tn->dataFormat[index] != DICT){
+				if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(scanCol[i], sn->tn->content[index], sn->tn->attrTotalSize[index], cudaMemcpyHostToDevice));
 				else
-					scanCol[i] = sn->tn->content[i];
+					scanCol[i] = sn->tn->content[index];
 
 			}else{
-				if(sn->tn->dataPos[i] == MEM || sn->tn->dataPos[i] == PINNED)
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(scanCol[i], sn->tn->content[i]+sizeof(struct dictHeader), sn->tn->attrTotalSize[i]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
+				if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(scanCol[i], sn->tn->content[index]+sizeof(struct dictHeader), sn->tn->attrTotalSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
 				else
-					scanCol[i] = sn->tn->content[i] + sizeof(struct dictHeader);
+					scanCol[i] = sn->tn->content[index] + sizeof(struct dictHeader);
 			}
 		}
 
-		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &result[i], count * sn->tn->attrSize[i]));
+		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &result[i], count * sn->tn->attrSize[index]));
 	}
 
 	if(0){
 
-		char ** gpuColumn;
-		char ** gpuResult;
-		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuColumn,attrNum * sizeof(char*)));
-		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuResult,attrNum * sizeof(char*)));
-
-		for(int i=0;i<attrNum;i++){
-			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(&gpuColumn[i],&scanCol[i],sizeof(char*),cudaMemcpyHostToDevice));
-			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(&gpuResult[i],&result[i],sizeof(char*),cudaMemcpyHostToDevice));
-		}
-
-		scan_all<<<grid,block>>>(gpuColumn,attrNum,totalTupleNum,gpuPsum,count,gpuFilter,gpuResult);
-
 	}else{
 
 		for(int i=0; i<attrNum; i++){
-			int format = sn->tn->dataFormat[i];
+			int index = sn->outputIndex[i];
+			int format = sn->tn->dataFormat[index];
 			if(format == UNCOMPRESSED){
-				if (sn->tn->attrSize[i] == sizeof(int))
-					scan_int<<<grid,block>>>(scanCol[i], sn->tn->attrSize[i], totalTupleNum,gpuPsum,count, gpuFilter,result[i]);
+				if (sn->tn->attrSize[index] == sizeof(int))
+					scan_int<<<grid,block>>>(scanCol[i], sn->tn->attrSize[index], totalTupleNum,gpuPsum,count, gpuFilter,result[i]);
 				else
-					scan_other<<<grid,block>>>(scanCol[i], sn->tn->attrSize[i], totalTupleNum,gpuPsum,count, gpuFilter,result[i]);
+					scan_other<<<grid,block>>>(scanCol[i], sn->tn->attrSize[index], totalTupleNum,gpuPsum,count, gpuFilter,result[i]);
 
 			}else if(format == DICT){
-				struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[i];
+				struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[index];
 				int byteNum = dheader->bitNum/8;
 
 				char * gpuDictHeader;
@@ -1038,23 +1004,23 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader), cudaMemcpyHostToDevice));
 
 				if (sn->tn->attrSize[i] == sizeof(int))
-					scan_dict_int<<<grid,block>>>(scanCol[i], gpuDictHeader, byteNum,sn->tn->attrSize[i], totalTupleNum,gpuPsum,count, gpuFilter,result[i]);
+					scan_dict_int<<<grid,block>>>(scanCol[i], gpuDictHeader, byteNum,sn->tn->attrSize[index], totalTupleNum,gpuPsum,count, gpuFilter,result[i]);
 				else
-					scan_dict_other<<<grid,block>>>(scanCol[i], gpuDictHeader,byteNum,sn->tn->attrSize[i], totalTupleNum,gpuPsum,count, gpuFilter,result[i]);
+					scan_dict_other<<<grid,block>>>(scanCol[i], gpuDictHeader,byteNum,sn->tn->attrSize[index], totalTupleNum,gpuPsum,count, gpuFilter,result[i]);
 
 				CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictHeader));
 
 			}else if(format == RLE){
-				int dNum = (sn->tn->attrTotalSize[i] - sizeof(struct rleHeader))/(3*sizeof(int));
+				int dNum = (sn->tn->attrTotalSize[index] - sizeof(struct rleHeader))/(3*sizeof(int));
 				char * gpuRle;
 
 				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuRle, totalTupleNum * sizeof(int)));
 
-				unpack_rle<<<grid,block>>>(scanCol[i], gpuRle,totalTupleNum, sn->offset, dNum);
+				unpack_rle<<<grid,block>>>(scanCol[i], gpuRle,totalTupleNum, 0, dNum);
 
 				CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
-				scan_int<<<grid,block>>>(gpuRle, sn->tn->attrSize[i], totalTupleNum,gpuPsum,count, gpuFilter,result[i]);
+				scan_int<<<grid,block>>>(gpuRle, sn->tn->attrSize[index], totalTupleNum,gpuPsum,count, gpuFilter,result[i]);
 
 				CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuRle));
 			}
@@ -1064,9 +1030,13 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
+	res->tupleSize = tupleSize;
+
 	for(int i=0;i<attrNum;i++){
 
-		if(sn->tn->dataPos[i] == MEM || sn->tn->dataPos[i] == PINNED)
+		int index = sn->outputIndex[i];
+
+		if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
 			CUDA_SAFE_CALL_NO_SYNC(cudaFree(scanCol[i]));
 
 		int colSize = res->tupleNum * res->attrSize[i];

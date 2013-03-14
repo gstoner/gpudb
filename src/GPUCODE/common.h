@@ -108,18 +108,13 @@ struct whereCondition{
 struct scanNode{
 	struct tableNode *tn ;		// the tableNode to be scanned
 	int hasWhere;			// whether the node has where condition
+	int outputNum;			// the number of attributes that will be projected
+	int *outputIndex;		// the index of projected attributes in the tableNode
 	int whereAttrNum;		// the number of attributes in the where condition
-	int * whereAttrType;		// the type of each attribute in the where condition
-	int * whereAttrSize;		// the size of each attribute in the where condition
-	int * whereSize;		// the total size of each column in the where condition
-	int * whereFormat;		// the format of the where attribute
-	int * wherePos;			// the location of the data
 	int * whereIndex;		// the index of each col in the table
 	struct whereCondition * filter;	// the where conditioin
-	char ** content;		// the content of the attributes used in the where condition
 	int keepInGpu;			// whether all the results should be kept in GPU memory or not
 
-	long offset;			// ugly! fix me here. Used only if one of the where condition is compressed using RLE
 };
 
 struct mathExp {
@@ -146,7 +141,6 @@ struct tableNode{
 	int * dataPos;			// the position of the data, whether in disk, memory or GPU global memory
 	int * dataFormat;		// the format of each column
 
-	long offset;			// ugly!! fix me:used if only one of the columns is compressed in RLE.
 };
 
 struct groupByExp{

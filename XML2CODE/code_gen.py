@@ -577,6 +577,23 @@ def printMathFunc(fo,prefix, mathFunc):
         printMathFunc(fo,prefix1,mathFunc.leftOp)
         printMathFunc(fo,prefix2,mathFunc.rightOp)
 
+def generate_col_list(tn,indexList, colList):
+
+    for col in tn.select_list.tmp_exp_list:
+        if col.column_name not in indexList:
+            indexList.append(col.column_name)
+            colList.append(col)
+
+    if tn.where_condition is not None:
+        whereList = []
+        relList = []
+        conList = []
+        get_where_attr(tn.where_condition.where_condition_exp,whereList,relList,conList)
+        for col in whereList:
+            if col.column_name not in indexList:
+                indexList.append(col.column_name)
+                colList.append(col)
+
 def generate_code(tree):
     fo = open("driver.cu","w")
 
@@ -644,12 +661,18 @@ def generate_code(tree):
         resName = tn.table_name.lower() + "Res"
         tnName = tn.table_name.lower() + "Table"
 
-        totalAttr = len(tn.select_list.tmp_exp_list)
+        indexList = []
+        colList = []
+        generate_col_list(tn,indexList,colList)
+
+        totalAttr = len(indexList)
         setTupleNum = 0
         tupleSize = "0"
 
+        selectList = tn.select_list.tmp_exp_list
+
         for i in range(0,totalAttr):
-            col = tn.select_list.tmp_exp_list[i]
+            col = colList[i]
             ctype = to_ctype(col.column_type)
             colIndex = int(col.column_name)
             colLen = type_length(tn.table_name, colIndex, col.column_type)
@@ -682,7 +705,7 @@ def generate_code(tree):
 
         setTupleNum = 0
         for i in range(0,totalAttr):
-            col = tn.select_list.tmp_exp_list[i]
+            col = colList[i]
             ctype = to_ctype(col.column_type)
             colIndex = int(col.column_name)
             colLen = type_length(tn.table_name, colIndex, col.column_type)
@@ -728,7 +751,7 @@ def generate_code(tree):
         print >>fo, "\t\t"+tnName+"->tupleNum = header.tupleNum;"
 
         if tn.where_condition is not None:
-            whereList = [] 
+            whereList = []
             relList = []
             conList = []
 
@@ -746,56 +769,23 @@ def generate_code(tree):
             print >>fo, "\t\t" + relName + ".tn = " + tnName + ";"
             print >>fo, "\t\t" + relName + ".hasWhere = 1;"
             print >>fo, "\t\t" + relName + ".whereAttrNum = " + str(whereLen) + ";"
-            print >>fo, "\t\t" + relName + ".whereAttrType = (int *)malloc(sizeof(int)*" + str(len(whereList)) + ");"
-            print >>fo, "\t\t" + relName + ".whereAttrSize = (int *)malloc(sizeof(int)*" + str(len(whereList)) + ");"
-            print >>fo, "\t\t" + relName + ".whereSize = (int *)malloc(sizeof(int)*" + str(len(whereList)) + ");"
             print >>fo, "\t\t" + relName + ".whereIndex = (int *)malloc(sizeof(int)*" + str(len(whereList)) + ");"
-            print >>fo, "\t\t" + relName + ".whereFormat = (int *)malloc(sizeof(int)*" + str(len(whereList)) + ");"
-            print >>fo, "\t\t" + relName + ".wherePos = (int *)malloc(sizeof(int)*" + str(len(whereList)) + ");"
-            print >>fo, "\t\t" + relName + ".content = (char **)malloc(sizeof(char *)*" + str(len(whereList)) + ");"
-            if keepInGpu == 0:
-                print >>fo, "\t\t" + relName + ".keepInGpu = 0;"
-            else:
-                print >>fo, "\t\t" + relName + ".keepInGpu = 1;"
+            print >>fo, "\t\t" + relName + ".outputNum = " + str(len(selectList)) + ";"
+            print >>fo, "\t\t" + relName + ".outputIndex = (int *)malloc(sizeof(int) * " + str(len(selectList)) + ");"
+
+            for i in range(0,len(selectList)):
+                colIndex = selectList[i].column_name
+                outputIndex = indexList.index(colIndex)
+                print >>fo, "\t\t" + relName + ".outputIndex[" + str(i) + "] = " + str(outputIndex) + ";"
 
             for i in range(0,len(newWhereList)):
-                colIndex = int(newWhereList[i].column_name)
-                colType = schema[newWhereList[i].table_name].column_list[colIndex].column_type
-                colLen = type_length(newWhereList[i].table_name,colIndex,colType)
-                ctype = to_ctype(colType)
-                print >>fo, "\t\t" + relName + ".whereAttrType["+str(i) + "] = " + ctype + ";"
-                print >>fo, "\t\t" + relName + ".whereAttrSize["+str(i) + "] = " + str(colLen) + ";"
+                colIndex = indexList.index(newWhereList[i].column_name)
                 print >>fo, "\t\t" + relName + ".whereIndex["+str(i) + "] = " + str(colIndex) + ";"
-                print >>fo, "\t\toutFd = open(\""+tn.table_name+str(colIndex)+"\",O_RDONLY);"
-                print >>fo, "\t\toffset = i*sizeof(struct columnHeader) + tupleOffset * " + str(colLen) + ";"
-                print >>fo, "\t\tlseek(outFd,offset,SEEK_SET);"
-                print >>fo, "\t\tread(outFd,&header, sizeof(struct columnHeader));"
-                print >>fo, "\t\toffset += sizeof(struct columnHeader);"
-                print >>fo, "\t\t" + relName + ".whereFormat[" + str(i) + "] = header.format;"
 
-                if POS == 0:
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
-                elif POS == 1:
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = PINNED;"
-                elif POS == 2:
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
-                else:
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
-
-                print >>fo, "\t\toutSize = header.tupleNum * " + colLen + ";"
-                print >>fo, "\t\t" + relName + ".whereSize[" + str(i) + "] = outSize;"
-                print >>fo, "\t\toutTable =(char *) mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);\n"
-
-                if POS == 1:
-                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
-                    print >>fo, "\t\tmemcpy("+relName+".content["+str(i)+"],outTable + offset,outSize);"
-                elif POS == 2:
-                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
-                    print >>fo, "\t\tmemcpy("+relName+".content["+str(i)+"],outTable + offset,outSize);"
-                else:
-                    print >>fo, "\t\t"+relName+".content["+str(i)+"] = outTable;"
-
-                print >>fo, "\t\tclose(outFd);"
+            if keepInGpu ==0:
+                print >>fo, "\t\t" + relName + ".KeepInGpu = 0;"
+            else:
+                print >>fo, "\t\t" + relName + ".keepInGpu = 1;"
 
             print >>fo, "\t\t" + relName + ".filter = (struct whereCondition *)malloc(sizeof(struct whereCondition));"
 
@@ -875,8 +865,15 @@ def generate_code(tree):
         resName = joinAttr.factTables[0].table_name.lower() + "Res"
         setTupleNum = 0
 
+        selectList = joinAttr.factTables[0].select_list.tmp_exp_list
+
+        indexList = []
+        colList = []
+        generate_col_list(joinAttr.factTables[0],indexList,colList)
+        totalAttr = len(indexList)
+
         for i in range(0,totalAttr):
-            col = joinAttr.factTables[0].select_list.tmp_exp_list[i]
+            col = colList[i] 
             if isinstance(col, ystree.YRawColExp):
                 colType = col.column_type
                 colIndex = col.column_name
@@ -906,7 +903,6 @@ def generate_code(tree):
         print >>fo, "\ttupleOffset = 0;"
         print >>fo, "\tfor(int i=0;i<blockTotal;i++){\n"
 
-        totalAttr = len(joinAttr.factTables[0].select_list.tmp_exp_list)
         print >>fo, "\t\tstruct tableNode *" + factName + " = (struct tableNode*)malloc(sizeof(struct tableNode));" 
         print >>fo, "\t\t" + factName + "->totalAttr = " + str(totalAttr) + ";"
         print >>fo, "\t\t" + factName + "->attrType = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
@@ -919,7 +915,7 @@ def generate_code(tree):
 
         tupleSize = "0"
         for i in range(0,totalAttr):
-            col = joinAttr.factTables[0].select_list.tmp_exp_list[i]
+            col = colList[i] 
             if isinstance(col, ystree.YRawColExp):
                 colType = col.column_type
                 colIndex = col.column_name
@@ -951,16 +947,6 @@ def generate_code(tree):
             else:
                 print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = MEM;"
 
-        tupleSize += ";\n"
-        print >>fo, "\t\t" + factName + "->tupleSize = " + tupleSize 
-
-
-        for i in range(0,totalAttr):
-            col = joinAttr.factTables[0].select_list.tmp_exp_list[i]
-            colType = col.column_type
-            colIndex =  col.column_name
-            colLen = type_length(joinAttr.factTables[0].table_name, colIndex, colType)
-
             print >>fo, "\t\toutFd = open(\"" + joinAttr.factTables[0].table_name + str(colIndex) + "\", O_RDONLY);"
             print >>fo, "\t\toffset = i*sizeof(struct columnHeader) + tupleOffset * " + str(colLen) + ";"
             print >>fo, "\t\tlseek(outFd,offset,SEEK_SET);"
@@ -983,6 +969,9 @@ def generate_code(tree):
 
             print >>fo, "\t\tclose(outFd);"
             print >>fo, "\t\t" + factName + "->attrTotalSize[" + str(i) + "] = outSize;"
+
+        tupleSize += ";\n"
+        print >>fo, "\t\t" + factName + "->tupleSize = " + tupleSize 
 
         print >>fo, "\t\t" + factName + "->tupleNum = header.tupleNum;"
 
@@ -1009,52 +998,23 @@ def generate_code(tree):
             print >>fo, "\t\t" + relName + ".tn = " + factName + ";"
             print >>fo, "\t\t" + relName + ".hasWhere = 1;"
             print >>fo, "\t\t" + relName + ".whereAttrNum = " + str(whereLen) + ";"
-            print >>fo, "\t\t" + relName + ".whereAttrType = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
-            print >>fo, "\t\t" + relName + ".whereAttrSize = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
-            print >>fo, "\t\t" + relName + ".whereSize = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
+            print >>fo, "\t\t" + relName + ".outputNum = " + str(len(selectList)) + ";"
             print >>fo, "\t\t" + relName + ".whereIndex = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
-            print >>fo, "\t\t" + relName + ".whereFormat = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
-            print >>fo, "\t\t" + relName + ".wherePos = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
-            print >>fo, "\t\t" + relName + ".content = (char **)malloc(sizeof(char *)*" + str(whereLen) + ");"
+            print >>fo, "\t\t" + relName + ".outputIndex = (int *)malloc(sizeof(int)*" + str(len(selectList)) + ");"
+
+            for i in range(0,len(newWhereList)):
+                colIndex = indexList.index(newWhereList[i].column_name)
+                print >>fo, "\t\t" + relName + ".whereIndex["+str(i) + "] = " + str(colIndex) + ";"
+
+            for i in range(0,len(selectList)):
+                colIndex = selectList[i].column_name
+                outputIndex = indexList.index(colIndex)
+                print >>fo, "\t\t" + relName + ".outputIndex[" + str(i) + " ] = " + str(outputIndex) + ";"
+
             if keepInGpu == 0:
                 print >>fo, "\t\t" + relName + ".keepInGpu = 0;"
             else:
                 print >>fo, "\t\t" + relName + ".keepInGpu = 1;"
-
-            for i in range(0,len(newWhereList)):
-                colIndex = int(newWhereList[i].column_name)
-                colType = schema[newWhereList[i].table_name].column_list[colIndex].column_type
-                colLen = type_length(newWhereList[i].table_name,colIndex,colType)
-                ctype = to_ctype(colType)
-                print >>fo, "\t\t" + relName + ".whereAttrType["+str(i) + "] = " + ctype + ";"
-                print >>fo, "\t\t" + relName + ".whereAttrSize["+str(i) + "] = " + str(colLen) + ";"
-                print >>fo, "\t\t" + relName + ".whereIndex["+str(i) + "] = " + str(colIndex) + ";"
-                print >>fo, "\t\toutFd = open(\""+joinAttr.factTables[0].table_name+str(colIndex)+"\",O_RDONLY);"
-                print >>fo, "\t\toffset = i*sizeof(struct columnHeader) + tupleOffset * " + str(colLen) + ";"
-                print >>fo, "\t\tlseek(outFd,offset,SEEK_SET);"
-                print >>fo, "\t\tread(outFd, &header, sizeof(struct columnHeader));"
-                print >>fo, "\t\toffset += sizeof(struct columnHeader);"
-                print >>fo, "\t\t" + relName + ".whereFormat[" + str(i) + "] = header.format;"
-                print >>fo, "\t\t\toutSize = header.blockSize;"
-                print >>fo, "\t\toutTable = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
-
-                if POS == 0:
-                    print >>fo, "\t\t"+relName+".content["+str(i)+"] = outTable;"
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
-                elif POS == 1:
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = PINNED;"
-                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
-                    print >>fo, "\t\tmemcpy("+relName+".content["+str(i)+"],outTable,outSize);"
-                elif POS == 2:
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
-                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
-                    print >>fo, "\t\tmemcpy("+relName+".content["+str(i)+"],outTable,outSize);"
-                else:
-                    print >>fo, "\t\t"+relName+".content["+str(i)+"] = outTable;"
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
-
-                print >>fo, "\t\tclose(outFd);"
-                print >>fo, "\t\t"+relName+".whereSize["+str(i)+"] = outSize;"
 
             print >>fo, "\t\t" + relName + ".filter = (struct whereCondition *)malloc(sizeof(struct whereCondition));"
 
@@ -1207,8 +1167,15 @@ def generate_code(tree):
         hasWhere = 0
         setTupleNum = 0
 
+        selectList = joinAttr.factTables[0].select_list.tmp_exp_list
+
+        indexList = []
+        colList = []
+        generate_col_list(joinAttr.factTables[0],indexList,colList)
+        totalAttr = len(indexList)
+
         for i in range(0,totalAttr):
-            col = joinAttr.factTables[0].select_list.tmp_exp_list[i]
+            col = colList[i] 
             if isinstance(col, ystree.YRawColExp):
                 colType = col.column_type
                 colIndex = col.column_name
@@ -1346,7 +1313,7 @@ def generate_code(tree):
             print >>fo, "\t" + jName + ".dimOutputPos[" + str(i) + "] = " + str(dimOutputPos[i]) + ";"
                 
 
-        totalAttr = len(joinAttr.factTables[0].select_list.tmp_exp_list)
+        totalAttr = len(colList)
         print >>fo, "\ttupleOffset = 0;"
         print >>fo, "\toffset = 0;\n"
 
@@ -1364,7 +1331,7 @@ def generate_code(tree):
 
         tupleSize = "0"
         for i in range(0,totalAttr):
-            col = joinAttr.factTables[0].select_list.tmp_exp_list[i]
+            col = colList[i]
             if isinstance(col, ystree.YRawColExp):
                 colType = col.column_type
                 colIndex = col.column_name
@@ -1400,7 +1367,7 @@ def generate_code(tree):
         print >>fo, "\t\t" + factName + "->tupleSize = " + tupleSize
 
         for i in range(0,totalAttr):
-            col = joinAttr.factTables[0].select_list.tmp_exp_list[i]
+            col = colList[i] 
             colType = col.column_type
             colIndex =  col.column_name
             colLen = type_length(joinAttr.factTables[0].table_name, colIndex, colType)
@@ -1450,14 +1417,11 @@ def generate_code(tree):
             print >>fo, "\t\tstruct scanNode " + relName + ";"
             print >>fo, "\t\t" + relName + ".tn = " + factName + ";"
             print >>fo, "\t\t" + relName + ".hasWhere = 1;"
+            print >>fo, "\t\t" + relName + ".outputNum = " + str(len(selectList)) + ";"
             print >>fo, "\t\t" + relName + ".whereAttrNum = " + str(whereLen) + ";"
-            print >>fo, "\t\t" + relName + ".whereAttrType = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
-            print >>fo, "\t\t" + relName + ".whereAttrSize = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
-            print >>fo, "\t\t" + relName + ".whereSize = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
             print >>fo, "\t\t" + relName + ".whereIndex = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
-            print >>fo, "\t\t" + relName + ".whereFormat = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
-            print >>fo, "\t\t" + relName + ".wherePos = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
-            print >>fo, "\t\t" + relName + ".content = (char **)malloc(sizeof(char *)*" + str(whereLen) + ");"
+            print >>fo, "\t\t" + relName + ".outputIndex = (int *)malloc(sizeof(int)*" + str(len(selectList)) + ");"
+
             if keepInGpu == 0:
                 print >>fo, "\t\t" + relName + ".keepInGpu = 0;"
             else:
@@ -1465,38 +1429,12 @@ def generate_code(tree):
 
             for i in range(0,len(newWhereList)):
                 colIndex = int(newWhereList[i].column_name)
-                colType = schema[newWhereList[i].table_name].column_list[colIndex].column_type
-                colLen = type_length(newWhereList[i].table_name,colIndex,colType)
-                ctype = to_ctype(colType)
-                print >>fo, "\t\t" + relName + ".whereAttrType["+str(i) + "] = " + ctype + ";"
-                print >>fo, "\t\t" + relName + ".whereAttrSize["+str(i) + "] = " + str(colLen) + ";"
                 print >>fo, "\t\t" + relName + ".whereIndex["+str(i) + "] = " + str(colIndex) + ";"
-                print >>fo, "\t\toutFd = open(\""+joinAttr.factTables[0].table_name+str(colIndex)+"\",O_RDONLY);"
-                print >>fo, "\t\toffset = i*sizeof(struct columnHeader) + tupleOffset *" + str(colLen) + ";"
-                print >>fo, "\t\tlseek(outFd,offset,SEEK_SET);"
-                print >>fo, "\t\tread(outFd, &header, sizeof(struct columnHeader));"
-                print >>fo, "\t\toffset += sizeof(struct columnHeader)"
-                print >>fo, "\t\t" + relName + ".whereFormat[" + str(i) + "] = header.format;"
-                print >>fo, "\t\toutSize = header.blockSize;" 
-                print >>fo, "\t\toutTable =(char *) mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
 
-                if POS == 0:
-                    print >>fo, "\t\t"+relName+".content["+str(i)+"] = outTable;"
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
-                elif POS == 1:
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = PINNED;"
-                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
-                    print >>fo, "\t\tmemcpy("+relName+".content["+str(i)+"],outTable,outSize);"
-                elif POS == 2:
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = UVA;"
-                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+relName+".content["+str(i)+"],outSize));"
-                    print >>fo, "\t\tmemcpy("+relName+".content["+str(i)+"],outTable,outSize);"
-                else:
-                    print >>fo, "\t\t"+relName+".content["+str(i)+"] = outTable;"
-                    print >>fo, "\t\t" + relName + ".wherePos[" + str(i) + "] = MEM;"
-
-                print >>fo, "\t\tclose(outFd);"
-                print >>fo, "\t\t"+relName+".whereSize["+str(i)+"] = outSize;"
+            for i in range(0,len(selectList)):
+                colIndex = selectList[i].column_name
+                outputIndex = indexList.index(colIndex)
+                print >>fo, "\t\t" + relName + ".outputIndex[" + str(i) + " ] = " + str(outputIndex) + ";"
 
             print >>fo, "\t\t" + relName + ".filter = (struct whereCondition *)malloc(sizeof(struct whereCondition));"
 
