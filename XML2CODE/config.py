@@ -17,3 +17,4 @@
 
 joinType = 0
 POS = 0
+SOA = 0
