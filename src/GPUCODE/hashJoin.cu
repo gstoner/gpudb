@@ -393,6 +393,23 @@ __global__ void static joinFact_other(int *resPsum, char * fact,  int attrSize, 
 	}
 }
 
+__global__ void static joinFact_other_soa(int *resPsum, char * fact,  int attrSize, long  tupleNum, long resultNum, int * filter, char * result){
+
+	int startIndex = blockIdx.x*blockDim.x + threadIdx.x;
+	int stride = blockDim.x * gridDim.x;
+	long tNum = resPsum[startIndex];
+
+	for(long i=startIndex;i<tupleNum;i+=stride){
+		if(filter[i] != 0){
+			for(int j=0;j<attrSize;j++){
+				long inPos = j*tupleNum + i;
+				long outPos = j*resultNum + tNum; 
+				result[outPos] = fact[inPos];
+			}
+		}
+	}
+}
+
 __global__ void static joinFact_int(int *resPsum, char * fact,  int attrSize, long  num, int * filter, char * result){
 
 	int startIndex = blockIdx.x*blockDim.x + threadIdx.x;
@@ -503,6 +520,24 @@ __global__ void static joinDim_other(int *resPsum, char * dim, int attrSize, lon
 	}
 }
 
+
+__global__ void static joinDim_other_soa(int *resPsum, char * dim, int attrSize, long tupleNum, long resultNum,int * filter, char * result){
+
+	int startIndex = blockIdx.x*blockDim.x + threadIdx.x;
+	int stride = blockDim.x * gridDim.x;
+	long tNum = resPsum[startIndex];
+
+	for(long i=startIndex;i<tupleNum;i+=stride){
+		int dimId = filter[i];
+		if( dimId != 0){
+			for(int j=0;j<attrSize;j++){
+				long inPos = j*tupleNum + (dimId-1);
+				long outPos = j*resultNum + tNum;
+				result[outPos] = dim[inPos]; 
+			}
+		}
+	}
+}
 
 /*
  * hashJoin implements the foreign key join between a fact table and dimension table.
@@ -675,7 +710,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
 	}else if (format == RLE){
 
-		count_join_result_rle<<<512,64>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, jNode->leftTable->offset,gpuFactFilter);
+		count_join_result_rle<<<512,64>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, 0,gpuFactFilter);
 
 		filter_count<<<grid, block>>>(jNode->leftTable->tupleNum, gpu_count, gpuFactFilter);
 	}
@@ -819,7 +854,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 				char * gpuRle;
 				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuRle, jNode->leftTable->tupleNum * sizeof(int)));
 
-				unpack_rle<<<grid,block>>>(gpu_fact, gpuRle,jNode->leftTable->tupleNum, jNode->leftTable->offset, dNum);
+				unpack_rle<<<grid,block>>>(gpu_fact, gpuRle,jNode->leftTable->tupleNum, 0, dNum);
 
 
 				joinFact_int<<<grid,block>>>(gpu_resPsum,gpuRle, attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
@@ -875,7 +910,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 					gpu_fact = table;
 				}
 
-				joinDim_rle<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum, jNode->rightTable->offset,gpuFactFilter,gpu_result);
+				joinDim_rle<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum, 0,gpuFactFilter,gpu_result);
 			}
 		}
 		

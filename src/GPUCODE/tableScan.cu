@@ -204,6 +204,43 @@ __global__ static void genScanFilter_and(char *col, int colSize, int  colType, l
 	}
 }
 
+//the string is stored in the format of SOA
+__global__ static void genScanFilter_and_soa(char *col, int colSize, int  colType, long tupleNum, struct whereExp * where, int * filter){
+
+        int stride = blockDim.x * gridDim.x;
+        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int rel = where->relation;
+	int con;
+
+	for(long i = tid; i<tupleNum;i+=stride){
+		int cmp = 0;
+		for(int j=0;j<colSize;j++){
+			int pos = j*tupleNum + i; 
+			if(col[pos] > where->content[j]){
+				cmp = 1;
+				break;
+			}else if (col[pos] < where->content[j]){
+				cmp = -1;
+				break;
+			}
+		}
+
+		if (rel == EQ){
+			con = (cmp == 0);
+		}else if(rel == LTH){
+			con = (cmp <0);
+		}else if(rel == GTH){
+			con = (cmp >0);
+		}else if (rel == LEQ){
+			con = (cmp <=0);
+		}else if (rel == GEQ){
+			con = (cmp >=0);
+		}
+
+		filter[i] &= con;
+	}
+}
+
 __global__ static void genScanFilter_and_int_eq(char *col, long tupleNum, int where, int * filter){
         int stride = blockDim.x * gridDim.x;
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -322,6 +359,43 @@ __global__ static void genScanFilter_or(char *col, int colSize, int  colType, lo
 
 	for(long i = tid; i<tupleNum;i+=stride){
 		con = testCon(col+colSize*i,where->content,colSize,colType, rel);
+		filter[i] |= con;
+	}
+}
+
+//the string is stored in the format of SOA
+__global__ static void genScanFilter_or_soa(char *col, int colSize, int  colType, long tupleNum, struct whereExp * where, int * filter){
+
+        int stride = blockDim.x * gridDim.x;
+        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int rel = where->relation;
+	int con;
+
+	for(long i = tid; i<tupleNum;i+=stride){
+		int cmp = 0;
+		for(int j=0;j<colSize;j++){
+			int pos = j*tupleNum + i; 
+			if(col[pos] > where->content[j]){
+				cmp = 1;
+				break;
+			}else if (col[pos] < where->content[j]){
+				cmp = -1;
+				break;
+			}
+		}
+
+		if (rel == EQ){
+			con = (cmp == 0);
+		}else if(rel == LTH){
+			con = (cmp <0);
+		}else if(rel == GTH){
+			con = (cmp >0);
+		}else if (rel == LEQ){
+			con = (cmp <=0);
+		}else if (rel == GEQ){
+			con = (cmp >=0);
+		}
+
 		filter[i] |= con;
 	}
 }
@@ -488,7 +562,7 @@ __global__ static void scan_dict_int(char *col, char * dict,int byteNum,int colS
 			((int *)result)[localCount] = dheader->hash[key];
 			localCount ++;
 		}
-	}	
+	}
 }
 
 __global__ static void scan_other(char *col, int colSize, long tupleNum, int *psum, long resultNum, int * filter, char * result){
@@ -501,6 +575,23 @@ __global__ static void scan_other(char *col, int colSize, long tupleNum, int *ps
 		if(filter[i] == 1){
 			memcpy(result+pos,col+i*colSize,colSize);
 			pos += colSize;
+		}
+	}
+}
+
+__global__ static void scan_other_soa(char *col, int colSize, long tupleNum, int *psum, long resultNum, int * filter, char * result){
+        int stride = blockDim.x * gridDim.x;
+        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int tNum = psum[tid];
+
+	for(long i = tid; i<tupleNum;i+=stride){
+		
+		if(filter[i] == 1){
+			for(int j=0;j<colSize;j++){
+				long inPos = j*tupleNum + i;
+				long outPos = j*resultNum + tNum;
+				result[outPos] = col[inPos];
+			}
 		}
 	}
 }
@@ -982,9 +1073,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &result[i], count * sn->tn->attrSize[index]));
 	}
 
-	if(0){
-
-	}else{
+	if(1){
 
 		for(int i=0; i<attrNum; i++){
 			int index = sn->outputIndex[i];

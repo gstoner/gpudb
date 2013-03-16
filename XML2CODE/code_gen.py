@@ -42,6 +42,7 @@ keepInGpu = 1
 
 joinType = config.joinType 
 POS = config.POS
+SOA = config.SOA
 
 def column_to_variable(col):
     res = ""
@@ -69,6 +70,30 @@ def generate_schema_file():
 
     print >>fo, "#endif"
     fo.close()
+
+def generate_soa():
+
+    global schema
+
+    schema = ystree.global_table_dict
+
+    fo = open("soa.py","w")
+
+    print >>fo, "#! /usr/bin/python"
+    print >>fo, "import os\n"
+
+    print >>fo, "cmd = \"\""
+    for tn in schema.keys():
+        attrLen = len(schema[tn].column_list)
+
+        for i in range(0,attrLen):
+            col = schema[tn].column_list[i]
+            if col.column_type == "TEXT":
+                print >>fo, "cmd = \"./soa " + tn + str(i) + " " + str(col.column_others) + "\""
+                print >>fo, "os.system(cmd)"
+
+    fo.close()
+    os.system("chmod +x ./soa.py")
 
 def generate_loader():
     global schema
@@ -1646,6 +1671,8 @@ def ysmart_code_gen(argv):
 
     generate_schema_file()
     generate_loader()
+    if SOA == 1:
+        generate_soa()
 
     if len(sys.argv) == 3:
         generate_code(tree_node)

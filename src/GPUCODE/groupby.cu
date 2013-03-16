@@ -113,6 +113,41 @@ __global__ static void build_groupby_key(char ** content, int gbColNum, int * gb
 	}
 }
 
+__global__ static void build_groupby_key_soa(char ** content, int gbColNum, int * gbIndex, int * gbType, int * gbSize, long tupleNum, int * key, int *num){
+
+	int stride = blockDim.x * gridDim.x;
+        int offset = blockIdx.x * blockDim.x + threadIdx.x;
+
+	for(long i = offset; i< tupleNum; i+= stride){
+		char buf[128] = {0};
+		for (int j=0; j< gbColNum; j++){
+			char tbuf[32]={0};
+			int index = gbIndex[j];
+
+			if (index == -1){
+				gpuItoa(1,tbuf,10);
+				gpuStrncat(buf,tbuf,1);
+
+			}else if (gbType[j] == STRING){
+				for(int k=0;k<gbSize[j];k++){
+					long pos = k*tupleNum + i;
+					buf[k] = content[index][pos];
+				}
+				gpuStrncat(buf,tbuf,gbSize[j]);
+
+			}else if (gbType[j] == INT){
+				int key = ((int *)(content[index]))[i];
+				gpuItoa(key,tbuf,10);
+				gpuStrcat(buf,tbuf);
+			}
+		}
+		int hkey = StringHash(buf) % HSIZE;
+		key[i]= hkey;
+		num[hkey] = 1;
+	}
+}
+
+
 // count the number of groups
 
 __global__ void count_group_num(int *num, int tupleNum, int *totalCount){
