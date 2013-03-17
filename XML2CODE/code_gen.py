@@ -985,10 +985,10 @@ def generate_code(tree):
                 print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
             elif POS == 1:
                 print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-                print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable+offset, outSize);"
+                print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
             elif POS == 2:
                 print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-                print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable+offset, outSize);"
+                print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
             else:
                 print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
 
