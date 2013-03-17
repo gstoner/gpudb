@@ -99,7 +99,7 @@ static void primarySort(struct sortObject * obj, int num){
 int main(int argc, char **argv){
 
 	if(argc != 4){
-		printf("./primarySort inputPrefix outputPrefix index\n");
+		printf("./columnSort inputPrefix outputPrefix index\n");
 		exit(-1);
 	}
 
