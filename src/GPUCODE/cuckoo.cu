@@ -551,7 +551,7 @@ __global__ void static cuckooHash(char *dim, int * rid, int * bucketStart,int* b
 
 	int buildFinish = 0;
 	int count = 0;
-	unsigned int seed = 1001;
+	unsigned int seed = 1234567;
 	unsigned int con[6];
 
 	do{
@@ -568,7 +568,7 @@ __global__ void static cuckooHash(char *dim, int * rid, int * bucketStart,int* b
 
 			int inSubTable = 0;
 			int key = buf[i];
-			int id = bufId[i]; 
+			int id = bufId[i];
 
 			int index1 = (con[0] *key + con[1]) % 1900813 % SUBSIZE;
 
@@ -610,7 +610,7 @@ __global__ void static cuckooHash(char *dim, int * rid, int * bucketStart,int* b
 		count ++;
 		seed += 113;
 
-	} while (!buildFinish);
+	} while (buildFinish);
 
 	__syncthreads();
 
@@ -764,6 +764,12 @@ struct tableNode * cuckooHashJoin(struct joinNode *jNode, struct statistic *pp){
 
 	cuckooHash<<<bucketNum,block>>>(gpu_dim,gpuRid, gpuBucketPsum,gpuBucketCount, gpuHash, gpuSeeds);
 
+	int *xx = (int *) malloc(sizeof(int)*bucketNum);
+	cudaMemcpy(xx,gpuSeeds,sizeof(int)*bucketNum,cudaMemcpyDeviceToHost);
+	for(int i=0;i<bucketNum;i++){
+		printf("xx %d\n",xx[i]);
+	}
+
 	if (dataPos == MEM || dataPos == PINNED)
 		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_dim));
 
@@ -830,7 +836,7 @@ struct tableNode * cuckooHashJoin(struct joinNode *jNode, struct statistic *pp){
 
 	}else if (format == RLE){
 
-		count_join_result_rle<<<512,64>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, jNode->leftTable->offset,gpuFactFilter);
+		count_join_result_rle<<<512,64>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, 0,gpuFactFilter);
 		CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
 		filter_count<<<grid, block>>>(jNode->leftTable->tupleNum, gpu_count, gpuFactFilter);
@@ -976,7 +982,7 @@ struct tableNode * cuckooHashJoin(struct joinNode *jNode, struct statistic *pp){
 				char * gpuRle;
 				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuRle, jNode->leftTable->tupleNum * sizeof(int)));
 
-				unpack_rle<<<grid,block>>>(gpu_fact, gpuRle,jNode->leftTable->tupleNum, jNode->leftTable->offset, dNum);
+				unpack_rle<<<grid,block>>>(gpu_fact, gpuRle,jNode->leftTable->tupleNum, 0, dNum);
 
 				CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
@@ -1033,7 +1039,7 @@ struct tableNode * cuckooHashJoin(struct joinNode *jNode, struct statistic *pp){
 					gpu_fact = table;
 				}
 
-				joinDim_rle<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum, jNode->rightTable->offset,gpuFactFilter,gpu_result);
+				joinDim_rle<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum, 0,gpuFactFilter,gpu_result);
 			}
 		}
 
