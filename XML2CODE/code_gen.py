@@ -1648,7 +1648,7 @@ def generate_code(tree):
 def ysmart_code_gen(argv):
     pwd = os.getcwd()
     resultdir = "./src"
-    codedir = "./GPUCODE"
+    codedir = "./cuda"
     schemaFile = None 
 
     if len(sys.argv) == 3:
