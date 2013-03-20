@@ -3,6 +3,7 @@
 
 #define BILLION 	1000000000
 #define BLOCKNUM	(16*1024*1024)	//the number of tuples in a block. the number should be a multiple of 4096
+#define HSIZE 131072
 
 enum {
 

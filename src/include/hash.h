@@ -1,8 +1,6 @@
 #ifndef __GPU_HASH__
 #define __GPU_HASH__
 
-#define HSIZE 131072 
-
 __device__ static unsigned int StringHash(const char* s)
 {
     unsigned int hash = 0;
