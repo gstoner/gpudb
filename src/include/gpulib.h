@@ -1,5 +1,5 @@
-#ifndef __GPU_LIB_H_
-#define __GPU_LIB_H_
+#ifndef __GPU_CUDALIB_H_
+#define __GPU_CUDALIB_H_
 
 #include <unistd.h>
 #include <stdlib.h>
