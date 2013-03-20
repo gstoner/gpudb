@@ -6,7 +6,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/mman.h>
-#include "common.h"
+#include "../include/common.h"
 
 //currently only supports sorting of numbers
 //suppose the data are already stored in column store and  binary format

@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include "common.h"
+#include "../include/common.h"
 
 /*
  * Transform the column stored string from AOS to SOA.

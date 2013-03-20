@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <string.h>
-#include "common.h"
+#include "../include/common.h"
 
 #define	HSIZE	(1024*1024)
 

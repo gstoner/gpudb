@@ -6,7 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include "common.h"
+#include "../include/common.h"
 
 //the type of the column must be integer and the data should be stored in binary and column stored format
 
