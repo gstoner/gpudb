@@ -641,7 +641,7 @@ def generate_code(tree):
 
     print >>fo, "#include \"../include/schema.h\""
     print >>fo, "#include \"../include/cpulib.h\""
-    print >>fo, "#include \"../include/gpulib.h\""
+    print >>fo, "#include \"../include/gpuCudaLib.h\""
     print >>fo, "extern struct tableNode* tableScan(struct scanNode *,struct statistic *);"
     if joinType == 0:
         print >>fo, "extern struct tableNode* hashJoin(struct joinNode *, struct statistic *);"

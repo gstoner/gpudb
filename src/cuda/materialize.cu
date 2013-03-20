@@ -4,7 +4,7 @@
 #include <cuda.h>
 #include "../include/common.h"
 #include "../include/schema.h"
-#include "../include/gpulib.h"
+#include "../include/gpuCudaLib.h"
 
 __global__ static void materialize(char ** content,  int colNum, int *attrSize, long tupleNum, int tupleSize, char *result){
 	int startIndex = blockIdx.x*blockDim.x + threadIdx.x;

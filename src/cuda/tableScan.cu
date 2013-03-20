@@ -9,7 +9,7 @@
 #include <time.h>
 #include "scanImpl.cu"
 #include "../include/common.h"
-#include "../include/gpulib.h"
+#include "../include/gpuCudaLib.h"
 
 __device__ static inline int stringCmp(char* buf1, char *buf2, int size){
 	int i;

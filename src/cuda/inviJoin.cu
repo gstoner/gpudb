@@ -9,7 +9,7 @@
 #include <cuda.h>
 #include "../include/common.h"
 #include "../include/inviJoin.h"
-#include "../include/gpulib.h"
+#include "../include/gpuCudaLib.h"
 #include "scanImpl.cu"
 
 #define HSIZE   (1024*1024)

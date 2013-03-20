@@ -10,9 +10,8 @@
 #include <time.h>
 #include "../include/common.h"
 #include "../include/hashJoin.h"
-#include "../include/gpulib.h"
+#include "../include/gpuCudaLib.h"
 #include "../include/cpulib.h"
-#include "../include/hash.h"
 #include "scanImpl.cu"
 
 

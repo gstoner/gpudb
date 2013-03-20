@@ -3,8 +3,8 @@
 #include <string.h>
 #include <time.h>
 #include "../include/common.h"
-#include "../include/gpulib.h"
-#include "../include/hash.h"
+#include "../include/gpuCudaLib.h"
+#include "../include/cudaHash.h"
 #include "scanImpl.cu"
 
 __device__ char * gpuItoa(int value, char* result, int base){
