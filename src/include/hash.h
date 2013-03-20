@@ -1,5 +1,5 @@
-#ifndef __GPU_HASH__
-#define __GPU_HASH__
+#ifndef __GPU_CUDAHASH__
+#define __GPU_CUDAHASH__
 
 __device__ static unsigned int StringHash(const char* s)
 {
