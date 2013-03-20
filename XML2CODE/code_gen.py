@@ -43,6 +43,7 @@ keepInGpu = 1
 joinType = config.joinType 
 POS = config.POS
 SOA = config.SOA
+CODETYPE = config.CODETYPE
 
 def column_to_variable(col):
     res = ""
@@ -109,8 +110,8 @@ def generate_loader():
     print >>fo, "#include <unistd.h>"
     print >>fo, "#include <string.h>"
     print >>fo, "#include <getopt.h>"
-    print >>fo, "#include \"schema.h\""
-    print >>fo, "#include \"common.h\""
+    print >>fo, "#include \"../include/schema.h\""
+    print >>fo, "#include \"../include/common.h\""
 
     print >>fo, "static char delimiter = '|';"
 
@@ -631,16 +632,16 @@ def generate_code(tree):
     print >>fo, "#include <string.h>"
     print >>fo, "#include <unistd.h>"
     print >>fo, "#include <time.h>"
-    print >>fo, "#include \"common.h\""
+    print >>fo, "#include \"../include/common.h\""
 
     if joinType == 0:
-        print >>fo, "#include \"hashJoin.h\""
+        print >>fo, "#include \"../include/hashJoin.h\""
     else:
-        print >>fo, "#include \"inviJoin.h\""
+        print >>fo, "#include \"../include/inviJoin.h\""
 
-    print >>fo, "#include \"schema.h\""
-    print >>fo, "#include \"cpulib.h\""
-    print >>fo, "#include \"gpulib.h\""
+    print >>fo, "#include \"../include/schema.h\""
+    print >>fo, "#include \"../include/cpulib.h\""
+    print >>fo, "#include \"../include/gpulib.h\""
     print >>fo, "extern struct tableNode* tableScan(struct scanNode *,struct statistic *);"
     if joinType == 0:
         print >>fo, "extern struct tableNode* hashJoin(struct joinNode *, struct statistic *);"
@@ -1647,8 +1648,14 @@ def generate_code(tree):
 
 def ysmart_code_gen(argv):
     pwd = os.getcwd()
-    resultdir = "./src"
-    codedir = "./cuda"
+    resultDir = "./src"
+
+    if CODETYPE == 0:
+        codeDir = "./cuda"
+    else:
+        codeDir = "./opencl"
+
+    includeDir = "./include"
     schemaFile = None 
 
     if len(sys.argv) == 3:
@@ -1660,16 +1667,24 @@ def ysmart_code_gen(argv):
     if len(sys.argv) == 3 and tree_node is None:
         exit(-1)
 
-    if os.path.exists(resultdir) is False:
-        os.makedirs(resultdir)
+    if os.path.exists(resultDir) is False:
+        os.makedirs(resultDir)
 
-    os.chdir(resultdir)
-    if os.path.exists(codedir) is False:
-        os.makedirs(codedir)
+    os.chdir(resultDir)
+    if os.path.exists(codeDir) is False:
+        os.makedirs(codeDir)
 
-    os.chdir(codedir)
+    if os.path.exists(includeDir) is False:
+        os.makedirs(includeDir)
+
+    os.chdir(includeDir)
 
     generate_schema_file()
+
+    os.chdir(pwd)
+    os.chdir(resultDir)
+    os.chdir(codeDir)
+
     generate_loader()
     if SOA == 1:
         generate_soa()

@@ -15,6 +15,7 @@
    limitations under the License.
 """
 
-joinType = 0
-POS = 0
-SOA = 0
+joinType = 0	# 0 for traditional hash join and 1 for invisible join
+POS = 0			# 0 for MEM, 1 for PINNED and 2 for UVA
+SOA = 0			# 0 for AOS and 1 for SOA
+CODETYPE = 0 	# 0 for cuda, 1 for opencl
