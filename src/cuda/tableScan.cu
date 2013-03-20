@@ -8,8 +8,8 @@
 #include <unistd.h>
 #include <time.h>
 #include "scanImpl.cu"
-#include "common.h"
-#include "gpulib.h"
+#include "../include/common.h"
+#include "../include/gpulib.h"
 
 __device__ static inline int stringCmp(char* buf1, char *buf2, int size){
 	int i;

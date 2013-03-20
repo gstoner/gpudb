@@ -7,9 +7,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <cuda.h>
-#include "common.h"
-#include "inviJoin.h"
-#include "gpulib.h"
+#include "../include/common.h"
+#include "../include/inviJoin.h"
+#include "../include/gpulib.h"
 #include "scanImpl.cu"
 
 #define HSIZE   (1024*1024)

@@ -8,11 +8,11 @@
 #include <string.h>
 #include <cuda.h>
 #include <time.h>
-#include "common.h"
-#include "hashJoin.h"
-#include "gpulib.h"
-#include "cpulib.h"
-#include "hash.h"
+#include "../include/common.h"
+#include "../include/hashJoin.h"
+#include "../include/gpulib.h"
+#include "../include/cpulib.h"
+#include "../include/hash.h"
 #include "scanImpl.cu"
 
 #define CUCKOO_SIZE	512

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <cuda.h>
-#include "common.h"
-#include "gpulib.h"
+#include "../include/common.h"
+#include "../include/gpulib.h"
 
 #define SAMPLE_STRIDE 128
 #define SHARED_SIZE_LIMIT 1024 

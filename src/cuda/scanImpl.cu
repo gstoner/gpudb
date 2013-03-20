@@ -2,7 +2,7 @@
 #define SCAN_IMPL_CU
 
 #include "scan.cu"
-#include "common.h"
+#include "../include/common.h"
 
 static void scanImpl(int *d_input, int rLen, int *d_output, struct statistic * pp)
 {

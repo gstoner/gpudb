@@ -31,7 +31,7 @@
 
 #include "scanLargeArray_kernel.cu"
 #include <assert.h>
-#include "common.h"
+#include "../include/common.h"
 
 static inline bool 
 isPowerOfTwo(int n)
