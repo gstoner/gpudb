@@ -621,7 +621,11 @@ def generate_col_list(tn,indexList, colList):
                 colList.append(col)
 
 def generate_code(tree):
-    fo = open("driver.cu","w")
+
+    if CODETYPE==0:
+        fo = open("driver.cu","w")
+    else:
+        fo = open("driver.cpp","w")
 
     print >>fo, "#include <stdio.h>"
     print >>fo, "#include <stdlib.h>"
@@ -640,23 +644,53 @@ def generate_code(tree):
         print >>fo, "#include \"../include/inviJoin.h\""
 
     print >>fo, "#include \"../include/schema.h\""
-    print >>fo, "#include \"../include/cpulib.h\""
-    print >>fo, "#include \"../include/gpuCudaLib.h\""
-    print >>fo, "extern struct tableNode* tableScan(struct scanNode *,struct statistic *);"
-    if joinType == 0:
-        print >>fo, "extern struct tableNode* hashJoin(struct joinNode *, struct statistic *);"
-    else:
-        print >>fo, "extern struct tableNode* inviJoin(struct joinNode *, struct statistic *);"
-    print >>fo, "extern struct tableNode* groupBy(struct groupByNode *,struct statistic *);"
-    print >>fo, "extern struct tableNode* orderBy(struct orderByNode *, struct statistic *);"
-    print >>fo, "extern void materializeCol(struct materializeNode * mn, struct statistic *);"
+
+    if CODETYPE == 0:   #for cuda
+        print >>fo, "#include \"../include/cpuCudaLib.h\""
+        print >>fo, "#include \"../include/gpuCudaLib.h\""
+
+        print >>fo, "extern struct tableNode* tableScan(struct scanNode *,struct statistic *);"
+        if joinType == 0:
+            print >>fo, "extern struct tableNode* hashJoin(struct joinNode *, struct statistic *);"
+        else:
+            print >>fo, "extern struct tableNode* inviJoin(struct joinNode *, struct statistic *);"
+        print >>fo, "extern struct tableNode* groupBy(struct groupByNode *,struct statistic *);"
+        print >>fo, "extern struct tableNode* orderBy(struct orderByNode *, struct statistic *);"
+        print >>fo, "extern void materializeCol(struct materializeNode * mn, struct statistic *);"
+
+    else:               #for opencl
+        print >>fo, "#include <CL/cl.h>"
+        print >>fo, "#include <string>"
+        print >>fo, "#include \"../include/gpuOpenclLib.h\"\n"
+        print >>fo, "using namespace std;"
+        print >>fo, "extern const char ** createProgram(string, int *);"
+
+        print >>fo, "extern struct tableNode* tableScan(struct scanNode *,struct clContext *, struct statistic *);"
+        if joinType == 0:
+            print >>fo, "extern struct tableNode* hashJoin(struct joinNode *, struct clContext *, struct statistic *);"
+        else:
+            print >>fo, "extern struct tableNode* inviJoin(struct joinNode *, struct clContext *, struct statistic *);"
+        print >>fo, "extern struct tableNode* groupBy(struct groupByNode *, struct clContext *, struct statistic *);"
+        print >>fo, "extern struct tableNode* orderBy(struct orderByNode *, struct clContext *, struct statistic *);"
+        print >>fo, "extern void materializeCol(struct materializeNode * mn, struct clContext *, struct statistic *);"
 
     print >>fo, "int main(int argc, char ** argv){\n"
     
-    print >>fo, "//initialize the gpu device"
-    print >>fo, "\tint * tmp;"
-    print >>fo, "\tcudaMalloc((void **)&tmp, 4);"
-    print >>fo, "\tcudaFree(tmp);\n"
+    if CODETYPE == 1:
+        print >>fo, "\tint psc = 0;"
+        print >>fo, "\tconst char ** ps = createProgram(\"kernel.cl\",&psc);"
+        print >>fo, "\tstruct clContext context;"
+        print >>fo, "\tcl_uint numP;"
+        print >>fo, "\tcl_int error = 0;"
+        print >>fo, "\tcl_device_id device;"
+        print >>fo, "\tclGetPlatformIDs(0,NULL,&numP);"
+        print >>fo, "\tcl_platform_id * pid = new cl_platform_id[numP];"
+        print >>fo, "\tclGetPlatformIDs(numP, pid, NULL);"
+        print >>fo, "\tclGetDeviceIDs(pid[0],CL_DEVICE_TYPE_CPU,1,&device,NULL);"
+        print >>fo, "\tcontext.context = clCreateContext(0,1,&device,NULL,NULL,&error);"
+        print >>fo, "\tcontext.queue = clCreateCommandQueue(context.context, device, 0, &error);"
+        print >>fo, "\tcontext.program = clCreateProgramWithSource(context.context, psc, (const char **)ps, 0, &error);"
+        print >>fo, "\tclBuildProgram(context.program, 0, 0 , 0 , 0, &error);\n"
 
     print >>fo, "\tstruct timespec start,end;"
     print >>fo, "\tclock_gettime(CLOCK_REALTIME,&start);"
@@ -761,12 +795,16 @@ def generate_code(tree):
 
             print >>fo, "\t\toutTable =(char *) mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);\n"
 
-            if POS == 1:
-                print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void **)&" + tnName+"->content["+str(i)+"],outSize));"
-                print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
-            elif POS == 2:
-                print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void **)&" + tnName+"->content["+str(i)+"],outSize));"
-                print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
+            if CODETYPE == 0:
+                if POS == 1:
+                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void **)&" + tnName+"->content["+str(i)+"],outSize));"
+                    print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
+                elif POS == 2:
+                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void **)&" + tnName+"->content["+str(i)+"],outSize));"
+                    print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
+                else:
+                    print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = outTable;"
+
             else:
                 print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = outTable;"
 
@@ -856,7 +894,11 @@ def generate_code(tree):
                 else:
                     print >>fo, "\t\tstrcpy((" + relName + ".filter)->exp[" + str(i) + "].content," + conList[i] + ");\n"
 
-            print >>fo, "\t\tstruct tableNode *tmp = tableScan(&" + relName + ", &pp);"
+            if CODETYPE == 0:
+                print >>fo, "\t\tstruct tableNode *tmp = tableScan(&" + relName + ", &pp);"
+            else:
+                print >>fo, "\t\tstruct tableNode *tmp = tableScan(&" + relName + ", &context,&pp);"
+
             print >>fo, "\t\tif(blockTotal !=1){"
             print >>fo, "\t\t\tmergeIntoTable(" + resName + ",tmp,&pp);"
             print >>fo, "\t\t}else{"
@@ -982,14 +1024,18 @@ def generate_code(tree):
             print >>fo, "\t\toutSize = header.blockSize;"
             print >>fo, "\t\toutTable = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
 
-            if POS == 0:
-                print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
-            elif POS == 1:
-                print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-                print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
-            elif POS == 2:
-                print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-                print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
+            if CODETYPE == 0:
+                if POS == 0:
+                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
+                elif POS == 1:
+                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+                    print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
+                elif POS == 2:
+                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+                    print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
+                else:
+                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
+
             else:
                 print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
 
@@ -1086,7 +1132,11 @@ def generate_code(tree):
                 else:
                     print >>fo, "\t\tstrcpy((" + relName + ".filter)->exp[" + str(i) + "].content," + conList[i] + ");\n"
 
-            print >>fo, "\t\tstruct tableNode * " + resName + " = tableScan(&" + relName + ", &pp);"
+            if CODETYPE == 0:
+                print >>fo, "\t\tstruct tableNode * " + resName + " = tableScan(&" + relName + ", &pp);"
+            else:
+                print >>fo, "\t\tstruct tableNode * " + resName + " = tableScan(&" + relName + ", &context,&pp);"
+
             if selectOnly == 0:
                 print >>fo, "\t\tfreeScan(&" + relName + ");\n"
 
@@ -1149,7 +1199,11 @@ def generate_code(tree):
             print >>fo, "\t\t" + jName + ".rightKeyIndex = " + str(joinAttr.dimIndex[i]) + ";"
             print >>fo, "\t\t" + jName + ".leftKeyIndex = " + str(joinAttr.factIndex[i]) + ";"
 
-            print >>fo, "\t\tstruct tableNode *join" + str(i) + " = hashJoin(&" + jName + ",&pp);\n" 
+            if CODETYPE == 0:
+                print >>fo, "\t\tstruct tableNode *join" + str(i) + " = hashJoin(&" + jName + ",&pp);\n" 
+            else:
+                print >>fo, "\t\tstruct tableNode *join" + str(i) + " = hashJoin(&" + jName + ", &context, &pp);\n" 
+
             factName = "join" + str(i)
 
         if selectOnly == 0:
@@ -1407,14 +1461,17 @@ def generate_code(tree):
             print >>fo, "\t\toutSize = header.blockSize;" 
             print >>fo, "\t\toutTable = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
 
-            if POS == 0:
-                print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
-            elif POS == 1:
-                print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-                print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
-            elif POS == 2:
-                print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-                print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
+            if CODETYPE == 0:
+                if POS == 0:
+                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
+                elif POS == 1:
+                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+                    print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
+                elif POS == 2:
+                    print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+                    print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
+                else:
+                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
             else:
                 print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
 
@@ -1506,7 +1563,11 @@ def generate_code(tree):
                 else:
                     print >>fo, "\t\tstrcpy((" + relName + ".filter)->exp[" + str(i) + "].content," + conList[i] + ");\n"
 
-            print >>fo, "\t\tstruct tableNode * " + resName + " = tableScan(&" + relName + ", &pp);"
+            if CODETYPE == 0:
+                print >>fo, "\t\tstruct tableNode * " + resName + " = tableScan(&" + relName + ", &pp);"
+            else:
+                print >>fo, "\t\tstruct tableNode * " + resName + " = tableScan(&" + relName + ", &context,&pp);"
+
             if selectOnly == 0:
                 print >>fo, "\t\tfreeScan(&" + relName + ");\n"
 
@@ -1517,7 +1578,10 @@ def generate_code(tree):
         print >>fo, "\t\ttupleOffset += header.tupleNum;"
         print >>fo, "\t\t" + jName + ".factTable = " + resName + ";"
 
-        print >>fo, "\t\tstruct tableNode *join1 = inviJoin(&" + jName + ", &pp);"
+        if CODETYPE == 0:
+            print >>fo, "\t\tstruct tableNode *join1 = inviJoin(&" + jName + ", &pp);"
+        else:
+            print >>fo, "\t\tstruct tableNode *join1 = inviJoin(&" + jName + ", &context,&pp);"
 
         print >>fo, "\t\tfreeTable(" + resName + ");"
 
@@ -1610,7 +1674,11 @@ def generate_code(tree):
                 print >>fo, "\tgbNode->gbExp[" + str(i) + "].exp.opValue = " + str(exp.cons_value) + ";"
 
         resultNode = "gbResult"
-        print >>fo, "\tstruct tableNode * " + resultNode + " = groupBy(gbNode, &pp);"
+
+        if CODETYPE == 0:
+            print >>fo, "\tstruct tableNode * " + resultNode + " = groupBy(gbNode, &pp);"
+        else:
+            print >>fo, "\tstruct tableNode * " + resultNode + " = groupBy(gbNode, &context,&pp);"
         print >>fo, "\tfreeGroupByNode(gbNode);\n"
 
     if len(orderbyNode) > 0 :
@@ -1632,12 +1700,20 @@ def generate_code(tree):
             print >>fo, "\todNode->orderByIndex[" + str(i) + "] = " + str(orderby_exp_list[i].column_name) + ";"
 
         resultNode = "odResult"
-        print >>fo, "\tstruct tableNode * " + resultNode + " = orderBy(odNode,&pp);"
+
+        if CODETYPE == 0:
+            print >>fo, "\tstruct tableNode * " + resultNode + " = orderBy(odNode,&pp);"
+        else:
+            print >>fo, "\tstruct tableNode * " + resultNode + " = orderBy(odNode, &context,&pp);"
+
         print >>fo, "\tfreeOrderByNode(odNode);\n"
 
     print >>fo, "\tstruct materializeNode mn;"
     print >>fo, "\tmn.table = "+resultNode + ";"
-    print >>fo, "\tmaterializeCol(&mn, &pp);"
+    if CODETYPE == 0:
+        print >>fo, "\tmaterializeCol(&mn, &pp);"
+    else:
+        print >>fo, "\tmaterializeCol(&mn, &context,&pp);"
     print >>fo, "\tfreeTable("+resultNode + ");\n"
     print >>fo, "\tclock_gettime(CLOCK_REALTIME,&end);"
     print >>fo, "\tdouble timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;"
