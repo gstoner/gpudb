@@ -12,8 +12,6 @@
 #include "../include/gpuCudaLib.h"
 #include "scanImpl.cu"
 
-#define HSIZE   (1024*1024)
-
 __global__ static void count_hash_num(char *dim, long dNum,int *num){
 	int stride = blockDim.x * gridDim.x;
 	int offset = blockIdx.x * blockDim.x + threadIdx.x;
