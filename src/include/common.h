@@ -116,6 +116,10 @@ struct scanNode{
 	struct whereCondition * filter;	// the where conditioin
 	int keepInGpu;			// whether all the results should be kept in GPU memory or not
 
+#ifdef GPUOPENCL
+	void * clContext;
+#endif
+
 };
 
 struct mathExp {
@@ -167,6 +171,10 @@ struct groupByNode{
 
 	int * keepInGpu;		// whether the results should be kept in gpu
 
+#ifdef GPUOPENCL
+	void * clContext;
+#endif
+
 };
 
 struct sortRecord{
@@ -181,10 +189,17 @@ struct orderByNode{
 	int *orderBySeq;		// asc or desc
 	int *orderByIndex;		// the index of each order by column in the table
 
+#ifdef GPUOPENCL
+	void * clContext;
+#endif
 };
 
 struct materializeNode{
 	struct tableNode * table;	// the table node to be materialized
+
+#ifdef GPUOPENCL
+	void * clContext;
+#endif
 };
 
 struct statistic{
