@@ -11,7 +11,7 @@
 #include "../include/common.h"
 #include "../include/hashJoin.h"
 #include "../include/gpuCudaLib.h"
-#include "../include/cpulib.h"
+#include "../include/cpuCudaLib.h"
 #include "scanImpl.cu"
 
 
