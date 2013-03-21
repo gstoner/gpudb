@@ -11,7 +11,6 @@
 #include "../include/common.h"
 #include "../include/hashJoin.h"
 #include "../include/gpuCudaLib.h"
-#include "../include/cpuCudaLib.h"
 #include "scanImpl.cu"
 
 
@@ -581,7 +580,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	threadNum = grid.x * block.x;
 
 	res = (struct tableNode*) malloc(sizeof(struct tableNode));
-	initTable(res);
 	res->totalAttr = jNode->totalAttr;
 	res->tupleSize = jNode->tupleSize;
 	res->attrType = (int *) malloc(res->totalAttr * sizeof(int));
