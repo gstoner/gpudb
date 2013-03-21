@@ -827,7 +827,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader), cudaMemcpyHostToDevice));
 
 			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
-				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index]+sizeof(struct dictHeader), sn->tn->attrSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
+				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index]+sizeof(struct dictHeader), sn->tn->attrTotalSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
 			else if (sn->tn->dataPos[index] == UVA)
 				column[whereIndex] = sn->tn->content[index] + sizeof(struct dictHeader);
 
