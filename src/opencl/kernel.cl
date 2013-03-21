@@ -1,4 +1,4 @@
-#include "common.h"
+#include "../include/common.h"
 
 inline int stringCmp(__global char * buf1, __global char * buf2, int size){
         int i;
@@ -17,57 +17,55 @@ inline int stringCmp(__global char * buf1, __global char * buf2, int size){
         return res;
 }
 
-inline int testCon(__global char *buf1, __global char* buf2, int size, int type, int rel){
+inline int testCon_int(int buf1, __global char* buf2, int size, int type, int rel){
         int res = 1;
-        if (type == INT){
-                if(rel == EQ){
-                        res = ( *((int*)buf1) == *(((int*)buf2)) );
-                }else if (rel == GTH){
-                        res = ( *((int*)buf1) > *(((int*)buf2)) );
-                }else if (rel == LTH){
-                        res = ( *((int*)buf1) < *(((int*)buf2)) );
-                }else if (rel == GEQ){
-                        res = ( *((int*)buf1) >= *(((int*)buf2)) );
-                }else if (rel == LEQ){
-                        res = ( *((int*)buf1) <= *(((int*)buf2)) );
-                }
-
-        }else if (type == FLOAT){
-                if(rel == EQ){
-                        res = ( *((float*)buf1) == *(((float*)buf2)) );
-                }else if (rel == GTH){
-                        res = ( *((float*)buf1) > *(((float*)buf2)) );
-                }else if (rel == LTH){
-                        res = ( *((float*)buf1) < *(((float*)buf2)) );
-                }else if (rel == GEQ){
-                        res = ( *((float*)buf1) >= *(((float*)buf2)) );
-                }else if (rel == LEQ){
-                        res = ( *((float*)buf1) <= *(((float*)buf2)) );
-                }
-
-        }else{
-                int tmp = stringCmp(buf1,buf2,size);
-                if(rel == EQ){
-                        res = (tmp == 0);
-                }else if (rel == GTH){
-                        res = (tmp > 0);
-                }else if (rel == LTH){
-                        res = (tmp < 0);
-                }else if (rel == GEQ){
-                        res = (tmp >= 0);
-                }else if (rel == LEQ){
-                        res = (tmp <= 0);
-                }
-        }
-        return res;
+	if(rel == EQ){
+                res = ( buf1 == *(((int*)buf2)) );
+	}else if (rel == GTH){
+		res = ( buf1 > *(((int*)buf2)) );
+	}else if (rel == LTH){
+		res = ( buf1 < *(((int*)buf2)) );
+	}else if (rel == GEQ){
+		res = ( buf1 >= *(((int*)buf2)) );
+	}else if (rel == LEQ){
+		res = ( buf1 <= *(((int*)buf2)) );
+	}
+	return res;
 }
 
-inline void memcpy_cl(__global char * dst, __global char * src, int length){
+inline int testCon_float(float buf1, __global char* buf2, int size, int type, int rel){
+        int res = 1;
+	if(rel == EQ){
+		res = ( buf1 == *(((float*)buf2)) );
+	}else if (rel == GTH){
+		res = ( buf1 > *(((float*)buf2)) );
+	}else if (rel == LTH){
+		res = ( buf1 < *(((float*)buf2)) );
+	}else if (rel == GEQ){
+		res = ( buf1 >= *(((float*)buf2)) );
+	}else if (rel == LEQ){
+		res = ( buf1 <= *(((float*)buf2)) );
+	}
+	return res;
+}
 
-	for(int i=0;i<length;i++){
-		dst[i] = src[i];
+inline int testCon_string(__global char *buf1, __global char* buf2, int size, int type, int rel){
+        int res = 1;
+
+	int tmp = stringCmp(buf1,buf2,size);
+	if(rel == EQ){
+		res = (tmp == 0);
+	}else if (rel == GTH){
+		res = (tmp > 0);
+	}else if (rel == LTH){
+		res = (tmp < 0);
+	}else if (rel == GEQ){
+		res = (tmp >= 0);
+	}else if (rel == LEQ){
+		res = (tmp <= 0);
 	}
 
+        return res;
 }
 
 __kernel void transform_dict_filter_and(__global int * dictFilter, __global char *fact, long tupleNum, int dNum,  __global int * filter, int byteNum){
@@ -117,7 +115,7 @@ __kernel void genScanFilter_dict_or(__global char *col, int colSize, int colType
 
         for(size_t i=tid;i<dNum;i+=stride){
                 int fkey = dheader->hash[i];
-                con = testCon((char *)&fkey,where->content,colSize,colType,where->relation);
+                con = testCon_int(fkey,where->content,colSize,colType,where->relation);
                 dfilter[i] |= con;
         }
 }
@@ -131,7 +129,7 @@ __kernel void genScanFilter_dict_and(__global char *col, int colSize, int colTyp
 
         for(size_t i=tid;i<dNum;i+=stride){
                 int fkey = dheader->hash[i];
-                con = testCon((char *)&fkey,where->content,colSize,colType,where->relation);
+                con = testCon_int(fkey,where->content,colSize,colType,where->relation);
                 dfilter[i] &= con;
         }
 }
@@ -155,7 +153,7 @@ __kernel void genScanFilter_rle(__global char *col, int colSize, int colType, lo
                 if(fpos >= (tupleOffset + tupleNum))
                         break;
 
-                con = testCon((char *)&fkey,where->content,colSize,colType,where->relation);
+                con = testCon_int(fkey,where->content,colSize,colType,where->relation);
 
                 if(fpos < tupleOffset){
                         int tcount = fcount + fpos - tupleOffset;
@@ -195,7 +193,7 @@ __kernel void genScanFilter_and(__global char *col, int colSize, int  colType, l
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = testCon(col+colSize*i,where->content,colSize,colType,where->relation);
+                con = testCon_string(col+colSize*i,where->content,colSize,colType,where->relation);
                 filter[i] &= con;
         }
 }
@@ -317,7 +315,7 @@ __kernel void genScanFilter_or(__global char *col, int colSize, int  colType, lo
         int rel = where->relation;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = testCon(col+colSize*i,where->content,colSize,colType, rel);
+                con = testCon_string(col+colSize*i,where->content,colSize,colType, rel);
                 filter[i] |= con;
         }
 }
@@ -449,8 +447,14 @@ __kernel void scan_dict_other(__global char *col, __global char * dict, int byte
         for(size_t i = tid; i<tupleNum; i+= stride){
                 if(filter[i] == 1){
                         int key = 0;
-                        memcpy_cl(&key, col + sizeof(struct dictHeader) + i* dheader->bitNum/8, dheader->bitNum/8);
-                        memcpy_cl(result+pos,&dheader->hash[key],colSize);
+			char * buf = (char *)&key;
+
+			for(int k=0;k<dheader->bitNum/8;k++)
+				buf[k] = (col + sizeof(struct dictHeader) + i* dheader->bitNum/8)[k];
+
+			buf = (char *) &dheader->hash[key];
+			for(int k=0;k<colSize;k++)
+				(result+pos)[k] = buf[k];
                         pos += colSize;
                 }
         }
@@ -466,7 +470,9 @@ __kernel void scan_dict_int(__global char *col, __global char * dict,int byteNum
         for(size_t i = tid; i<tupleNum; i+= stride){
                 if(filter[i] == 1){
                         int key = 0;
-                        memcpy_cl(&key, col + i*byteNum, byteNum);
+			char * buf = (char *)&key;
+			for(int k=0;k<byteNum;k++)
+				buf[k] = (col+i*byteNum)[k];
                         ((int *)result)[localCount] = dheader->hash[key];
                         localCount ++;
                 }
@@ -481,7 +487,8 @@ __kernel void scan_other(__global char *col, int colSize, long tupleNum, __globa
         for(size_t i = tid; i<tupleNum;i+=stride){
 
                 if(filter[i] == 1){
-                        memcpy_cl(result+pos,col+i*colSize,colSize);
+			for(int k=0;k<colSize;k++)
+				(result+pos)[k] = (col+i*colSize)[k];
                         pos += colSize;
                 }
         }
@@ -612,7 +619,9 @@ __kernel void transform_dict_filter(__global int * dictFilter, __global char *fa
 
                 for(int j=0; j< sizeof(int)/byteNum; j++){
                         int fkey = 0;
-                        memcpy_cl(&fkey, ((char *)&tmp) + j*byteNum, byteNum);
+			char *buf = (char *)&fkey;
+			for(int k=0;k<byteNum;k++)
+				buf[k] = (((char *)&tmp) + j*byteNum)[k];
 
                         filter[i* sizeof(int)/byteNum + j] = dictFilter[fkey];
                 }
@@ -708,7 +717,6 @@ __kernel  void count_join_result(__global int* num, __global int* psum, __global
                 }
         }
 
-        __syncthreads();
         count[offset] = lcount;
 }
 
@@ -824,8 +832,12 @@ __kernel void joinFact_dict_other(__global int *resPsum, __global char * fact,  
         for(size_t i=startIndex;i<num;i+=stride){
                 if(filter[i] != 0){
                         int key = 0;
-                        memcpy_cl(&key, fact + i* byteNum, byteNum);
-                        memcpy_cl(result + localOffset, &dheader->hash[key], attrSize);
+			char *buf = (char *) &key;
+			for(int k=0;k<byteNum;k++)
+				buf[k] = (fact + i*byteNum)[k];
+			buf = (char *)&dheader->hash[key];
+			for(int k=0;k<attrSize;k++)
+				(result + localOffset)[k] = buf[k];
                         localOffset += attrSize;
                 }
         }
@@ -842,7 +854,9 @@ __kernel void joinFact_dict_int(__global int *resPsum, __global char * fact, __g
         for(size_t i=startIndex;i<num;i+=stride){
                 if(filter[i] != 0){
                         int key = 0;
-                        memcpy_cl(&key, fact + i* byteNum, byteNum);
+			char *buf = (char *)&key;
+			for(int k=0;k<byteNum;k++)
+				buf[k] = (fact + i *byteNum)[k];
                         ((int*)result)[localCount] = dheader->hash[key];
                         localCount ++;
                 }
@@ -857,7 +871,8 @@ __kernel void joinFact_other(__global int *resPsum, __global char * fact,  int a
 
         for(size_t i=startIndex;i<num;i+=stride){
                 if(filter[i] != 0){
-                        memcpy_cl(result + localOffset, fact + i*attrSize, attrSize);
+			for(int k=0;k<attrSize;k++)
+				(result+localOffset)[k] = (fact + i*attrSize)[k];
                         localOffset += attrSize;
                 }
         }
@@ -917,8 +932,12 @@ __kernel void joinDim_dict_other(__global int *resPsum, __global char * dim, __g
                 int dimId = filter[i];
                 if( dimId != 0){
                         int key = 0;
-                        memcpy_cl(&key, dim + (dimId-1) * byteNum, byteNum);
-                        memcpy_cl(result + localOffset, &dheader->hash[key], attrSize);
+			char *buf = (char *)&key;
+			for(int k=0;k<byteNum;k++)
+				buf[k] = (dim + (dimId-1) * byteNum)[k];
+			buf = (char *)&dheader->hash[key];
+			for(int k=0;k<attrSize;k++)
+				(result+localOffset)[k] = buf[k];
                         localOffset += attrSize;
                 }
         }
@@ -936,7 +955,9 @@ __kernel void joinDim_dict_int(__global int *resPsum, __global char * dim, __glo
                 int dimId = filter[i];
                 if( dimId != 0){
                         int key = 0;
-                        memcpy_cl(&key, dim + (dimId-1) * byteNum, byteNum);
+			char * buf = (char *)&key;
+			for(int k=0;k<byteNum;k++)
+				buf[k] = (dim + (dimId-1)*byteNum)[k];
                         ((int*)result)[localCount] = dheader->hash[key];
                         localCount ++;
                 }
@@ -967,7 +988,8 @@ __kernel void joinDim_other(__global int *resPsum, __global char * dim, int attr
         for(size_t i=startIndex;i<num;i+=stride){
                 int dimId = filter[i];
                 if( dimId != 0){
-                        memcpy_cl(result + localOffset, dim + (dimId-1)* attrSize, attrSize);
+			for(int k=0;k<attrSize;k++)
+				(result+localOffset)[k] = (dim + (dimId-1)*attrSize)[k];
                         localOffset += attrSize;
                 }
         }
