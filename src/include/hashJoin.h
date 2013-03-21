@@ -25,6 +25,9 @@ struct joinNode{
 	int * keepInGpu;		// whether the result should be kept in GPU global memory or not.
 					// 1 doesn't imply that the data will be 100% in the GPU. 
 					// it may still be in CPU memory if the original data is not loaded into GPU
+#ifdef GPUOPENCL
+	void * clContext;
+#endif
 };
 
 
