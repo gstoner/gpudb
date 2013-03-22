@@ -6,7 +6,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include <string.h>
-#include <cuda.h>
 #include <time.h>
 #include <CL/cl.h>
 #include "../include/common.h"
