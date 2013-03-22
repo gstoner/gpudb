@@ -662,6 +662,7 @@ def generate_code(tree):
         print >>fo, "#include <CL/cl.h>"
         print >>fo, "#include <string>"
         print >>fo, "#include \"../include/gpuOpenclLib.h\"\n"
+        print >>fo, "#include\"../include/cpuOpenclLib.h\""
         print >>fo, "using namespace std;"
         print >>fo, "extern const char ** createProgram(string, int *);"
 
@@ -900,7 +901,12 @@ def generate_code(tree):
                 print >>fo, "\t\tstruct tableNode *tmp = tableScan(&" + relName + ", &context,&pp);"
 
             print >>fo, "\t\tif(blockTotal !=1){"
-            print >>fo, "\t\t\tmergeIntoTable(" + resName + ",tmp,&pp);"
+
+            if CODETYPE == 0:
+                print >>fo, "\t\t\tmergeIntoTable(" + resName + ",tmp,&pp);"
+            else:
+                print >>fo, "\t\t\tmergeIntoTable(" + resName + ",tmp, &context,&pp);"
+
             print >>fo, "\t\t}else{"
             print >>fo, "\t\t\tfree(" + resName + ");"
             print >>fo, "\t\t\t" + resName + " = tmp;" 
@@ -911,7 +917,12 @@ def generate_code(tree):
 
         else:
             print >>fo, "\t\tif(blockTotal != 1){"
-            print >>fo, "\t\t\tmergeIntoTable(" + resName + "," + tnName +",&pp);"
+
+            if CODETYPE == 0:
+                print >>fo, "\t\t\tmergeIntoTable(" + resName + "," + tnName +",&pp);"
+            else:
+                print >>fo, "\t\t\tmergeIntoTable(" + resName + "," + tnName +",&context,&pp);"
+                
             print >>fo, "\t\t\tfreeTable(" + tnName + ");"
             print >>fo, "\t\t}else{"
             print >>fo, "\t\t\tfree(" + resName + ");"
@@ -1192,7 +1203,7 @@ def generate_code(tree):
             for j in range(0,len(rOutList)):
                 ctype = to_ctype(rAttrList[j].type)
                 print >>fo, "\t\t" + jName + ".rightOutputIndex[" + str(j) + "] = " + str(rOutList[j]) + ";"
-                print >>fo, "\t\t" + jName + ".rightOutputAttrType[" + str(j) + "] = " + ctype + ";" 
+                print >>fo, "\t\t" + jName + ".rightOutputAttrType[" + str(j) + "] = " + ctype + ";"
                 print >>fo, "\t\t" + jName + ".rightPos[" + str(j) + "] = " + str(rPosList[j]) + ";"
                 print >>fo, "\t\t" + jName + ".tupleSize += " + dimName + "->attrSize[" + str(rOutList[j]) + "];"
 
@@ -1200,7 +1211,7 @@ def generate_code(tree):
             print >>fo, "\t\t" + jName + ".leftKeyIndex = " + str(joinAttr.factIndex[i]) + ";"
 
             if CODETYPE == 0:
-                print >>fo, "\t\tstruct tableNode *join" + str(i) + " = hashJoin(&" + jName + ",&pp);\n" 
+                print >>fo, "\t\tstruct tableNode *join" + str(i) + " = hashJoin(&" + jName + ",&pp);\n"
             else:
                 print >>fo, "\t\tstruct tableNode *join" + str(i) + " = hashJoin(&" + jName + ", &context, &pp);\n" 
 
@@ -1208,7 +1219,13 @@ def generate_code(tree):
 
         if selectOnly == 0:
             print >>fo, "\t\tif(blockTotal !=1){"
-            print >>fo, "\t\t\tmergeIntoTable("+resultNode+",join" + str(i) + ", &pp);"
+
+            if CODETYPE == 0:
+                print >>fo, "\t\t\tmergeIntoTable("+resultNode+",join" + str(i) + ", &pp);"
+            else:
+                print >>fo, "\t\t\tmergeIntoTable("+resultNode+",join" + str(i) + ", &context, &pp);"
+                
+
             for i in range(0,len(joinAttr.dimTables)):
                 jName = "join" + str(i)
                 print >>fo, "\t\t\tfreeTable(" + jName + ");"
@@ -1223,7 +1240,11 @@ def generate_code(tree):
 
         else:
             print >>fo, "\t\tif(blockTotal !=1){"
-            print >>fo, "\t\t\tmergeIntoTable("+resultNode+"," + resName + ",&pp);"
+
+            if CODETYPE == 0:
+                print >>fo, "\t\t\tmergeIntoTable("+resultNode+"," + resName + ",&pp);"
+            else:
+                print >>fo, "\t\t\tmergeIntoTable("+resultNode+"," + resName + ", &context, &pp);"
 
             print >>fo, "\t\t}else{"
             print >>fo, "\t\t\tfreeTable(" +resultNode + ");"
