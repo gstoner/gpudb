@@ -482,7 +482,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 	clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *) &gpuCount);
 	clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
 
-	scanImpl(gpuCount,threadNum,gpuPsum, pp);
+	scanImpl(gpuCount,threadNum,gpuPsum,context, pp);
 
 	int tmp1, tmp2;
 

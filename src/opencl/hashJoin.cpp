@@ -108,7 +108,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	clSetKernelArg(kernel,2,sizeof(cl_mem),(void*)&gpu_hashNum);
 	clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
 
-	scanImpl(gpu_hashNum,HSIZE,gpu_psum, pp);
+	scanImpl(gpu_hashNum,HSIZE,gpu_psum, context,pp);
 
 	clEnqueueWriteBuffer(context->queue,gpu_psum,CL_TRUE,0,sizeof(int)*HSIZE,gpu_psum,0,0,0);
 
@@ -229,7 +229,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	resPsum = (int *) malloc(sizeof(int)*threadNum);
 	memset(resPsum,0,sizeof(int)*threadNum);
 
-	scanImpl(gpu_count,threadNum,gpu_resPsum, pp);
+	scanImpl(gpu_count,threadNum,gpu_resPsum, context,pp);
 
 	clEnqueueReadBuffer(context->queue, gpu_resPsum, CL_TRUE, 0, sizeof(int)*threadNum, resPsum,0,0,0);
 

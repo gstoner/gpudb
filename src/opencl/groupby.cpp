@@ -126,7 +126,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 
 		gpu_psum = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(int)*HSIZE,NULL,&error);
 
-		scanImpl(gpu_hashNum,HSIZE,gpu_psum,pp);
+		scanImpl(gpu_hashNum,HSIZE,gpu_psum,context,pp);
 
 		clReleaseMemObject(gpuGbCount);
 		clReleaseMemObject(gpu_hashNum);
