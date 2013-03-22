@@ -1254,3 +1254,187 @@ __kernel void agg_cal(__global char * content, __global int *colOffset, int colN
         }
 }
 
+
+// for scan
+#define NUM_BANKS 16
+#define LOG_NUM_BANKS 4
+
+inline int CONFLICT_FREE_OFFSET(int index)
+{
+        return ((index) >> LOG_NUM_BANKS);
+}
+
+inline void loadSharedChunkFromMem(__local int *s_data,
+                                                                           __global int *g_idata,
+                                                                           int n, int baseIndex,
+                                                                           int* ai, int* bi,
+                                                                           int* mem_ai, int* mem_bi,
+                                                                           int* bankOffsetA, int* bankOffsetB, bool isNP2)
+{
+        int thid = get_local_id(0);
+        *mem_ai = baseIndex + thid;
+        *mem_bi = *mem_ai + get_local_size(0);
+
+        *ai = thid;
+        *bi = thid + get_local_size(0);
+
+        // compute spacing to avoid bank conflicts
+        *bankOffsetA = CONFLICT_FREE_OFFSET(*ai);
+        *bankOffsetB = CONFLICT_FREE_OFFSET(*bi);
+
+        s_data[*ai + *bankOffsetA] = g_idata[*mem_ai];
+
+        if (isNP2)
+        {
+                s_data[*bi + *bankOffsetB] = (*bi < n) ? g_idata[*mem_bi] : 0;
+        }
+        else
+        {
+                s_data[*bi + *bankOffsetB] = g_idata[*mem_bi];
+        }
+}
+
+inline void storeSharedChunkToMem(__global int* g_odata,
+                                      __local int* s_data,
+                                      int n,
+                                      int ai, int bi,
+                                      int mem_ai, int mem_bi,
+                                      int bankOffsetA, int bankOffsetB, bool isNP2)
+{
+    barrier(CLK_LOCAL_MEM_FENCE); 
+
+    g_odata[mem_ai] = s_data[ai + bankOffsetA];
+    if (isNP2)
+    {
+        if (bi < n)
+            g_odata[mem_bi] = s_data[bi + bankOffsetB];
+    }
+    else
+    {
+        g_odata[mem_bi] = s_data[bi + bankOffsetB];
+    }
+}
+
+inline void clearLastElement(__local int* s_data,
+                                 __global int *g_blockSums,
+                                 int blockIndex, bool storeSum)
+{
+    if (get_local_id(0) == 0)
+    {
+        int index = (get_local_size(0) << 1) - 1;
+        index += CONFLICT_FREE_OFFSET(index);
+
+        if (storeSum) 
+        {
+            g_blockSums[blockIndex] = s_data[index];
+        }
+
+        s_data[index] = 0;
+    }
+}
+
+inline unsigned int buildSum(__local int *s_data)
+{
+    int thid = get_local_id(0);
+    unsigned int stride = 1;
+
+    for (int d = get_local_size(0); d > 0; d >>= 1)
+    {
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+        if (thid < d)
+        {
+            int i  = mul24((int)mul24(2, (int)stride), thid);
+            int ai = i + stride - 1;
+            int bi = ai + stride;
+
+            ai += CONFLICT_FREE_OFFSET(ai);
+            bi += CONFLICT_FREE_OFFSET(bi);
+
+            s_data[bi] += s_data[ai];
+        }
+
+        stride *= 2;
+    }
+
+    return stride;
+}
+
+void scanRootToLeaves(__local int *s_data, unsigned int stride)
+{
+     int thid = get_local_id(0);
+
+    for (int d = 1; d <= get_local_size(0); d *= 2)
+    {
+        stride >>= 1;
+
+	barrier(CLK_LOCAL_MEM_FENCE);
+
+        if (thid < d)
+        {
+            int i  = mul24((int)mul24(2, (int)stride), thid);
+            int ai = i + stride - 1;
+            int bi = ai + stride;
+
+            ai += CONFLICT_FREE_OFFSET(ai);
+            bi += CONFLICT_FREE_OFFSET(bi);
+
+            int t  = s_data[ai];
+            s_data[ai] = s_data[bi];
+            s_data[bi] += t;
+        }
+    }
+}
+
+void prescanBlock(__local int *data, int blockIndex, __global int *blockSums, bool storeSum)
+{
+    int stride = buildSum(data);               // build the sum in place up the tree
+    clearLastElement(data, blockSums,
+                               (blockIndex == 0) ? get_group_id(0) : blockIndex, storeSum);
+    scanRootToLeaves(data, stride);            // traverse down tree to build the scan 
+}
+
+__kernel void prescan(__global int *g_odata,
+                        __global int *g_idata,
+                        __global int *g_blockSums,
+                        int n,
+                        int blockIndex,
+                        int baseIndex, int storeSum, int isNP2, __local int * s_data
+                                                )
+{
+    int ai, bi, mem_ai, mem_bi, bankOffsetA, bankOffsetB;
+
+    loadSharedChunkFromMem(s_data, g_idata, n,
+                                  (baseIndex == 0) ?
+                                  mul24((int)get_group_id(0), (int)(get_local_size(0) << 1)):baseIndex,
+                                  &ai, &bi, &mem_ai, &mem_bi,
+                                  &bankOffsetA, &bankOffsetB, isNP2);
+
+    prescanBlock(s_data, blockIndex, g_blockSums,storeSum);
+
+    storeSharedChunkToMem(g_odata, s_data, n,
+                                 ai, bi, mem_ai, mem_bi,
+                                 bankOffsetA, bankOffsetB, isNP2);
+}
+
+
+
+__kernel void uniformAdd(__global int *g_data,
+                           __global int *uniforms,
+                           int n,
+                           int blockOffset,
+                           int baseIndex)
+{
+    __local int uni;
+    if (get_local_id(0) == 0)
+        uni = uniforms[get_group_id(0) + blockOffset];
+
+    int address = mul24((int)get_group_id(0), (int)(get_local_size(0) << 1)) + baseIndex + get_local_id(0);
+
+    barrier(CLK_LOCAL_MEM_FENCE);
+
+    g_data[address]              += uni;
+    g_data[address + get_group_id(0)] += (get_local_id(0) + get_local_size(0) < n) * uni;
+}
+
+
