@@ -11,7 +11,7 @@
 #include "../include/common.h"
 #include "../include/hashJoin.h"
 #include "../include/gpuOpenclLib.h"
-#include "scanImpl.cu"
+#include "scanImpl.cpp"
 
 /*
  * hashJoin implements the foreign key join between a fact table and dimension table.
@@ -84,7 +84,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 
 	cl_mem gpu_psum1;
 
-	cl_mem gpu_hashNum = clCreateBuffer(context->context, CL_MEM_READ_WRITE, sizeof(int)*HSIZE, NULL, &error);
+	gpu_hashNum = clCreateBuffer(context->context, CL_MEM_READ_WRITE, sizeof(int)*HSIZE, NULL, &error);
 	gpu_count = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*threadNum,NULL,&error);
 	gpu_resPsum = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*threadNum,NULL,&error);
 
@@ -350,7 +350,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 					kernel = clCreateKernel(context->program,"joinFact_dict_int",0);
 				else
 					kernel = clCreateKernel(context->program,"joinFact_dict_other",0);
-					joinFact_dict_other<<<grid,block>>>(gpu_resPsum,gpu_fact, gpuDictHeader,byteNum,attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
 
 				clSetKernelArg(kernel,0,sizeof(cl_mem),(void*)&gpu_resPsum);
 				clSetKernelArg(kernel,1,sizeof(cl_mem),(void*)&gpu_fact);
@@ -496,7 +495,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 
 	clReleaseMemObject(gpu_count);
 	clReleaseMemObject(gpu_hashNum);
-	clReleaaseMemObject(gpu_psum);
+	clReleaseMemObject(gpu_psum);
 
 	return res;
 

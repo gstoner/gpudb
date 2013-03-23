@@ -1,9 +1,9 @@
 #ifndef _PRESCAN_CPP
 #define _PRESCAN_CPP_
 
-#include "scanLargeArray_kernel.cpp"
 #include <assert.h>
 #include <CL/cl.h> 
+#include <math.h>
 #include "../include/common.h"
 #include "../include/gpuOpenclLib.h"
 
@@ -22,6 +22,8 @@ floorPow2(int n)
 }
 
 #define BLOCK_SIZE 256
+#define NUM_BANKS 16
+#define LOG_NUM_BANKS 4
 
 static cl_mem * g_scanBlockSums;
 static unsigned int g_numEltsAllocated = 0;
@@ -85,7 +87,7 @@ static void deallocBlockSums()
 }
 
 
-static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElements, int level, struct clContext, *context, struct statistic *pp)
+static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElements, int level, struct clContext *context, struct statistic *pp)
 {
 
     cl_int error = 0;

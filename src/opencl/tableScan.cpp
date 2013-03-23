@@ -10,6 +10,7 @@
 #include <CL/cl.h>
 #include "../include/common.h"
 #include "../include/gpuOpenclLib.h"
+#include "scanImpl.cpp"
 
 /*
  * tableScan Prerequisites:
@@ -51,9 +52,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 	cl_kernel kernel;
 
 	cl_mem * column;
-	int * gpuCount;
-	int * gpuFilter;
-	int * gpuPsum;
 
 	size_t globalSize = 1024;
 	size_t localSize = 256;
@@ -87,13 +85,13 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 		}
 	}
 
-	int count = 0, *gpuTotalCount;
+	int count = 0;
 
 	cl_mem gpuFilter = clCreateBuffer(context->context, CL_MEM_READ_WRITE, sizeof(int)*totalTupleNum, NULL, &error);
 	cl_mem gpuPsum = clCreateBuffer(context->context, CL_MEM_READ_WRITE, sizeof(int)*threadNum, NULL, &error);
 	cl_mem gpuCount = clCreateBuffer(context->context, CL_MEM_READ_WRITE, sizeof(int)*threadNum, NULL, &error);
 
-	cl_mem gpuTotalCount = clCreateBuffer(context,CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR, sizeof(int), &count, &error);
+	cl_mem gpuTotalCount = clCreateBuffer(context->context,CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR, sizeof(int), &count, &error);
 
 	assert(sn->hasWhere !=0);
 	assert(sn->filter != NULL);
@@ -102,7 +100,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 	if(1){
 
-		cl_mem gpuExp = clCreateBuffer(context->contexxt, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(struct whereExp), &where->exp[0],&error);
+		cl_mem gpuExp = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(struct whereExp), &where->exp[0],&error);
 
 		int whereIndex = where->exp[0].index;
 		int index = sn->whereIndex[whereIndex];
@@ -189,7 +187,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(struct dictHeader), dheader,&error);
 
 			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
-				clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index]-sizeof(struct dictHeader),sn->tn->content[index] + sizeof(struct dictHeder),0,0,0);
+				clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index]-sizeof(struct dictHeader),sn->tn->content[index] + sizeof(struct dictHeader),0,0,0);
 			else if (sn->tn->dataPos[index] == UVA)
 				;
 
@@ -245,7 +243,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 						kernel = clCreateKernel(context->program,"transform_dict_filter_or",0);
 					else
 						kernel = clCreateKernel(context->program,"transform_dict_filter_and",0); 
-						transform_dict_filter_and<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter,byteNum);
 
 					clSetKernelArg(kernel,0, sizeof(cl_mem), (void*)&gpuDictFilter);
 					clSetKernelArg(kernel,1, sizeof(cl_mem), (void*)&column[prevWhere]);
@@ -269,7 +266,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 				if(format == DICT){
 					if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
-						clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index]-sizeof(struct dictHeader),sn->tn->content[index] + sizeof(struct dictHeder),0,0,0);
+						clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index]-sizeof(struct dictHeader),sn->tn->content[index] + sizeof(struct dictHeader),0,0,0);
 					else if (sn->tn->dataPos[index] == UVA)
 						;
 
@@ -320,7 +317,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 							kernel = clCreateKernel(context->program, "genScanFilter_and_int_geq", 0);
 						else if (rel == LEQ)
 							kernel = clCreateKernel(context->program, "genScanFilter_and_int_leq", 0);
-							genScanFilter_and_int_leq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 
 						clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
 						clSetKernelArg(kernel, 1, sizeof(long), (void *)&totalTupleNum);
@@ -543,7 +539,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					kernel = clCreateKernel(context->program,"scan_int",0);
 				else
 					kernel = clCreateKernel(context->program,"scan_other",0);
-					scan_other<<<grid,block>>>(scanCol[i], sn->tn->attrSize[index], totalTupleNum,gpuPsum,count, gpuFilter,result[i]);
+
 				clSetKernelArg(kernel,0,sizeof(cl_mem),(void *)&scanCol[i]);
 				clSetKernelArg(kernel,1,sizeof(int),(void *)&sn->tn->attrSize[index]);
 				clSetKernelArg(kernel,2,sizeof(long),(void *)&totalTupleNum);
@@ -599,7 +595,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(kernel,6,sizeof(cl_mem),(void*)&gpuFilter);
 				clSetKernelArg(kernel,7,sizeof(cl_mem),(void*)&result[i]);
 				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
-o				
+
 				clReleaseMemObject(gpuRle);
 			}
 
