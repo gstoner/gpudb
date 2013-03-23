@@ -214,8 +214,8 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 
 	clReleaseMemObject(gpuContent);
 	clReleaseMemObject(gpuResult);
-	clReleaseMemOjbect(gpuOffset);
-	clReleaseMemOjbect(gpuResOffset);
+	clReleaseMemObject(gpuOffset);
+	clReleaseMemObject(gpuResOffset);
 	clReleaseMemObject(gpuGbExp);
 	clReleaseMemObject(gpuResult);
 
