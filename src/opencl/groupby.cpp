@@ -79,7 +79,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	for(int i=0;i<gb->table->totalAttr;i++){
 		int attrSize = gb->table->attrSize[i];
 		cpuOffset[i] = offset;
-		clEnqueueWriteBuffer(context->queue, gpuContent + offset, CL_TRUE, 0, attrSize * gb->table->tupleNum, gb->table->content[i],0,0,0);
+		clEnqueueWriteBuffer(context->queue, gpuContent, CL_TRUE, offset, attrSize * gb->table->tupleNum, gb->table->content[i],0,0,0);
 		offset += attrSize * gb->table->tupleNum;
 	}
 
@@ -149,7 +149,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	cl_mem mathexp = clCreateBuffer(context->context, CL_MEM_READ_ONLY, 2*sizeof(struct mathExp)*res->totalAttr,NULL, &error);
 	for(int i=0;i<res->totalAttr;i++){
 		if(gb->gbExp[i].exp.opNum == 2){
-			clEnqueueWriteBuffer(context->queue, gpuGbExp + 2*i*sizeof(struct mathExp), CL_TRUE,0,2*sizeof(struct mathExp),gb->gbExp[i].exp.exp,0,0,0);
+			clEnqueueWriteBuffer(context->queue, mathexp, CL_TRUE, 2*i*sizeof(struct mathExp),2*sizeof(struct mathExp),gb->gbExp[i].exp.exp,0,0,0);
 		}
 	}
 
@@ -203,10 +203,10 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	}
 
 	for(int i=0; i<res->totalAttr;i++){
-		res->content[i] = clCreateBuffer(context->context,CL_MEM_READ_WRITE, res->attrSize[i]*res->tupleNum, NULL, &error); 
+		res->content[i] = (char *)clCreateBuffer(context->context,CL_MEM_READ_WRITE, res->attrSize[i]*res->tupleNum, NULL, &error); 
 		res->dataPos[i] = GPU;
 		res->attrTotalSize[i] = res->tupleNum * res->attrSize[i];
-		clEnqueueWriteBuffer(context->queue, res->content[i], 0, res->attrSize[i] * res->tupleNum, gpuResult + resOffset[i],0,0,0);
+		clEnqueueCopyBuffer(context->queue, gpuResult, (cl_mem)res->content[i], resOffset[i],0, res->attrSize[i] * res->tupleNum, 0,0,0);
 	}
 
 	free(resOffset);

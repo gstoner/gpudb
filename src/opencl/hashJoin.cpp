@@ -99,7 +99,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		gpu_dim = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,primaryKeySize, jNode->rightTable->content[jNode->rightKeyIndex],&error);
 
 	}else if (dataPos == GPU || dataPos == UVA){
-		gpu_dim = jNode->rightTable->content[jNode->rightKeyIndex];
+		gpu_dim = (cl_mem)jNode->rightTable->content[jNode->rightKeyIndex];
 	}
 
 	kernel = clCreateKernel(context->program,"count_hash_num",0);
@@ -140,7 +140,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,foreignKeySize,jNode->leftTable->content[jNode->leftKeyIndex],&error);
 
 	}else if (dataPos == GPU || dataPos == UVA){
-		gpu_fact = jNode->leftTable->content[jNode->leftKeyIndex];
+		gpu_fact = (cl_mem)jNode->leftTable->content[jNode->leftKeyIndex];
 	}
 
 	gpuFactFilter = clCreateBuffer(context->context,CL_MEM_READ_WRITE,filterSize,NULL,&error);
@@ -305,7 +305,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		}
 
 
-		gpu_result = clCreateBuffer(contet->context,CL_MEM_READ_WRITE,resSize,NULL,&error);
+		gpu_result = clCreateBuffer(content->context,CL_MEM_READ_WRITE,resSize,NULL,&error);
 
 		if(leftRight == 0){
 			if(format == UNCOMPRESSED){
@@ -313,7 +313,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				if(dataPos == MEM || dataPos == PINNED){
 					gpu_fact = clCreateBuffer(contet->context,CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,colSize,table,&error);
 				}else{
-					gpu_fact = table;
+					gpu_fact = (cl_mem)table;
 				}
 
 				if(attrSize == sizeof(int)){
@@ -338,12 +338,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				dheader = (struct dictHeader *)table;
 				byteNum = dheader->bitNum/8;
 				
-				cl_mem * gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(struct dictHeader), dheader,&error);
+				cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(struct dictHeader), dheader,&error);
 
 				if(dataPos == MEM || dataPos == PINNED){
 					gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,colSize-sizeof(struct dictHeader), table + sizeof(struct dictHeader), &error);
 				}else{
-					gpu_fact = table + sizeof(struct dictHeader);
+					gpu_fact = (cl_mem)(table + sizeof(struct dictHeader));
 				}
 
 				if (attrSize == sizeof(int))
@@ -368,7 +368,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				if(dataPos == MEM || dataPos == PINNED){
 					gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,colSize,table,&error);
 				}else{
-					gpu_fact = table;
+					gpu_fact = (cl_mem)table;
 				}
 
 				int dNum = (colSize - sizeof(struct rleHeader))/(3*sizeof(int));
@@ -403,7 +403,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				if(dataPos == MEM || dataPos == PINNED){
 					gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,colSize,table,&error);
 				}else{
-					gpu_fact = table;
+					gpu_fact = (cl_mem)table;
 				}
 
 				if(attrType == sizeof(int))
@@ -428,12 +428,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				dheader = (struct dictHeader *)table;
 				byteNum = dheader->bitNum/8;
 
-				cl_mem * gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(struct dictHeader),dheader,&error);
+				cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(struct dictHeader),dheader,&error);
 
 				if(dataPos == MEM || dataPos == PINNED){
 					gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,colSize-sizeof(struct dictHeader),table+sizeof(struct dictHeader),&error);
 				}else{
-					gpu_fact = table + sizeof(struct dictHeader);
+					gpu_fact = (cl_mem)(table + sizeof(struct dictHeader));
 				}
 
 				if(attrType == sizeof(int))
@@ -458,7 +458,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				if(dataPos == MEM || dataPos == PINNED){
 					gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,colSize,table,&error);
 				}else{
-					gpu_fact = table;
+					gpu_fact = (cl_mem)table;
 				}
 
 				long offset = 0;
@@ -484,7 +484,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 			clReleaseMemObject(gpu_result);
 
 		}else if(res->dataPos[i] == GPU){
-			res->content[i] = gpu_result;
+			res->content[i] = (char *)gpu_result;
 		}
 		if(dataPos == MEM || dataPos == PINNED)
 			clReleaseMemObject(gpu_fact);

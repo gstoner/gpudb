@@ -113,7 +113,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 		int dNum;
 		int byteNum;
 
-		cl_mem *gpuDictFilter;
+		cl_mem gpuDictFilter;
 
 		if(sn->tn->dataPos[index] == MEM)
 			column[whereIndex] = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sn->tn->attrTotalSize[index], NULL, &error);
@@ -482,8 +482,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 	int tmp1, tmp2;
 
-	clEnqueueReadBuffer(context->queue, &gpuCount[threadNum-1], CL_TRUE, 0, sizeof(int), &tmp1,0,0,0);
-	clEnqueueReadBuffer(context->queue, &gpuPsum[threadNum-1], CL_TRUE, 0, sizeof(int), &tmp2,0,0,0);
+	clEnqueueReadBuffer(context->queue, gpuCount, CL_TRUE, sizeof(int)*(threadNum-1), sizeof(int), &tmp1,0,0,0);
+	clEnqueueReadBuffer(context->queue, gpuPsum, CL_TRUE, sizeof(int)*(threadNum-1), sizeof(int), &tmp2,0,0,0);
 
 	count = tmp1+tmp2;
 	res->tupleNum = count;
@@ -618,7 +618,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 		if(sn->keepInGpu == 1){
 			res->dataPos[i] = GPU;
-			res->content[i] = result[i];
+			res->content[i] = (char *)result[i];
 		}else{
 			res->dataPos[i] = MEM;
 			res->content[i] = (char *)malloc(colSize);

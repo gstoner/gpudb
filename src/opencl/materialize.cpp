@@ -32,7 +32,7 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 	long *colOffset = (long*)malloc(sizeof(long)*tn->totalAttr);
 	for(int i=0;i<tn->totalAttr;i++){
 		colOffset[i] = offset;
-		clEnqueueWriteBuffer(context->queue,gpuContent + offset,CL_TRUE,0,tn->tupleNum * tn->attrSize[i],tn->content[i],0,0,0);
+		clEnqueueWriteBuffer(context->queue,gpuContent,CL_TRUE,offset,tn->tupleNum * tn->attrSize[i],tn->content[i],0,0,0);
 		offset += tn->tupleNum * tn->attrSize[i];
 	}
 
