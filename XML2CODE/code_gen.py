@@ -674,6 +674,7 @@ def generate_code(tree):
         print >>fo, "extern struct tableNode* groupBy(struct groupByNode *, struct clContext *, struct statistic *);"
         print >>fo, "extern struct tableNode* orderBy(struct orderByNode *, struct clContext *, struct statistic *);"
         print >>fo, "extern void materializeCol(struct materializeNode * mn, struct clContext *, struct statistic *);"
+        print >>fo, "extern const char ** createProgram(string, int *);"
 
     print >>fo, "int main(int argc, char ** argv){\n"
     
