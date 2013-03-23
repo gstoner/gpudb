@@ -3,50 +3,23 @@
 #include <fcntl.h>
 #include <string>
 #include <string.h>
+#include <iostream>
+#include <sstream>
+#include <fstream>
 using namespace std;
 
-const char ** createProgram(string path, int * num){
-	int count = 0;
-	string * res ;
+const char * createProgram(string path, int * num){
 
-	FILE *fp = fopen(path.c_str(), "r");
+	*num = 1;
 
-	if(fp == NULL){
-		printf("Failed to open kernel file\n");
-		exit(-1);
-	}
+	ifstream kernelFile(path.c_str(),ios::in);
 
-	char buf[128] = "";
-	
-	while(fgets(buf, sizeof(buf),fp)!= NULL){
-		if (strstr(buf, "__kernel") != NULL){
-			count ++;
-		}
-	}
-	fclose(fp);
+	ostringstream oss;
 
-	*num = count;
+	oss << kernelFile.rdbuf();
+	string srcStdStr = oss.str();
 
-	res = new string[count];
-	const char ** ps= new const char *[count]; 
-
-	fp = fopen(path.c_str(), "r");
-	count = 0;
-	while(fgets(buf, sizeof(buf),fp)!= NULL){
-		if (strstr(buf, "__kernel") != NULL){
-			count ++;
-			res[count-1].append(buf);
-		}else{
-			if(count >0)
-				res[count-1].append(buf);
-		}
-	}
-	fclose(fp);
-
-	for(int i=0;i<count;i++)
-		ps[i] = res[i].c_str();
-
-	return ps;
+	return srcStdStr.c_str();
 }
 
 const char * createProgramBinary(string path, size_t * size){

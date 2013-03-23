@@ -664,7 +664,7 @@ def generate_code(tree):
         print >>fo, "#include \"../include/gpuOpenclLib.h\"\n"
         print >>fo, "#include\"../include/cpuOpenclLib.h\""
         print >>fo, "using namespace std;"
-        print >>fo, "extern const char ** createProgram(string, int *);"
+        print >>fo, "extern const char * createProgram(string, int *);"
 
         print >>fo, "extern struct tableNode* tableScan(struct scanNode *,struct clContext *, struct statistic *);"
         if joinType == 0:
@@ -674,13 +674,12 @@ def generate_code(tree):
         print >>fo, "extern struct tableNode* groupBy(struct groupByNode *, struct clContext *, struct statistic *);"
         print >>fo, "extern struct tableNode* orderBy(struct orderByNode *, struct clContext *, struct statistic *);"
         print >>fo, "extern void materializeCol(struct materializeNode * mn, struct clContext *, struct statistic *);"
-        print >>fo, "extern const char ** createProgram(string, int *);"
 
     print >>fo, "int main(int argc, char ** argv){\n"
     
     if CODETYPE == 1:
         print >>fo, "\tint psc = 0;"
-        print >>fo, "\tconst char ** ps = createProgram(\"kernel.cl\",&psc);"
+        print >>fo, "\tconst char * ps = createProgram(\"kernel.cl\",&psc);"
         print >>fo, "\tstruct clContext context;"
         print >>fo, "\tcl_uint numP;"
         print >>fo, "\tcl_int error = 0;"
