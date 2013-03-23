@@ -305,13 +305,13 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		}
 
 
-		gpu_result = clCreateBuffer(content->context,CL_MEM_READ_WRITE,resSize,NULL,&error);
+		gpu_result = clCreateBuffer(context->context,CL_MEM_READ_WRITE,resSize,NULL,&error);
 
 		if(leftRight == 0){
 			if(format == UNCOMPRESSED){
 
 				if(dataPos == MEM || dataPos == PINNED){
-					gpu_fact = clCreateBuffer(contet->context,CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,colSize,table,&error);
+					gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_WRITE|CL_MEM_COPY_HOST_PTR,colSize,table,&error);
 				}else{
 					gpu_fact = (cl_mem)table;
 				}
