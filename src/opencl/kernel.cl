@@ -68,7 +68,7 @@ inline int testCon_string(__global char *buf1, __global char* buf2, int size, in
         return res;
 }
 
-__kernel void transform_dict_filter_and(__global int * dictFilter, __global char *fact, long tupleNum, int dNum,  __global int * filter, int byteNum){
+__kernel void transform_dict_filter_and(__global int * dictFilter, __global int *fact, long tupleNum, int dNum,  __global int * filter, int byteNum){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
@@ -76,7 +76,7 @@ __kernel void transform_dict_filter_and(__global int * dictFilter, __global char
         int numInt = (tupleNum * byteNum +sizeof(int) - 1) / sizeof(int) ;
 
         for(size_t i=offset; i<numInt; i += stride){
-                int tmp = ((int *)fact)[i];
+                int tmp = fact[i];
                 unsigned long bit = 1;
 
                 for(int j=0; j< sizeof(int)/byteNum; j++){
@@ -87,7 +87,7 @@ __kernel void transform_dict_filter_and(__global int * dictFilter, __global char
         }
 }
 
-__kernel void transform_dict_filter_or(__global int * dictFilter, __global char *fact, long tupleNum, int dNum,  __global int * filter,int byteNum){
+__kernel void transform_dict_filter_or(__global int * dictFilter, __global int *fact, long tupleNum, int dNum,  __global int * filter,int byteNum){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
@@ -95,7 +95,7 @@ __kernel void transform_dict_filter_or(__global int * dictFilter, __global char 
         int numInt = (tupleNum * byteNum +sizeof(int) - 1) / sizeof(int) ;
 
         for(size_t i=offset; i<numInt; i += stride){
-                int tmp = ((int *)fact)[i];
+                int tmp = fact[i];
                 unsigned long bit = 1;
 
                 for(int j=0; j< sizeof(int)/byteNum; j++){
@@ -198,112 +198,112 @@ __kernel void genScanFilter_and(__global char *col, int colSize, int  colType, l
         }
 }
 
-__kernel void genScanFilter_and_int_eq(__global char *col, long tupleNum, int where, __global int * filter){
+__kernel void genScanFilter_and_int_eq(__global int *col, long tupleNum, int where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((int*)col)[i] == where;
+                con = col[i] == where;
                 filter[i] &= con;
         }
 }
 
-__kernel void genScanFilter_and_float_eq(__global char *col, long tupleNum, float where, __global int * filter){
+__kernel void genScanFilter_and_float_eq(__global float *col, long tupleNum, float where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((float*)col)[i] == where;
+                con = col[i] == where;
                 filter[i] &= con;
         }
 }
 
-__kernel void genScanFilter_and_int_geq(__global char *col, long tupleNum, int where, __global int * filter){
+__kernel void genScanFilter_and_int_geq(__global int *col, long tupleNum, int where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((int*)col)[i] >= where;
+                con = col[i] >= where;
                 filter[i] &= con;
         }
 }
 
-__kernel void genScanFilter_and_float_geq(__global char *col, long tupleNum, float where, __global int * filter){
+__kernel void genScanFilter_and_float_geq(__global float *col, long tupleNum, float where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((float*)col)[i] >= where;
+                con = col[i] >= where;
                 filter[i] &= con;
         }
 }
 
-__kernel void genScanFilter_and_int_leq(__global char *col, long tupleNum, int where, __global int * filter){
+__kernel void genScanFilter_and_int_leq(__global int *col, long tupleNum, int where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((int*)col)[i] <= where;
+                con = col[i] <= where;
                 filter[i] &= con;
         }
 }
 
-__kernel void genScanFilter_and_float_leq(__global char *col, long tupleNum, float where, __global int * filter){
+__kernel void genScanFilter_and_float_leq(__global float *col, long tupleNum, float where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((float*)col)[i] <= where;
+                con = col[i] <= where;
                 filter[i] &= con;
         }
 }
 
-__kernel void genScanFilter_and_int_gth(__global char *col, long tupleNum, int where, __global int * filter){
+__kernel void genScanFilter_and_int_gth(__global int *col, long tupleNum, int where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((int*)col)[i] > where;
+                con = col[i] > where;
                 filter[i] &= con;
         }
 }
 
-__kernel void genScanFilter_and_float_gth(__global char *col, long tupleNum, float where, __global int * filter){
+__kernel void genScanFilter_and_float_gth(__global float *col, long tupleNum, float where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((float*)col)[i] > where;
+                con = col[i] > where;
                 filter[i] &= con;
         }
 }
 
-__kernel void genScanFilter_and_int_lth(__global char *col, long tupleNum, int where, __global int * filter){
+__kernel void genScanFilter_and_int_lth(__global int *col, long tupleNum, int where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((int*)col)[i] < where;
+                con = col[i] < where;
                 filter[i] &= con;
         }
 }
 
-__kernel void genScanFilter_and_float_lth(__global char *col, long tupleNum, float where, __global int * filter){
+__kernel void genScanFilter_and_float_lth(__global float *col, long tupleNum, float where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((float*)col)[i] < where;
+                con = col[i] < where;
                 filter[i] &= con;
         }
 }
@@ -320,106 +320,106 @@ __kernel void genScanFilter_or(__global char *col, int colSize, int  colType, lo
         }
 }
 
-__kernel void genScanFilter_or_int_eq(__global char *col, long tupleNum, int where, __global int * filter){
+__kernel void genScanFilter_or_int_eq(__global int *col, long tupleNum, int where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((int*)col)[i] == where;
+                con = col[i] == where;
                 filter[i] |= con;
         }
 }
-__kernel void genScanFilter_or_float_eq(__global char *col, long tupleNum, float where, __global int * filter){
+__kernel void genScanFilter_or_float_eq(__global float *col, long tupleNum, float where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((float*)col)[i] == where;
+                con = col[i] == where;
                 filter[i] |= con;
         }
 }
-__kernel void genScanFilter_or_int_gth(__global char *col, long tupleNum, int where, __global int * filter){
+__kernel void genScanFilter_or_int_gth(__global int *col, long tupleNum, int where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((int*)col)[i] > where;
-                filter[i] |= con;
-        }
-}
-
-__kernel void genScanFilter_or_float_gth(__global char *col, long tupleNum, float where, __global int * filter){
-	size_t stride = get_global_size(0);
-	size_t tid = get_global_id(0);
-        int con;
-
-        for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((float*)col)[i] > where;
+                con = col[i] > where;
                 filter[i] |= con;
         }
 }
 
-__kernel void genScanFilter_or_int_lth(__global char *col, long tupleNum, int where, __global int * filter){
+__kernel void genScanFilter_or_float_gth(__global float *col, long tupleNum, float where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((int*)col)[i] < where;
-                filter[i] |= con;
-        }
-}
-__kernel void genScanFilter_or_float_lth(__global char *col, long tupleNum, float where, __global int * filter){
-	size_t stride = get_global_size(0);
-	size_t tid = get_global_id(0);
-        int con;
-
-        for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((float*)col)[i] < where;
-                filter[i] |= con;
-        }
-}
-__kernel void genScanFilter_or_int_geq(__global char *col, long tupleNum, int where, __global int * filter){
-	size_t stride = get_global_size(0);
-	size_t tid = get_global_id(0);
-        int con;
-
-        for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((int*)col)[i] >= where;
-                filter[i] |= con;
-        }
-}
-__kernel void genScanFilter_or_float_geq(__global char *col, long tupleNum, float where, __global int * filter){
-	size_t stride = get_global_size(0);
-	size_t tid = get_global_id(0);
-        int con;
-
-        for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((float*)col)[i] >= where;
+                con = col[i] > where;
                 filter[i] |= con;
         }
 }
 
-__kernel void genScanFilter_or_int_leq(__global char *col, long tupleNum, int where, __global int * filter){
+__kernel void genScanFilter_or_int_lth(__global int *col, long tupleNum, int where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((int*)col)[i] <= where;
+                con = col[i] < where;
                 filter[i] |= con;
         }
 }
-__kernel void genScanFilter_or_float_leq(__global char *col, long tupleNum, float where, __global int * filter){
+__kernel void genScanFilter_or_float_lth(__global float *col, long tupleNum, float where, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
 
         for(size_t i = tid; i<tupleNum;i+=stride){
-                con = ((float*)col)[i] <= where;
+                con = col[i] < where;
+                filter[i] |= con;
+        }
+}
+__kernel void genScanFilter_or_int_geq(__global int *col, long tupleNum, int where, __global int * filter){
+	size_t stride = get_global_size(0);
+	size_t tid = get_global_id(0);
+        int con;
+
+        for(size_t i = tid; i<tupleNum;i+=stride){
+                con = col[i] >= where;
+                filter[i] |= con;
+        }
+}
+__kernel void genScanFilter_or_float_geq(__global float *col, long tupleNum, float where, __global int * filter){
+	size_t stride = get_global_size(0);
+	size_t tid = get_global_id(0);
+        int con;
+
+        for(size_t i = tid; i<tupleNum;i+=stride){
+                con = col[i] >= where;
+                filter[i] |= con;
+        }
+}
+
+__kernel void genScanFilter_or_int_leq(__global int *col, long tupleNum, int where, __global int * filter){
+	size_t stride = get_global_size(0);
+	size_t tid = get_global_id(0);
+        int con;
+
+        for(size_t i = tid; i<tupleNum;i+=stride){
+                con = col[i] <= where;
+                filter[i] |= con;
+        }
+}
+__kernel void genScanFilter_or_float_leq(__global float *col, long tupleNum, float where, __global int * filter){
+	size_t stride = get_global_size(0);
+	size_t tid = get_global_id(0);
+        int con;
+
+        for(size_t i = tid; i<tupleNum;i+=stride){
+                con = col[i] <= where;
                 filter[i] |= con;
         }
 }
