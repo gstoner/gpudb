@@ -19,7 +19,11 @@ const char * createProgram(string path, int * num){
 	oss << kernelFile.rdbuf();
 	string srcStdStr = oss.str();
 
-	return srcStdStr.c_str();
+	char * res = (char *)malloc(srcStdStr.length());
+
+	memcpy(res,srcStdStr.c_str(),srcStdStr.length());
+
+	return res;
 }
 
 const char * createProgramBinary(string path, size_t * size){
