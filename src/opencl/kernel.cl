@@ -1437,4 +1437,21 @@ __kernel void uniformAdd(__global int *g_data,
     g_data[address + get_group_id(0)] += (get_local_id(0) + get_local_size(0) < n) * uni;
 }
 
+// for materialization
+
+__kernel void materialize(__global char * content, __global long * colOffset, int colNum, __global int *attrSize, long tupleNum, int tupleSize, __global char *result){
+	size_t startIndex = get_global_id(0);
+	size_t stride = get_global_size(0);
+
+        for(size_t i=startIndex;i<tupleNum;i+=stride){
+                int offset = 0;
+                for(int j=0;j<colNum;j++){
+                        int aSize = attrSize[j];
+			for(int k=0;k<aSize;k++)
+				(result + i*tupleSize + offset)[k] = (content + colOffset[j] + i*aSize)[k];
+                        offset += aSize;
+                }
+        }
+}
+
 
