@@ -7,7 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
-#include <Cl/cl.h>
+#include <CL/cl.h>
 #include "../include/common.h"
 #include "../include/gpuOpenclLib.h"
 
