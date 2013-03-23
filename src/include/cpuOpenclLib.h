@@ -59,7 +59,7 @@ static void mergeIntoTable(struct tableNode *dst, struct tableNode * src, struct
 			if(src->dataPos[i] == MEM)
 				memcpy(dst->content[i],src->content[i],size);
 			else if (src->dataPos[i] == GPU)
-				clEnqueueReadBuffer(context->queue, src->content[i], CL_TRUE, 0, size, dst->content[i],0,0,0);
+				clEnqueueReadBuffer(context->queue, (cl_mem)src->content[i], CL_TRUE, 0, size, dst->content[i],0,0,0);
 		}
 	}else{
 		for(int i=0; i<dst->totalAttr; i++){
@@ -72,7 +72,7 @@ static void mergeIntoTable(struct tableNode *dst, struct tableNode * src, struct
 			if(src->dataPos[i] == MEM)
 				memcpy(dst->content[i] + offset,src->content[i],newSize);
 			else if (src->dataPos[i] == GPU)
-				clEnqueueReadBuffer(context->queue, src->content[i], CL_TRUE, 0, newSize, dst->content[i]+offset,0,0,0);
+				clEnqueueReadBuffer(context->queue, (cl_mem)src->content[i], CL_TRUE, 0, newSize, dst->content[i]+offset,0,0,0);
 		}
 	}
 
@@ -88,9 +88,9 @@ static void freeTable(struct tableNode * tn){
 		if(tn->dataPos[i] == MEM)
                 	munmap(tn->content[i], tn->attrTotalSize[i]);
 		else if(tn->dataPos[i] == GPU)
-			clReleaseMemObject(tn->content[i]);
+			clReleaseMemObject((cl_mem)tn->content[i]);
 		else if(tn->dataPos[i] == UVA || tn->dataPos[i] == PINNED)
-			clReleaseMemObject(tn->content[i]);
+			clReleaseMemObject((cl_mem)tn->content[i]);
         }
 
         free(tn->attrType);
