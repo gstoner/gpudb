@@ -139,7 +139,7 @@ static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElemen
     size_t localSize = numThreads;
     size_t globalSize = max(1, numBlocks-np2LastBlock) * localSize; 
 
-    tmp = 0;
+    int tmp = 0;
     if (numBlocks > 1)
     {
 
