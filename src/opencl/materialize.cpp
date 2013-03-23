@@ -10,7 +10,7 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 
 	struct tableNode *tn = mn->table;
 	char * res;
-	cl_mem gpuResult, gpuContext;
+	cl_mem gpuResult;
 	cl_mem gpuAttrSize;
 
 	long size = tn->tupleNum * tn->tupleSize;
