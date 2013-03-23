@@ -97,7 +97,6 @@ static void deallocBlockSums()
 static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElements, int level, struct clContext *context, struct statistic *pp)
 {
 
-    cl_int error = 0;
     cl_kernel kernel;
     unsigned int blockSize = BLOCK_SIZE; 
     unsigned int numBlocks = 
