@@ -4,7 +4,7 @@
 #include <CL/cl.h>
 #include "../include/common.h"
 #include "../include/gpuOpenclLib.h"
-#include "scanImpl.cu"
+#include "scanImpl.cpp"
 
 
 /* 
@@ -65,28 +65,30 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	size_t globalSize = 1024;
 	size_t localSize = 128;
 
+	size_t threadNum = globalSize;
+
 	cl_mem gpu_hashNum;
 	cl_mem gpu_psum;
 	cl_mem gpuGbCount;
 
-	gpuContent = clCreateBuffer(context->context,CL_MEM_READ_ONLY, gb->talbe->tupleSize * gb->table->tupleNum,NULL,&error);
+	gpuContent = clCreateBuffer(context->context,CL_MEM_READ_ONLY, gb->table->tupleSize * gb->table->tupleNum,NULL,&error);
 
-	long * cpuOffset = (int *)malloc(sizeof(int) * gb->table->totalAttr);
+	long * cpuOffset = (long *)malloc(sizeof(long) * gb->table->totalAttr);
 	long offset = 0;
 
 	for(int i=0;i<gb->table->totalAttr;i++){
 		int attrSize = gb->table->attrSize[i];
-		cpuOffset = offset;
+		cpuOffset[i] = offset;
 		clEnqueueWriteBuffer(context->queue, gpuContent + offset, CL_TRUE, 0, attrSize * gb->table->tupleNum, gb->table->content[i],0,0,0);
 		offset += attrSize * gb->table->tupleNum;
 	}
 
-	cl_mem gpuOffset = clCreateBUffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(long)*gb->table->tupleNum,cpuOffset,&error);
+	cl_mem gpuOffset = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(long)*gb->table->tupleNum,cpuOffset,&error);
 
 	if(gbConstant != 1){
 
-		gpuGbType = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(int)*gb->groupByColuNum,gb->groupByType,&error);
-		gpuGbSize = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(int)*gb->groupByColuNum,gb->groupBySize,&error);
+		gpuGbType = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(int)*gb->groupByColNum,gb->groupByType,&error);
+		gpuGbSize = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(int)*gb->groupByColNum,gb->groupBySize,&error);
 
 		gpuGbSize = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(int)*gb->table->tupleNum,NULL,&error);
 
@@ -151,11 +153,11 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		}
 	}
 
-	long *resOffset = (int *)malloc(sizeof(long)*res->totalAttr);
+	long *resOffset = (long *)malloc(sizeof(long)*res->totalAttr);
 	
 	offset = 0;
 	for(int i=0;i<res->totalAttr;i++){
-		resOffset = offset;
+		resOffset[i] = offset;
 		offset += res->attrSize[i] * res->tupleNum;
 	}
 
@@ -165,7 +167,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 
 	if(gbConstant !=1){
 		kernel = clCreateKernel(context->program,"agg_cal",0);
-		clSetKernelArg(kernel,0,sizeof(cl_mem), (void*)&gpuContext);
+		clSetKernelArg(kernel,0,sizeof(cl_mem), (void*)&gpuContent);
 		clSetKernelArg(kernel,1,sizeof(cl_mem), (void*)&gpuOffset);
 		clSetKernelArg(kernel,2,sizeof(int), (void*)&gpuGbColNum);
 		clSetKernelArg(kernel,3,sizeof(cl_mem), (void*)&gpuGbExp);
@@ -184,7 +186,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		clReleaseMemObject(gpu_psum);
 	}else{
 		kernel = clCreateKernel(context->program,"agg_cal_cons",0);
-		clSetKernelArg(kernel,0,sizeof(cl_mem), (void*)&gpuContext);
+		clSetKernelArg(kernel,0,sizeof(cl_mem), (void*)&gpuContent);
 		clSetKernelArg(kernel,1,sizeof(cl_mem), (void*)&gpuOffset);
 		clSetKernelArg(kernel,2,sizeof(int), (void*)&gpuGbColNum);
 		clSetKernelArg(kernel,3,sizeof(cl_mem), (void*)&gpuGbExp);
