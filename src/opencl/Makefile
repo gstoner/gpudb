@@ -1,4 +1,4 @@
-LDFLAGS   := -lrt
+LDFLAGS   := -lrt -lm -lOpenCL
 
 loader: load.c
 	gcc -o gpuDBLoader load.c
