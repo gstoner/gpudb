@@ -1587,5 +1587,3 @@ __kernel void materialize(__global char * content, __global long * colOffset, in
                 }
         }
 }
-
-
