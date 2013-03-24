@@ -27,7 +27,7 @@ floorPow2(int n)
 
 static cl_mem * g_scanBlockSums;
 static unsigned int g_numEltsAllocated = 0;
-static unsigned int g_numLevelsAllocated = 0;
+static int g_numLevelsAllocated = 0;
 
 static int max(int a, int b){
 	if(a>b)
@@ -155,8 +155,8 @@ static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElemen
 	tmp = 1;
         clSetKernelArg(context->kernel,6,sizeof(int), (void*)&(tmp));
 	tmp = 0;
-        clSetKernelArg(context->kernel,8,sizeof(int), (void*)&(tmp));
-        clSetKernelArg(context->kernel,9,sharedMemLastBlock, NULL);
+        clSetKernelArg(context->kernel,7,sizeof(int), (void*)&(tmp));
+        clSetKernelArg(context->kernel,8,sharedMemSize, NULL);
 
         clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
@@ -174,8 +174,8 @@ static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElemen
             clSetKernelArg(context->kernel,5,sizeof(int), (void*)&(tmp));
 	    tmp = 1;
             clSetKernelArg(context->kernel,6,sizeof(int), (void*)&(tmp));
-            clSetKernelArg(context->kernel,8,sizeof(int), (void*)&(tmp));
-            clSetKernelArg(context->kernel,9,sharedMemLastBlock, NULL);
+            clSetKernelArg(context->kernel,7,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,8,sharedMemLastBlock, NULL);
 
             globalSize = localSize = numThreadsLastBlock;
             clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
@@ -227,8 +227,8 @@ static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElemen
             clSetKernelArg(context->kernel,4,sizeof(int), (void*)&(tmp));
             clSetKernelArg(context->kernel,5,sizeof(int), (void*)&(tmp));
             clSetKernelArg(context->kernel,6,sizeof(int), (void*)&(tmp));
-            clSetKernelArg(context->kernel,8,sizeof(int), (void*)&(tmp));
-            clSetKernelArg(context->kernel,9,sharedMemLastBlock, NULL);
+            clSetKernelArg(context->kernel,7,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,8,sharedMemSize, NULL);
 
             localSize = numThreads;
             globalSize = max(1, numBlocks-np2LastBlock) * localSize; 
@@ -248,7 +248,7 @@ static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElemen
             clSetKernelArg(context->kernel,6,sizeof(int), (void*)&(tmp));
 	    tmp = 1;
             clSetKernelArg(context->kernel,8,sizeof(int), (void*)&(tmp));
-            clSetKernelArg(context->kernel,9,sharedMemLastBlock, NULL);
+            clSetKernelArg(context->kernel,9,sharedMemSize, NULL);
 
             localSize = numThreads;
             globalSize = max(1, numBlocks-np2LastBlock) * localSize; 
