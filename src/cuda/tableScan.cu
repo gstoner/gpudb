@@ -112,6 +112,20 @@ __global__ static void transform_dict_filter_or(int * dictFilter, char *fact, lo
 	}
 }
 
+__global__ static void genScanFilter_dict_init(char *col, int colSize, int colType, int dNum, struct whereExp *where, int *dfilter){
+        int stride = blockDim.x * gridDim.x;
+        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+	int con;
+
+	struct dictHeader *dheader = (struct dictHeader *) col;
+
+	for(int i=tid;i<dNum;i+=stride){
+		int fkey = dheader->hash[i];
+		con = testCon((char *)&fkey,where->content,colSize,colType,where->relation);
+		dfilter[i] = con;
+	}
+}
+
 __global__ static void genScanFilter_dict_or(char *col, int colSize, int colType, int dNum, struct whereExp *where, int *dfilter){
         int stride = blockDim.x * gridDim.x;
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -859,14 +873,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 		}
 	}
 
-	int count, *gpuTotalCount;
+	int count;
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuFilter,sizeof(int) * totalTupleNum));
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuPsum,sizeof(int)*threadNum));
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuCount,sizeof(int)*threadNum));
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuPsum,0,sizeof(int) * threadNum));
-	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuTotalCount, sizeof(int)));
-	CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuTotalCount, 0 ,sizeof(int)));
 
 	assert(sn->hasWhere !=0);
 	assert(sn->filter != NULL);
@@ -947,9 +959,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 				column[whereIndex] = sn->tn->content[index] + sizeof(struct dictHeader);
 
 			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
-			CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuDictFilter, 0 ,dNum * sizeof(int)));
 
-			genScanFilter_dict_or<<<grid,block>>>(gpuDictHeader,sn->tn->attrSize[index],sn->tn->attrType[index],dNum, gpuExp,gpuDictFilter);
+			genScanFilter_dict_init<<<grid,block>>>(gpuDictHeader,sn->tn->attrSize[index],sn->tn->attrType[index],dNum, gpuExp,gpuDictFilter);
 			CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
 			CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictHeader));
@@ -1008,9 +1019,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictHeader,sizeof(struct dictHeader)));
 					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader), cudaMemcpyHostToDevice));
 					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuDictFilter, 0 ,dNum * sizeof(int)));
 
-					genScanFilter_dict_or<<<grid,block>>>(gpuDictHeader,sn->tn->attrSize[index],sn->tn->attrType[index],dNum, gpuExp,gpuDictFilter);
+					genScanFilter_dict_init<<<grid,block>>>(gpuDictHeader,sn->tn->attrSize[index],sn->tn->attrType[index],dNum, gpuExp,gpuDictFilter);
 					dictFilter= -1;
 					CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictHeader));
 
@@ -1151,7 +1161,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 	printf("scanNum %d\n",count);
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuCount));
-	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuTotalCount));
 
 	char **result, **scanCol;
 
