@@ -631,21 +631,6 @@ __global__ static void genScanFilter_or_float_leq(char *col, long tupleNum, floa
 		filter[i] |= con;
 	}
 }
-__global__ static void genScanFilter(char **col, int colNum, long tupleNum, int *rel, int * where, int * filter){
-        int stride = blockDim.x * gridDim.x;
-        int tid = blockIdx.x * blockDim.x + threadIdx.x;
-	int con = 1;
-
-	for(long i = tid; i<tupleNum;i+=stride){
-
-		for(int j=0;j<colNum;j++){
-			int value = ((int *)(col[j]))[i];
-			con &= testCon((char*)&value, (char*)&where[j],sizeof(int), INT, rel[j]);
-		}
-		filter[i] = con;
-	}
-}
-
 
 __global__ static void countScanNum(int *filter, long tupleNum, int * count){
 	int stride = blockDim.x * gridDim.x;
@@ -827,8 +812,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 	for(int i=0;i<res->totalAttr;i++){
 		int index = sn->outputIndex[i];
-		res->attrType[i] = sn->tn->attrType[i];
-		res->attrSize[i] = sn->tn->attrSize[i];
+		res->attrType[i] = sn->tn->attrType[index];
+		res->attrSize[i] = sn->tn->attrSize[index];
 	}
 
 	char ** column;
