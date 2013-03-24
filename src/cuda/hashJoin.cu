@@ -55,16 +55,19 @@ __global__ static void count_join_result_dict(int *num, int* psum, char* bucket,
 		int fkey = dheader->hash[i];
 		int hkey = fkey &(HSIZE-1);
 		int keyNum = num[hkey];
+		int fvalue = 0;
 
 		for(int j=0;j<keyNum;j++){
 			int pSum = psum[hkey];
 			int dimKey = ((int *)(bucket))[2*j + 2*pSum];
 			int dimId = ((int *)(bucket))[2*j + 2*pSum + 1];
 			if( dimKey == fkey){
-				dictFilter[i] = dimId;
+				fvalue = dimId;
 				break;
 			}
 		}
+
+		dictFilter[i] = fvalue;
 	}
 
 }
@@ -694,8 +697,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
 		int * gpuDictFilter;
 		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
-		CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuDictFilter, 0 ,dNum * sizeof(int)));
-
 
 		count_join_result_dict<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, dNum, gpuDictFilter);
 
