@@ -847,8 +847,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuPsum,sizeof(int)*threadNum));
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuCount,sizeof(int)*threadNum));
 
-	CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuPsum,0,sizeof(int) * threadNum));
-
 	assert(sn->hasWhere !=0);
 	assert(sn->filter != NULL);
 
