@@ -730,7 +730,7 @@ __kernel void count_join_result_dict(__global int *num, __global int* psum, __gl
                                 break;
                         }
                 }
-                dictFilter[i] = dimId;
+                dictFilter[i] = fvalue;
         }
 
 }
