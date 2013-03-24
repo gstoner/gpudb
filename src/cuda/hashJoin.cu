@@ -175,6 +175,7 @@ __global__ static void count_join_result(int* num, int* psum, char* bucket, char
 		int fkey = ((int *)(fact))[i];
 		int hkey = fkey &(HSIZE-1);
 		int keyNum = num[hkey];
+		int fvalue = 0;
 
 		for(int j=0;j<keyNum;j++){
 			int pSum = psum[hkey];
@@ -182,10 +183,11 @@ __global__ static void count_join_result(int* num, int* psum, char* bucket, char
 			int dimId = ((int *)(bucket))[2*j + 2*pSum + 1];
 			if( dimKey == fkey){
 				lcount ++;
-				factFilter[i] = dimId;
+				fvalue = dimId;
 				break;
 			}
 		}
+		factFilter[i] = fvalue;
 	}
 
 	__syncthreads();
@@ -654,7 +656,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
  */
 
 	int *gpuFactFilter;
-	int maxAttrSize;
 
 	dataPos = jNode->leftTable->dataPos[jNode->leftKeyIndex];
 	int format = jNode->leftTable->dataFormat[jNode->leftKeyIndex];
@@ -671,7 +672,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	}
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuFactFilter,filterSize));
-	CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuFactFilter,0,filterSize));
 
 	if(format == UNCOMPRESSED)
 		count_join_result<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, gpu_count,gpuFactFilter);

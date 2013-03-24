@@ -725,22 +725,6 @@ __global__ static void scan_int(char *col, int colSize, long tupleNum, int *psum
 	}
 }
 
-__global__ static void scan_all(char **col, int colNum, long tupleNum, int *psum, long resultNum, int * filter, char ** result){
-        int stride = blockDim.x * gridDim.x;
-        int tid = blockIdx.x * blockDim.x + threadIdx.x;
-	int localCount = psum[tid] ; 
-
-	for(long i = tid; i<tupleNum;i+=stride){
-		
-		if(filter[i] == 1){
-			for(int j=0;j<colNum;j++){
-				((int*)(result[j]))[localCount] = ((int*)(col[j]))[i];
-			}
-			localCount ++;
-		}
-	}
-}
-
 __global__ void static unpack_rle(char * fact, char * rle, long tupleNum, long tupleOffset, int dNum){
 
 	int offset = blockIdx.x*blockDim.x + threadIdx.x;
