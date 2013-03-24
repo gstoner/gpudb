@@ -719,16 +719,18 @@ __kernel void count_join_result_dict(__global int *num, __global int* psum, __gl
                 int fkey = dheader->hash[i];
                 int hkey = fkey &(HSIZE-1);
                 int keyNum = num[hkey];
+		int fvalue = 0;
 
                 for(int j=0;j<keyNum;j++){
                         int pSum = psum[hkey];
                         int dimKey = ((int *)(bucket))[2*j + 2*pSum];
                         int dimId = ((int *)(bucket))[2*j + 2*pSum + 1];
                         if( dimKey == fkey){
-                                dictFilter[i] = dimId;
+				fvalue = dimId;
                                 break;
                         }
                 }
+                dictFilter[i] = dimId;
         }
 
 }
@@ -834,6 +836,7 @@ __kernel  void count_join_result(__global int* num, __global int* psum, __global
                 int fkey = ((int *)(fact))[i];
                 int hkey = fkey &(HSIZE-1);
                 int keyNum = num[hkey];
+		int fvalue = 0;
 
                 for(int j=0;j<keyNum;j++){
                         int pSum = psum[hkey];
@@ -841,10 +844,11 @@ __kernel  void count_join_result(__global int* num, __global int* psum, __global
                         int dimId = ((int *)(bucket))[2*j + 2*pSum + 1];
                         if( dimKey == fkey){
                                 lcount ++;
-                                factFilter[i] = dimId;
+				fvalue = dimId;
                                 break;
                         }
                 }
+                factFilter[i] = fvalue;
         }
 
         count[offset] = lcount;
