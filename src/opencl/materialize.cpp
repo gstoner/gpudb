@@ -16,7 +16,6 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 	long size = tn->tupleNum * tn->tupleSize;
 
 	cl_int error = 0;
-	cl_kernel kernel;
 
 	struct timespec start,end;
 
@@ -43,16 +42,16 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 
 	size_t threadNum = globalSize;
 
-	kernel = clCreateKernel(context->program,"materialize",0);
-	clSetKernelArg(kernel,0,sizeof(cl_mem), (void*)&gpuContent);
-	clSetKernelArg(kernel,1,sizeof(cl_mem), (void*)&gpuColOffset);
-	clSetKernelArg(kernel,2,sizeof(int), (void*)&tn->totalAttr);
-	clSetKernelArg(kernel,3,sizeof(cl_mem), (void*)&gpuAttrSize);
-	clSetKernelArg(kernel,4,sizeof(long), (void*)&tn->tupleNum);
-	clSetKernelArg(kernel,5,sizeof(int), (void*)&tn->tupleSize);
-	clSetKernelArg(kernel,6,sizeof(cl_mem), (void*)&gpuResult);
+	context->kernel = clCreateKernel(context->program,"materialize",0);
+	clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&gpuContent);
+	clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)&gpuColOffset);
+	clSetKernelArg(context->kernel,2,sizeof(int), (void*)&tn->totalAttr);
+	clSetKernelArg(context->kernel,3,sizeof(cl_mem), (void*)&gpuAttrSize);
+	clSetKernelArg(context->kernel,4,sizeof(long), (void*)&tn->tupleNum);
+	clSetKernelArg(context->kernel,5,sizeof(int), (void*)&tn->tupleSize);
+	clSetKernelArg(context->kernel,6,sizeof(cl_mem), (void*)&gpuResult);
 
-	clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 	clEnqueueReadBuffer(context->queue,gpuResult,CL_TRUE,0,size,res,0,0,0);
 

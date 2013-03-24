@@ -35,7 +35,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	int count = 0;
 	int i;
 
-	cl_kernel kernel;
 	cl_int error = 0;
 
 	cl_mem gpu_hashNum;
@@ -102,22 +101,22 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		gpu_dim = (cl_mem)jNode->rightTable->content[jNode->rightKeyIndex];
 	}
 
-	kernel = clCreateKernel(context->program,"count_hash_num",0);
-	clSetKernelArg(kernel,0,sizeof(cl_mem),(void*)&gpu_dim);
-	clSetKernelArg(kernel,1,sizeof(long),(void*)&jNode->rightTable->tupleNum);
-	clSetKernelArg(kernel,2,sizeof(cl_mem),(void*)&gpu_hashNum);
-	clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+	context->kernel = clCreateKernel(context->program,"count_hash_num",0);
+	clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpu_dim);
+	clSetKernelArg(context->kernel,1,sizeof(long),(void*)&jNode->rightTable->tupleNum);
+	clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void*)&gpu_hashNum);
+	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 	scanImpl(gpu_hashNum,HSIZE,gpu_psum, context,pp);
 
 	clEnqueueWriteBuffer(context->queue,gpu_psum,CL_TRUE,0,sizeof(int)*HSIZE,gpu_psum,0,0,0);
 
-	kernel = clCreateKernel(context->program,"build_hash_table",0); 
-	clSetKernelArg(kernel,0,sizeof(cl_mem),(void*)&gpu_dim);
-	clSetKernelArg(kernel,1,sizeof(long),(void*)&jNode->rightTable->tupleNum);
-	clSetKernelArg(kernel,2,sizeof(cl_mem),(void*)&gpu_psum1);
-	clSetKernelArg(kernel,3,sizeof(cl_mem),(void*)&gpu_bucket);
-	clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+	context->kernel = clCreateKernel(context->program,"build_hash_table",0); 
+	clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpu_dim);
+	clSetKernelArg(context->kernel,1,sizeof(long),(void*)&jNode->rightTable->tupleNum);
+	clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void*)&gpu_psum1);
+	clSetKernelArg(context->kernel,3,sizeof(cl_mem),(void*)&gpu_bucket);
+	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 	if (dataPos == MEM || dataPos == PINNED)
 		clReleaseMemObject(gpu_dim);
@@ -146,15 +145,15 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	gpuFactFilter = clCreateBuffer(context->context,CL_MEM_READ_WRITE,filterSize,NULL,&error);
 
 	if(format == UNCOMPRESSED){
-		kernel = clCreateKernel(context->program,"count_join_result",0);
-		clSetKernelArg(kernel,0,sizeof(cl_mem),(void *)&gpu_hashNum);
-		clSetKernelArg(kernel,1,sizeof(cl_mem),(void *)&gpu_psum);
-		clSetKernelArg(kernel,2,sizeof(cl_mem),(void *)&gpu_bucket);
-		clSetKernelArg(kernel,3,sizeof(cl_mem),(void *)&gpu_fact);
-		clSetKernelArg(kernel,4,sizeof(long),(void *)&jNode->leftTable->tupleNum);
-		clSetKernelArg(kernel,5,sizeof(cl_mem),(void *)&gpu_count);
-		clSetKernelArg(kernel,6,sizeof(cl_mem),(void *)&gpuFactFilter);
-		clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+		context->kernel = clCreateKernel(context->program,"count_join_result",0);
+		clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&gpu_hashNum);
+		clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpu_psum);
+		clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void *)&gpu_bucket);
+		clSetKernelArg(context->kernel,3,sizeof(cl_mem),(void *)&gpu_fact);
+		clSetKernelArg(context->kernel,4,sizeof(long),(void *)&jNode->leftTable->tupleNum);
+		clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void *)&gpu_count);
+		clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void *)&gpuFactFilter);
+		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 	}else if(format == DICT){
 		int dNum;
@@ -174,50 +173,50 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 
 		cl_mem gpuDictFilter = clCreateBuffer(context->context,CL_MEM_READ_WRITE,dNum*sizeof(int),NULL,&error);
 
-		kernel = clCreateKernel(context->program,"count_join_result_dict",0);
-		clSetKernelArg(kernel,0,sizeof(cl_mem),(void *)&gpu_hashNum);
-		clSetKernelArg(kernel,1,sizeof(cl_mem),(void *)&gpu_psum);
-		clSetKernelArg(kernel,2,sizeof(cl_mem),(void *)&gpu_bucket);
-		clSetKernelArg(kernel,3,sizeof(cl_mem),(void *)&gpu_fact);
-		clSetKernelArg(kernel,4,sizeof(int),(void *)&dNum);
-		clSetKernelArg(kernel,5,sizeof(cl_mem),(void *)&gpuDictFilter);
-		clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+		context->kernel = clCreateKernel(context->program,"count_join_result_dict",0);
+		clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&gpu_hashNum);
+		clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpu_psum);
+		clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void *)&gpu_bucket);
+		clSetKernelArg(context->kernel,3,sizeof(cl_mem),(void *)&gpu_fact);
+		clSetKernelArg(context->kernel,4,sizeof(int),(void *)&dNum);
+		clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void *)&gpuDictFilter);
+		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
-		kernel = clCreateKernel(context->program,"transform_dict_filter",0);
-		clSetKernelArg(kernel,0,sizeof(cl_mem),(void *)&gpuDictFilter);
-		clSetKernelArg(kernel,1,sizeof(cl_mem),(void *)&gpu_fact);
-		clSetKernelArg(kernel,2,sizeof(long),(void *)&jNode->leftTable->tupleNum);
-		clSetKernelArg(kernel,3,sizeof(int),(void *)&dNum);
-		clSetKernelArg(kernel,5,sizeof(cl_mem),(void *)&gpuFactFilter);
+		context->kernel = clCreateKernel(context->program,"transform_dict_filter",0);
+		clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&gpuDictFilter);
+		clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpu_fact);
+		clSetKernelArg(context->kernel,2,sizeof(long),(void *)&jNode->leftTable->tupleNum);
+		clSetKernelArg(context->kernel,3,sizeof(int),(void *)&dNum);
+		clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void *)&gpuFactFilter);
 
-		clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 		clReleaseMemObject(gpuDictFilter);
 
-		kernel = clCreateKernel(context->program,"filter_count",0);
-		clSetKernelArg(kernel,0,sizeof(long),(void *)&jNode->leftTable->tupleNum);
-		clSetKernelArg(kernel,1,sizeof(cl_mem),(void *)&gpu_count);
-		clSetKernelArg(kernel,2,sizeof(cl_mem),(void *)&gpuFactFilter);
-		clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+		context->kernel = clCreateKernel(context->program,"filter_count",0);
+		clSetKernelArg(context->kernel,0,sizeof(long),(void *)&jNode->leftTable->tupleNum);
+		clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpu_count);
+		clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void *)&gpuFactFilter);
+		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 	}else if (format == RLE){
 
 		long offset = 0;
-		kernel = clCreateKernel(context->program,"count_join_result_rle",0);
-		clSetKernelArg(kernel,0,sizeof(cl_mem),(void*)&gpu_hashNum);
-		clSetKernelArg(kernel,1,sizeof(cl_mem),(void*)&gpu_psum);
-		clSetKernelArg(kernel,2,sizeof(cl_mem),(void*)&gpu_bucket);
-		clSetKernelArg(kernel,3,sizeof(cl_mem),(void*)&gpu_fact);
-		clSetKernelArg(kernel,4,sizeof(long),(void*)&jNode->leftTable->tupleNum);
-		clSetKernelArg(kernel,5,sizeof(long),(void*)&offset);
-		clSetKernelArg(kernel,6,sizeof(cl_mem),(void*)&gpuFactFilter);
-		clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+		context->kernel = clCreateKernel(context->program,"count_join_result_rle",0);
+		clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpu_hashNum);
+		clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void*)&gpu_psum);
+		clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void*)&gpu_bucket);
+		clSetKernelArg(context->kernel,3,sizeof(cl_mem),(void*)&gpu_fact);
+		clSetKernelArg(context->kernel,4,sizeof(long),(void*)&jNode->leftTable->tupleNum);
+		clSetKernelArg(context->kernel,5,sizeof(long),(void*)&offset);
+		clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void*)&gpuFactFilter);
+		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
-		kernel = clCreateKernel(context->program,"filter_count",0);
-		clSetKernelArg(kernel,0,sizeof(long),(void *)&jNode->leftTable->tupleNum);
-		clSetKernelArg(kernel,1,sizeof(cl_mem),(void *)&gpu_count);
-		clSetKernelArg(kernel,2,sizeof(cl_mem),(void *)&gpuFactFilter);
-		clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+		context->kernel = clCreateKernel(context->program,"filter_count",0);
+		clSetKernelArg(context->kernel,0,sizeof(long),(void *)&jNode->leftTable->tupleNum);
+		clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpu_count);
+		clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void *)&gpuFactFilter);
+		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 	}
 
 
@@ -317,17 +316,17 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				}
 
 				if(attrSize == sizeof(int)){
-					kernel = clCreateKernel(context->program,"joinFact_int",0);
+					context->kernel = clCreateKernel(context->program,"joinFact_int",0);
 				}else{
-					kernel = clCreateKernel(context->program,"joinFact_other",0);
+					context->kernel = clCreateKernel(context->program,"joinFact_other",0);
 				}
-				clSetKernelArg(kernel,0,sizeof(cl_mem),(void*)&gpu_resPsum);
-				clSetKernelArg(kernel,1,sizeof(cl_mem),(void*)&gpu_fact);
-				clSetKernelArg(kernel,2,sizeof(int),(void*)&attrSize);
-				clSetKernelArg(kernel,3,sizeof(long),(void*)&jNode->leftTable->tupleNum);
-				clSetKernelArg(kernel,4,sizeof(cl_mem),(void*)&gpuFactFilter);
-				clSetKernelArg(kernel,5,sizeof(cl_mem),(void*)&gpu_result);
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpu_resPsum);
+				clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void*)&gpu_fact);
+				clSetKernelArg(context->kernel,2,sizeof(int),(void*)&attrSize);
+				clSetKernelArg(context->kernel,3,sizeof(long),(void*)&jNode->leftTable->tupleNum);
+				clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void*)&gpuFactFilter);
+				clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void*)&gpu_result);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 			}else if (format == DICT){
 				struct dictHeader * dheader;
@@ -347,19 +346,19 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				}
 
 				if (attrSize == sizeof(int))
-					kernel = clCreateKernel(context->program,"joinFact_dict_int",0);
+					context->kernel = clCreateKernel(context->program,"joinFact_dict_int",0);
 				else
-					kernel = clCreateKernel(context->program,"joinFact_dict_other",0);
+					context->kernel = clCreateKernel(context->program,"joinFact_dict_other",0);
 
-				clSetKernelArg(kernel,0,sizeof(cl_mem),(void*)&gpu_resPsum);
-				clSetKernelArg(kernel,1,sizeof(cl_mem),(void*)&gpu_fact);
-				clSetKernelArg(kernel,2,sizeof(cl_mem),(void*)&gpuDictHeader);
-				clSetKernelArg(kernel,4,sizeof(int),(void*)&byteNum);
-				clSetKernelArg(kernel,5,sizeof(int),(void*)&attrSize);
-				clSetKernelArg(kernel,6,sizeof(long),(void*)&jNode->leftTable->tupleNum);
-				clSetKernelArg(kernel,7,sizeof(cl_mem),(void*)&gpuFactFilter);
-				clSetKernelArg(kernel,8,sizeof(cl_mem),(void*)&gpu_result);
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpu_resPsum);
+				clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void*)&gpu_fact);
+				clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void*)&gpuDictHeader);
+				clSetKernelArg(context->kernel,4,sizeof(int),(void*)&byteNum);
+				clSetKernelArg(context->kernel,5,sizeof(int),(void*)&attrSize);
+				clSetKernelArg(context->kernel,6,sizeof(long),(void*)&jNode->leftTable->tupleNum);
+				clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void*)&gpuFactFilter);
+				clSetKernelArg(context->kernel,8,sizeof(cl_mem),(void*)&gpu_result);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 				clReleaseMemObject(gpuDictHeader);
 
@@ -376,22 +375,22 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				cl_mem gpuRle = clCreateBuffer(context->context,CL_MEM_READ_WRITE,jNode->leftTable->tupleNum * sizeof(int), NULL, &error);;
 
 				long offset = 0;
-				kernel = clCreateKernel(context->program,"unpack_rle",0);
-				clSetKernelArg(kernel,0,sizeof(cl_mem),(void*)&gpu_fact);
-				clSetKernelArg(kernel,1,sizeof(cl_mem),(void*)&gpuRle);
-				clSetKernelArg(kernel,2,sizeof(long),(void*)&jNode->leftTable->tupleNum);
-				clSetKernelArg(kernel,3,sizeof(long),(void*)&offset);
-				clSetKernelArg(kernel,4,sizeof(int),(void*)&dNum);
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				context->kernel = clCreateKernel(context->program,"unpack_rle",0);
+				clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpu_fact);
+				clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void*)&gpuRle);
+				clSetKernelArg(context->kernel,2,sizeof(long),(void*)&jNode->leftTable->tupleNum);
+				clSetKernelArg(context->kernel,3,sizeof(long),(void*)&offset);
+				clSetKernelArg(context->kernel,4,sizeof(int),(void*)&dNum);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
-				kernel = clCreateKernel(context->program,"joinFact_int",0);
-				clSetKernelArg(kernel,0,sizeof(cl_mem), (void*)gpu_resPsum);
-				clSetKernelArg(kernel,1,sizeof(cl_mem), (void*)gpuRle);
-				clSetKernelArg(kernel,2,sizeof(int), (void*)&attrSize);
-				clSetKernelArg(kernel,3,sizeof(long),(void*)&jNode->leftTable->tupleNum);
-				clSetKernelArg(kernel,4,sizeof(cl_mem), (void*)gpuFactFilter);
-				clSetKernelArg(kernel,5,sizeof(cl_mem), (void*)gpu_result);
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				context->kernel = clCreateKernel(context->program,"joinFact_int",0);
+				clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)gpu_resPsum);
+				clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)gpuRle);
+				clSetKernelArg(context->kernel,2,sizeof(int), (void*)&attrSize);
+				clSetKernelArg(context->kernel,3,sizeof(long),(void*)&jNode->leftTable->tupleNum);
+				clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)gpuFactFilter);
+				clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)gpu_result);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 				clReleaseMemObject(gpuRle);
 
@@ -407,18 +406,18 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				}
 
 				if(attrType == sizeof(int))
-					kernel = clCreateKernel(context->program,"joinDim_int",0);
+					context->kernel = clCreateKernel(context->program,"joinDim_int",0);
 				else
-					kernel = clCreateKernel(context->program,"joinDim_other",0);
+					context->kernel = clCreateKernel(context->program,"joinDim_other",0);
 
-				clSetKernelArg(kernel,0,sizeof(cl_mem),(void*)&gpu_resPsum);
-				clSetKernelArg(kernel,1,sizeof(cl_mem),(void*)&gpu_fact);
-				clSetKernelArg(kernel,2,sizeof(int),(void*)&attrSize);
-				clSetKernelArg(kernel,3,sizeof(long),(void*)&jNode->leftTable->tupleNum);
-				clSetKernelArg(kernel,4,sizeof(cl_mem),(void*)&gpuFactFilter);
-				clSetKernelArg(kernel,5,sizeof(cl_mem),(void*)&gpu_result);
+				clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpu_resPsum);
+				clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void*)&gpu_fact);
+				clSetKernelArg(context->kernel,2,sizeof(int),(void*)&attrSize);
+				clSetKernelArg(context->kernel,3,sizeof(long),(void*)&jNode->leftTable->tupleNum);
+				clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void*)&gpuFactFilter);
+				clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void*)&gpu_result);
 				
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 			}else if (format == DICT){
 				struct dictHeader * dheader;
@@ -437,20 +436,20 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				}
 
 				if(attrType == sizeof(int))
-					kernel = clCreateKernel(context->program,"joinDim_dict_int",0);
+					context->kernel = clCreateKernel(context->program,"joinDim_dict_int",0);
 				else
-					kernel = clCreateKernel(context->program,"joinDim_dict_other",0);
+					context->kernel = clCreateKernel(context->program,"joinDim_dict_other",0);
 
-				clSetKernelArg(kernel,0,sizeof(cl_mem),(void*)&gpu_resPsum);
-				clSetKernelArg(kernel,1,sizeof(cl_mem),(void*)&gpu_fact);
-				clSetKernelArg(kernel,2,sizeof(cl_mem),(void*)&gpuDictHeader);
-				clSetKernelArg(kernel,3,sizeof(int),(void*)&byteNum);
-				clSetKernelArg(kernel,4,sizeof(int),(void*)&attrSize);
-				clSetKernelArg(kernel,5,sizeof(long),(void*)&jNode->leftTable->tupleNum);
-				clSetKernelArg(kernel,6,sizeof(cl_mem),(void*)&gpuFactFilter);
-				clSetKernelArg(kernel,7,sizeof(cl_mem),(void*)&gpu_result);
+				clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpu_resPsum);
+				clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void*)&gpu_fact);
+				clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void*)&gpuDictHeader);
+				clSetKernelArg(context->kernel,3,sizeof(int),(void*)&byteNum);
+				clSetKernelArg(context->kernel,4,sizeof(int),(void*)&attrSize);
+				clSetKernelArg(context->kernel,5,sizeof(long),(void*)&jNode->leftTable->tupleNum);
+				clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void*)&gpuFactFilter);
+				clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void*)&gpu_result);
 
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 				clReleaseMemObject(gpuDictHeader);
 
 			}else if (format == RLE){
@@ -462,16 +461,16 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				}
 
 				long offset = 0;
-				kernel = clCreateKernel(context->program,"joinDim_rle",0);
-				clSetKernelArg(kernel,0,sizeof(cl_mem),(void*)&gpu_resPsum);
-				clSetKernelArg(kernel,1,sizeof(cl_mem),(void*)&gpu_fact);
-				clSetKernelArg(kernel,2,sizeof(int),(void*)&attrSize);
-				clSetKernelArg(kernel,3,sizeof(long),(void*)&jNode->leftTable->tupleNum);
-				clSetKernelArg(kernel,4,sizeof(long),(void*)&offset);
-				clSetKernelArg(kernel,5,sizeof(cl_mem),(void*)&gpuFactFilter);
-				clSetKernelArg(kernel,6,sizeof(cl_mem),(void*)&gpu_result);
+				context->kernel = clCreateKernel(context->program,"joinDim_rle",0);
+				clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpu_resPsum);
+				clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void*)&gpu_fact);
+				clSetKernelArg(context->kernel,2,sizeof(int),(void*)&attrSize);
+				clSetKernelArg(context->kernel,3,sizeof(long),(void*)&jNode->leftTable->tupleNum);
+				clSetKernelArg(context->kernel,4,sizeof(long),(void*)&offset);
+				clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void*)&gpuFactFilter);
+				clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void*)&gpu_result);
 
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 			}
 		}
 		

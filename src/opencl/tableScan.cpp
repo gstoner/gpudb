@@ -49,7 +49,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 	}
 
 	cl_int error = 0;
-	cl_kernel kernel;
 
 	cl_mem * column;
 
@@ -131,52 +130,52 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				int whereValue = *((int*) where->exp[0].content);
 
 				if(rel==EQ)
-					kernel = clCreateKernel(context->program, "genScanFilter_init_int_eq", 0);
+					context->kernel = clCreateKernel(context->program, "genScanFilter_init_int_eq", 0);
 				else if(rel == GTH)
-					kernel = clCreateKernel(context->program, "genScanFilter_init_int_gth", 0);
+					context->kernel = clCreateKernel(context->program, "genScanFilter_init_int_gth", 0);
 				else if(rel == LTH)
-					kernel = clCreateKernel(context->program, "genScanFilter_init_int_lth", 0);
+					context->kernel = clCreateKernel(context->program, "genScanFilter_init_int_lth", 0);
 				else if(rel == GEQ)
-					kernel = clCreateKernel(context->program, "genScanFilter_init_int_geq", 0);
+					context->kernel = clCreateKernel(context->program, "genScanFilter_init_int_geq", 0);
 				else if (rel == LEQ)
-					kernel = clCreateKernel(context->program, "genScanFilter_init_int_leq", 0);
+					context->kernel = clCreateKernel(context->program, "genScanFilter_init_int_leq", 0);
 
-				clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
-				clSetKernelArg(kernel, 1, sizeof(long), (void *)&totalTupleNum);
-				clSetKernelArg(kernel, 2, sizeof(int), (void *)&whereValue);
-				clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				clSetKernelArg(context->kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
+				clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
+				clSetKernelArg(context->kernel, 2, sizeof(int), (void *)&whereValue);
+				clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 			}else if (sn->tn->attrType[index] == FLOAT){
 				int rel = where->exp[0].relation;
 				float whereValue = *((int*) where->exp[0].content);
 
 				if(rel==EQ)
-					kernel = clCreateKernel(context->program, "genScanFilter_init_float_eq", 0);
+					context->kernel = clCreateKernel(context->program, "genScanFilter_init_float_eq", 0);
 				else if(rel == GTH)
-					kernel = clCreateKernel(context->program, "genScanFilter_init_float_gth", 0);
+					context->kernel = clCreateKernel(context->program, "genScanFilter_init_float_gth", 0);
 				else if(rel == LTH)
-					kernel = clCreateKernel(context->program, "genScanFilter_init_float_lth", 0);
+					context->kernel = clCreateKernel(context->program, "genScanFilter_init_float_lth", 0);
 				else if(rel == GEQ)
-					kernel = clCreateKernel(context->program, "genScanFilter_init_float_geq", 0);
+					context->kernel = clCreateKernel(context->program, "genScanFilter_init_float_geq", 0);
 				else if (rel == LEQ)
-					kernel = clCreateKernel(context->program, "genScanFilter_or_float_leq", 0);
+					context->kernel = clCreateKernel(context->program, "genScanFilter_or_float_leq", 0);
 
-				clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
-				clSetKernelArg(kernel, 1, sizeof(long), (void *)&totalTupleNum);
-				clSetKernelArg(kernel, 2, sizeof(float), (void *)&whereValue);
-				clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				clSetKernelArg(context->kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
+				clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
+				clSetKernelArg(context->kernel, 2, sizeof(float), (void *)&whereValue);
+				clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 			}else{
-				kernel = clCreateKernel(context->program, "genScanFilter_init", 0);
-				clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
-				clSetKernelArg(kernel, 1, sizeof(int), (void *)&sn->tn->attrSize[index]);
-				clSetKernelArg(kernel, 2, sizeof(int), (void *)&sn->tn->attrType[index]);
-				clSetKernelArg(kernel, 3, sizeof(long), (void *)&totalTupleNum);
-				clSetKernelArg(kernel, 4, sizeof(cl_mem), (void *)&gpuExp);
-				clSetKernelArg(kernel, 5, sizeof(cl_mem), (void *)&gpuFilter);
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				context->kernel = clCreateKernel(context->program, "genScanFilter_init", 0);
+				clSetKernelArg(context->kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
+				clSetKernelArg(context->kernel, 1, sizeof(int), (void *)&sn->tn->attrSize[index]);
+				clSetKernelArg(context->kernel, 2, sizeof(int), (void *)&sn->tn->attrType[index]);
+				clSetKernelArg(context->kernel, 3, sizeof(long), (void *)&totalTupleNum);
+				clSetKernelArg(context->kernel, 4, sizeof(cl_mem), (void *)&gpuExp);
+				clSetKernelArg(context->kernel, 5, sizeof(cl_mem), (void *)&gpuFilter);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 			}
 
 		}else if(format == DICT){
@@ -193,15 +192,15 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 			gpuDictFilter = clCreateBuffer(context->context,CL_MEM_READ_WRITE,dNum * sizeof(int),NULL,&error);
 
-			kernel = clCreateKernel(context->program,"genScanFilter_dict_init",0); 
-			clSetKernelArg(kernel,0,sizeof(cl_mem), (void *)&gpuDictHeader);
-			clSetKernelArg(kernel,1,sizeof(int), (void*)&sn->tn->attrSize[index]);
-			clSetKernelArg(kernel,2,sizeof(int), (void*)&sn->tn->attrType[index]);
-			clSetKernelArg(kernel,3,sizeof(int), (void*)&dNum);
-			clSetKernelArg(kernel,4,sizeof(cl_mem), (void*)&gpuExp);
-			clSetKernelArg(kernel,5,sizeof(cl_mem), (void*)&gpuDictFilter);
+			context->kernel = clCreateKernel(context->program,"genScanFilter_dict_init",0); 
+			clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void *)&gpuDictHeader);
+			clSetKernelArg(context->kernel,1,sizeof(int), (void*)&sn->tn->attrSize[index]);
+			clSetKernelArg(context->kernel,2,sizeof(int), (void*)&sn->tn->attrType[index]);
+			clSetKernelArg(context->kernel,3,sizeof(int), (void*)&dNum);
+			clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&gpuExp);
+			clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)&gpuDictFilter);
 
-			clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+			clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 			clReleaseMemObject(gpuDictHeader);
 
@@ -214,16 +213,16 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				;
 
 			long offset = 0;
-			kernel = clCreateKernel(context->program,"genScanFilter_rle",0); 
-			clSetKernelArg(kernel,0,sizeof(cl_mem), (void *)&column[whereIndex]);
-			clSetKernelArg(kernel,1,sizeof(int), (void *)&sn->tn->attrSize[index]);
-			clSetKernelArg(kernel,2,sizeof(int), (void *)&sn->tn->attrType[index]);
-			clSetKernelArg(kernel,3,sizeof(long), (void *)&totalTupleNum);
-			clSetKernelArg(kernel,4,sizeof(long), (void *)&offset);
-			clSetKernelArg(kernel,5,sizeof(cl_mem), (void *)&gpuExp);
-			clSetKernelArg(kernel,6,sizeof(int), (void *)&where->andOr);
-			clSetKernelArg(kernel,7,sizeof(cl_mem), (void *)&gpuFilter);
-			clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+			context->kernel = clCreateKernel(context->program,"genScanFilter_rle",0); 
+			clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void *)&column[whereIndex]);
+			clSetKernelArg(context->kernel,1,sizeof(int), (void *)&sn->tn->attrSize[index]);
+			clSetKernelArg(context->kernel,2,sizeof(int), (void *)&sn->tn->attrType[index]);
+			clSetKernelArg(context->kernel,3,sizeof(long), (void *)&totalTupleNum);
+			clSetKernelArg(context->kernel,4,sizeof(long), (void *)&offset);
+			clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void *)&gpuExp);
+			clSetKernelArg(context->kernel,6,sizeof(int), (void *)&where->andOr);
+			clSetKernelArg(context->kernel,7,sizeof(cl_mem), (void *)&gpuFilter);
+			clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 		}
 
@@ -240,17 +239,17 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			if(prevIndex != index){
 				if(prevFormat == DICT){
 					if(dictFinal == OR)
-						kernel = clCreateKernel(context->program,"transform_dict_filter_or",0);
+						context->kernel = clCreateKernel(context->program,"transform_dict_filter_or",0);
 					else
-						kernel = clCreateKernel(context->program,"transform_dict_filter_and",0); 
+						context->kernel = clCreateKernel(context->program,"transform_dict_filter_and",0); 
 
-					clSetKernelArg(kernel,0, sizeof(cl_mem), (void*)&gpuDictFilter);
-					clSetKernelArg(kernel,1, sizeof(cl_mem), (void*)&column[prevWhere]);
-					clSetKernelArg(kernel,2, sizeof(long), (void*)&totalTupleNum);
-					clSetKernelArg(kernel,3, sizeof(int), (void*)&dNum);
-					clSetKernelArg(kernel,4, sizeof(cl_mem), (void*)&gpuFilter);
-					clSetKernelArg(kernel,5, sizeof(int), (void*)&byteNum);
-					clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+					clSetKernelArg(context->kernel,0, sizeof(cl_mem), (void*)&gpuDictFilter);
+					clSetKernelArg(context->kernel,1, sizeof(cl_mem), (void*)&column[prevWhere]);
+					clSetKernelArg(context->kernel,2, sizeof(long), (void*)&totalTupleNum);
+					clSetKernelArg(context->kernel,3, sizeof(int), (void*)&dNum);
+					clSetKernelArg(context->kernel,4, sizeof(cl_mem), (void*)&gpuFilter);
+					clSetKernelArg(context->kernel,5, sizeof(int), (void*)&byteNum);
+					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 					clReleaseMemObject(gpuDictFilter);
 					dictFinal = where->andOr;
@@ -277,15 +276,15 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(struct dictHeader), dheader,&error);
 					gpuDictFilter = clCreateBuffer(context->context,CL_MEM_READ_WRITE,dNum * sizeof(int),NULL,&error);
 
-					kernel = clCreateKernel(context->program,"genScanFilter_dict_init",0); 
-					clSetKernelArg(kernel,0,sizeof(cl_mem), (void *)&gpuDictHeader);
-					clSetKernelArg(kernel,1,sizeof(int), (void*)&sn->tn->attrSize[index]);
-					clSetKernelArg(kernel,2,sizeof(int), (void*)&sn->tn->attrType[index]);
-					clSetKernelArg(kernel,3,sizeof(int), (void*)&dNum);
-					clSetKernelArg(kernel,4,sizeof(cl_mem), (void*)&gpuExp);
-					clSetKernelArg(kernel,5,sizeof(cl_mem), (void*)&gpuDictFilter);
+					context->kernel = clCreateKernel(context->program,"genScanFilter_dict_init",0); 
+					clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void *)&gpuDictHeader);
+					clSetKernelArg(context->kernel,1,sizeof(int), (void*)&sn->tn->attrSize[index]);
+					clSetKernelArg(context->kernel,2,sizeof(int), (void*)&sn->tn->attrType[index]);
+					clSetKernelArg(context->kernel,3,sizeof(int), (void*)&dNum);
+					clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&gpuExp);
+					clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)&gpuDictFilter);
 
-					clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 					dictFilter= -1;
 					clReleaseMemObject(gpuDictHeader);
 
@@ -308,41 +307,41 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 						int rel = where->exp[i].relation;
 						int whereValue = *((int*) where->exp[i].content);
 						if(rel==EQ)
-							kernel = clCreateKernel(context->program, "genScanFilter_and_int_eq", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_and_int_eq", 0);
 						else if(rel == GTH)
-							kernel = clCreateKernel(context->program, "genScanFilter_and_int_gth", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_and_int_gth", 0);
 						else if(rel == LTH)
-							kernel = clCreateKernel(context->program, "genScanFilter_and_int_lth", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_and_int_lth", 0);
 						else if(rel == GEQ)
-							kernel = clCreateKernel(context->program, "genScanFilter_and_int_geq", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_and_int_geq", 0);
 						else if (rel == LEQ)
-							kernel = clCreateKernel(context->program, "genScanFilter_and_int_leq", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_and_int_leq", 0);
 
-						clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
-						clSetKernelArg(kernel, 1, sizeof(long), (void *)&totalTupleNum);
-						clSetKernelArg(kernel, 2, sizeof(int), (void *)&whereValue);
-						clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-						clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+						clSetKernelArg(context->kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
+						clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
+						clSetKernelArg(context->kernel, 2, sizeof(int), (void *)&whereValue);
+						clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
+						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 					}else{
 						int rel = where->exp[i].relation;
 						int whereValue = *((int*) where->exp[i].content);
 						if(rel==EQ)
-							kernel = clCreateKernel(context->program, "genScanFilter_or_int_eq", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_or_int_eq", 0);
 						else if(rel == GTH)
-							kernel = clCreateKernel(context->program, "genScanFilter_or_int_gth", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_or_int_gth", 0);
 						else if(rel == LTH)
-							kernel = clCreateKernel(context->program, "genScanFilter_or_int_lth", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_or_int_lth", 0);
 						else if(rel == GEQ)
-							kernel = clCreateKernel(context->program, "genScanFilter_or_int_geq", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_or_int_geq", 0);
 						else if (rel == LEQ)
-							kernel = clCreateKernel(context->program, "genScanFilter_or_int_leq", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_or_int_leq", 0);
 
-						clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
-						clSetKernelArg(kernel, 1, sizeof(long), (void *)&totalTupleNum);
-						clSetKernelArg(kernel, 2, sizeof(int), (void *)&whereValue);
-						clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-						clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+						clSetKernelArg(context->kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
+						clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
+						clSetKernelArg(context->kernel, 2, sizeof(int), (void *)&whereValue);
+						clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
+						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 					}
 
@@ -351,55 +350,55 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 						int rel = where->exp[i].relation;
 						float whereValue = *((int*) where->exp[i].content);
 						if(rel==EQ)
-							kernel = clCreateKernel(context->program, "genScanFilter_and_float_eq", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_and_float_eq", 0);
 						else if(rel == GTH)
-							kernel = clCreateKernel(context->program, "genScanFilter_and_float_gth", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_and_float_gth", 0);
 						else if(rel == LTH)
-							kernel = clCreateKernel(context->program, "genScanFilter_and_float_lth", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_and_float_lth", 0);
 						else if(rel == GEQ)
-							kernel = clCreateKernel(context->program, "genScanFilter_and_float_geq", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_and_float_geq", 0);
 						else if (rel == LEQ)
-							kernel = clCreateKernel(context->program, "genScanFilter_and_float_leq", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_and_float_leq", 0);
 
-						clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
-						clSetKernelArg(kernel, 1, sizeof(long), (void *)&totalTupleNum);
-						clSetKernelArg(kernel, 2, sizeof(float), (void *)&whereValue);
-						clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-						clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+						clSetKernelArg(context->kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
+						clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
+						clSetKernelArg(context->kernel, 2, sizeof(float), (void *)&whereValue);
+						clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
+						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 					}else{
 						int rel = where->exp[i].relation;
 						float whereValue = *((int*) where->exp[i].content);
 						if(rel==EQ)
-							kernel = clCreateKernel(context->program, "genScanFilter_or_float_eq", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_or_float_eq", 0);
 						else if(rel == GTH)
-							kernel = clCreateKernel(context->program, "genScanFilter_or_float_gth", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_or_float_gth", 0);
 						else if(rel == LTH)
-							kernel = clCreateKernel(context->program, "genScanFilter_or_float_lth", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_or_float_lth", 0);
 						else if(rel == GEQ)
-							kernel = clCreateKernel(context->program, "genScanFilter_or_float_geq", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_or_float_geq", 0);
 						else if (rel == LEQ)
-							kernel = clCreateKernel(context->program, "genScanFilter_or_float_leq", 0);
+							context->kernel = clCreateKernel(context->program, "genScanFilter_or_float_leq", 0);
 
-						clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
-						clSetKernelArg(kernel, 1, sizeof(long), (void *)&totalTupleNum);
-						clSetKernelArg(kernel, 2, sizeof(float), (void *)&whereValue);
-						clSetKernelArg(kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-						clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+						clSetKernelArg(context->kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
+						clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
+						clSetKernelArg(context->kernel, 2, sizeof(float), (void *)&whereValue);
+						clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
+						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 					}
 				}else{
 					if(where->andOr == AND)
-						kernel = clCreateKernel(context->program, "genScanFilter_and", 0);
+						context->kernel = clCreateKernel(context->program, "genScanFilter_and", 0);
 					else
-						kernel = clCreateKernel(context->program, "genScanFilter_or", 0);
+						context->kernel = clCreateKernel(context->program, "genScanFilter_or", 0);
 
-					clSetKernelArg(kernel,0,sizeof(cl_mem),(void *)&column[whereIndex]);
-					clSetKernelArg(kernel,1,sizeof(int),(void *)&sn->tn->attrSize[index]);
-					clSetKernelArg(kernel,2,sizeof(int),(void *)&sn->tn->attrType[index]);
-					clSetKernelArg(kernel,3,sizeof(long),(void *)&totalTupleNum);
-					clSetKernelArg(kernel,4,sizeof(cl_mem),(void *)&gpuExp);
-					clSetKernelArg(kernel,5,sizeof(cl_mem),(void *)&gpuFilter);
-					clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+					clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&column[whereIndex]);
+					clSetKernelArg(context->kernel,1,sizeof(int),(void *)&sn->tn->attrSize[index]);
+					clSetKernelArg(context->kernel,2,sizeof(int),(void *)&sn->tn->attrType[index]);
+					clSetKernelArg(context->kernel,3,sizeof(long),(void *)&totalTupleNum);
+					clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void *)&gpuExp);
+					clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void *)&gpuFilter);
+					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 				}
 
 			}else if(format == DICT){
@@ -412,18 +411,18 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 				if(dictFilter != -1){
 					if(where->andOr == AND)
-						kernel = clCreateKernel(context->program,"genScanFilter_dict_and",0); 
+						context->kernel = clCreateKernel(context->program,"genScanFilter_dict_and",0); 
 					else
-						kernel = clCreateKernel(context->program,"genScanFilter_dict_or",0); 
+						context->kernel = clCreateKernel(context->program,"genScanFilter_dict_or",0); 
 
-					clSetKernelArg(kernel,0,sizeof(cl_mem), (void *)&gpuDictHeader);
-					clSetKernelArg(kernel,1,sizeof(int), (void*)&sn->tn->attrSize[index]);
-					clSetKernelArg(kernel,2,sizeof(int), (void*)&sn->tn->attrType[index]);
-					clSetKernelArg(kernel,3,sizeof(int), (void*)&dNum);
-					clSetKernelArg(kernel,4,sizeof(cl_mem), (void*)&gpuExp);
-					clSetKernelArg(kernel,5,sizeof(cl_mem), (void*)&gpuDictFilter);
+					clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void *)&gpuDictHeader);
+					clSetKernelArg(context->kernel,1,sizeof(int), (void*)&sn->tn->attrSize[index]);
+					clSetKernelArg(context->kernel,2,sizeof(int), (void*)&sn->tn->attrType[index]);
+					clSetKernelArg(context->kernel,3,sizeof(int), (void*)&dNum);
+					clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&gpuExp);
+					clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)&gpuDictFilter);
 
-					clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 				}
 
 				dictFilter = 0;
@@ -432,35 +431,35 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 			}else if (format == RLE){
 				//CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index], sn->whereSize[index], cudaMemcpyHostToDevice));
-				kernel = clCreateKernel(context->program,"genScanFilter_rle",0); 
+				context->kernel = clCreateKernel(context->program,"genScanFilter_rle",0); 
 
 				long offset = 0;
-				clSetKernelArg(kernel,0,sizeof(cl_mem), (void *)&column[whereIndex]);
-				clSetKernelArg(kernel,1,sizeof(int), (void *)&sn->tn->attrSize[index]);
-				clSetKernelArg(kernel,2,sizeof(int), (void *)&sn->tn->attrType[index]);
-				clSetKernelArg(kernel,3,sizeof(long), (void *)&totalTupleNum);
-				clSetKernelArg(kernel,4,sizeof(long), (void *)&offset);
-				clSetKernelArg(kernel,5,sizeof(cl_mem), (void *)&gpuExp);
-				clSetKernelArg(kernel,6,sizeof(int), (void *)&where->andOr);
-				clSetKernelArg(kernel,7,sizeof(cl_mem), (void *)&gpuFilter);
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void *)&column[whereIndex]);
+				clSetKernelArg(context->kernel,1,sizeof(int), (void *)&sn->tn->attrSize[index]);
+				clSetKernelArg(context->kernel,2,sizeof(int), (void *)&sn->tn->attrType[index]);
+				clSetKernelArg(context->kernel,3,sizeof(long), (void *)&totalTupleNum);
+				clSetKernelArg(context->kernel,4,sizeof(long), (void *)&offset);
+				clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void *)&gpuExp);
+				clSetKernelArg(context->kernel,6,sizeof(int), (void *)&where->andOr);
+				clSetKernelArg(context->kernel,7,sizeof(cl_mem), (void *)&gpuFilter);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 			}
 
 		}
 
 		if(prevFormat == DICT){
 			if(dictFinal == AND)
-				kernel = clCreateKernel(context->program,"transform_dict_filter_and",0); 
+				context->kernel = clCreateKernel(context->program,"transform_dict_filter_and",0); 
 			else
-				kernel = clCreateKernel(context->program,"transform_dict_filter_or",0); 
+				context->kernel = clCreateKernel(context->program,"transform_dict_filter_or",0); 
 
-			clSetKernelArg(kernel,0,sizeof(cl_mem), (void *) &gpuDictFilter);
-			clSetKernelArg(kernel,1,sizeof(cl_mem), (void *) &column[prevWhere]);
-			clSetKernelArg(kernel,2,sizeof(long), (void *) &totalTupleNum);
-			clSetKernelArg(kernel,3,sizeof(int), (void *) &dNum);
-			clSetKernelArg(kernel,4,sizeof(cl_mem), (void *) &gpuFilter);
-			clSetKernelArg(kernel,3,sizeof(int), (void *) &byteNum);
-			clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+			clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void *) &gpuDictFilter);
+			clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void *) &column[prevWhere]);
+			clSetKernelArg(context->kernel,2,sizeof(long), (void *) &totalTupleNum);
+			clSetKernelArg(context->kernel,3,sizeof(int), (void *) &dNum);
+			clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void *) &gpuFilter);
+			clSetKernelArg(context->kernel,3,sizeof(int), (void *) &byteNum);
+			clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 			clReleaseMemObject(gpuDictFilter);
 		}
@@ -472,11 +471,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 	}
 
-	kernel = clCreateKernel(context->program, "countScanNum",0);
-	clSetKernelArg(kernel, 0, sizeof(cl_mem), (void *) &gpuFilter);
-	clSetKernelArg(kernel, 1, sizeof(long), (void *) &totalTupleNum);
-	clSetKernelArg(kernel, 2, sizeof(cl_mem), (void *) &gpuCount);
-	clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+	context->kernel = clCreateKernel(context->program, "countScanNum",0);
+	clSetKernelArg(context->kernel, 0, sizeof(cl_mem), (void *) &gpuFilter);
+	clSetKernelArg(context->kernel, 1, sizeof(long), (void *) &totalTupleNum);
+	clSetKernelArg(context->kernel, 2, sizeof(cl_mem), (void *) &gpuCount);
+	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 	scanImpl(gpuCount,threadNum,gpuPsum,context, pp);
 
@@ -536,18 +535,18 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			int format = sn->tn->dataFormat[index];
 			if(format == UNCOMPRESSED){
 				if (sn->tn->attrSize[index] == sizeof(int))
-					kernel = clCreateKernel(context->program,"scan_int",0);
+					context->kernel = clCreateKernel(context->program,"scan_int",0);
 				else
-					kernel = clCreateKernel(context->program,"scan_other",0);
+					context->kernel = clCreateKernel(context->program,"scan_other",0);
 
-				clSetKernelArg(kernel,0,sizeof(cl_mem),(void *)&scanCol[i]);
-				clSetKernelArg(kernel,1,sizeof(int),(void *)&sn->tn->attrSize[index]);
-				clSetKernelArg(kernel,2,sizeof(long),(void *)&totalTupleNum);
-				clSetKernelArg(kernel,4,sizeof(cl_mem),(void *)&gpuPsum);
-				clSetKernelArg(kernel,5,sizeof(int),(void *)&count);
-				clSetKernelArg(kernel,6,sizeof(cl_mem),(void *)&gpuFilter);
-				clSetKernelArg(kernel,7,sizeof(cl_mem),(void *)&result[i]);
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&scanCol[i]);
+				clSetKernelArg(context->kernel,1,sizeof(int),(void *)&sn->tn->attrSize[index]);
+				clSetKernelArg(context->kernel,2,sizeof(long),(void *)&totalTupleNum);
+				clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void *)&gpuPsum);
+				clSetKernelArg(context->kernel,5,sizeof(int),(void *)&count);
+				clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void *)&gpuFilter);
+				clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void *)&result[i]);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 			}else if(format == DICT){
 				struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[index];
@@ -556,20 +555,20 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				cl_mem gpuDictHeader = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, count * sn->tn->attrSize[index], dheader, &error); 
 
 				if (sn->tn->attrSize[i] == sizeof(int))
-					kernel = clCreateKernel(context->program,"scan_dict_int",0);
+					context->kernel = clCreateKernel(context->program,"scan_dict_int",0);
 				else
-					kernel = clCreateKernel(context->program,"scan_dict_int",0);
+					context->kernel = clCreateKernel(context->program,"scan_dict_int",0);
 
-				clSetKernelArg(kernel,0,sizeof(cl_mem),(void *)&scanCol[i]);
-				clSetKernelArg(kernel,1,sizeof(cl_mem),(void *)&gpuDictHeader);
-				clSetKernelArg(kernel,2,sizeof(int),(void *)&byteNum);
-				clSetKernelArg(kernel,3,sizeof(int),(void *)&sn->tn->attrSize[index]);
-				clSetKernelArg(kernel,4,sizeof(long),(void *)&totalTupleNum);
-				clSetKernelArg(kernel,5,sizeof(cl_mem),(void *)&gpuPsum);
-				clSetKernelArg(kernel,6,sizeof(cl_mem),(void *)&count);
-				clSetKernelArg(kernel,7,sizeof(cl_mem),(void *)&gpuFilter);
-				clSetKernelArg(kernel,8,sizeof(cl_mem),(void *)&result[i]);
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&scanCol[i]);
+				clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpuDictHeader);
+				clSetKernelArg(context->kernel,2,sizeof(int),(void *)&byteNum);
+				clSetKernelArg(context->kernel,3,sizeof(int),(void *)&sn->tn->attrSize[index]);
+				clSetKernelArg(context->kernel,4,sizeof(long),(void *)&totalTupleNum);
+				clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void *)&gpuPsum);
+				clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void *)&count);
+				clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void *)&gpuFilter);
+				clSetKernelArg(context->kernel,8,sizeof(cl_mem),(void *)&result[i]);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 				clReleaseMemObject(gpuDictHeader);
 
@@ -579,22 +578,22 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 				long offset = 0;
 				clCreateKernel(context->program,"unpack_rle",0);
-				clSetKernelArg(kernel,0,sizeof(cl_mem),(void*)&scanCol[i]);
-				clSetKernelArg(kernel,1,sizeof(cl_mem),(void*)&gpuRle);
-				clSetKernelArg(kernel,2,sizeof(long),(void*)&totalTupleNum);
-				clSetKernelArg(kernel,3,sizeof(long),(void*)&offset);
-				clSetKernelArg(kernel,4,sizeof(int), (void*)&dNum);
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&scanCol[i]);
+				clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void*)&gpuRle);
+				clSetKernelArg(context->kernel,2,sizeof(long),(void*)&totalTupleNum);
+				clSetKernelArg(context->kernel,3,sizeof(long),(void*)&offset);
+				clSetKernelArg(context->kernel,4,sizeof(int), (void*)&dNum);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 				clCreateKernel(context->program,"scan_int",0);
-				clSetKernelArg(kernel,0,sizeof(cl_mem),(void*)&gpuRle);
-				clSetKernelArg(kernel,1,sizeof(int),(void*)&sn->tn->attrSize[index]);
-				clSetKernelArg(kernel,3,sizeof(long),(void*)&totalTupleNum);
-				clSetKernelArg(kernel,4,sizeof(cl_mem),(void*)&gpuPsum);
-				clSetKernelArg(kernel,5,sizeof(int),(void*)&count);
-				clSetKernelArg(kernel,6,sizeof(cl_mem),(void*)&gpuFilter);
-				clSetKernelArg(kernel,7,sizeof(cl_mem),(void*)&result[i]);
-				clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+				clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpuRle);
+				clSetKernelArg(context->kernel,1,sizeof(int),(void*)&sn->tn->attrSize[index]);
+				clSetKernelArg(context->kernel,3,sizeof(long),(void*)&totalTupleNum);
+				clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void*)&gpuPsum);
+				clSetKernelArg(context->kernel,5,sizeof(int),(void*)&count);
+				clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void*)&gpuFilter);
+				clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void*)&result[i]);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 				clReleaseMemObject(gpuRle);
 			}

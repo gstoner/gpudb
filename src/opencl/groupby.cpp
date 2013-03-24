@@ -36,7 +36,6 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	int gbConstant = 0;			// whether group by constant
 
 	cl_int error = 0;
-	cl_kernel kernel;
 
 	res = (struct tableNode *) malloc(sizeof(struct tableNode));
 	res->tupleSize = gb->tupleSize;
@@ -96,17 +95,17 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 
 		gpu_hashNum = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(int)*HSIZE,NULL,&error);
 
-		kernel = clCreateKernel(context->program, "build_groupby_key",0);
-		clSetKernelArg(kernel,0,sizeof(cl_mem),(void *)&gpuContent);
-		clSetKernelArg(kernel,1,sizeof(cl_mem),(void *)&gpuOffset);
-		clSetKernelArg(kernel,2,sizeof(cl_mem),(void *)&gpuGbIndex);
-		clSetKernelArg(kernel,3,sizeof(cl_mem),(void *)&gpuGbType);
-		clSetKernelArg(kernel,4,sizeof(cl_mem),(void *)&gpuGbSize);
-		clSetKernelArg(kernel,5,sizeof(long),(void *)&gpuTupleNum);
-		clSetKernelArg(kernel,6,sizeof(cl_mem),(void *)&gpuGbKey);
-		clSetKernelArg(kernel,7,sizeof(cl_mem),(void *)&gpu_hashNum);
+		context->kernel = clCreateKernel(context->program, "build_groupby_key",0);
+		clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&gpuContent);
+		clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpuOffset);
+		clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void *)&gpuGbIndex);
+		clSetKernelArg(context->kernel,3,sizeof(cl_mem),(void *)&gpuGbType);
+		clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void *)&gpuGbSize);
+		clSetKernelArg(context->kernel,5,sizeof(long),(void *)&gpuTupleNum);
+		clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void *)&gpuGbKey);
+		clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void *)&gpu_hashNum);
 
-		clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 		clReleaseMemObject(gpuGbType);
 		clReleaseMemObject(gpuGbSize);
@@ -118,11 +117,11 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		gpuGbCount = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int),&tmp,&error);
 
 		int hsize = HSIZE;
-		kernel = clCreateKernel(context->program, "count_group_num",0);
-		clSetKernelArg(kernel,0,sizeof(cl_mem),(void *)&gpu_hashNum);
-		clSetKernelArg(kernel,1,sizeof(int),(void *)&hsize);
-		clSetKernelArg(kernel,2,sizeof(cl_mem),(void *)&gpuGbCount);
-		clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+		context->kernel = clCreateKernel(context->program, "count_group_num",0);
+		clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&gpu_hashNum);
+		clSetKernelArg(context->kernel,1,sizeof(int),(void *)&hsize);
+		clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void *)&gpuGbCount);
+		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 
 		clEnqueueReadBuffer(context->queue, gpuGbCount, CL_TRUE, 0, sizeof(int), &gbCount,0,0,0);
 
@@ -166,40 +165,40 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	gpuGbColNum = res->totalAttr;
 
 	if(gbConstant !=1){
-		kernel = clCreateKernel(context->program,"agg_cal",0);
-		clSetKernelArg(kernel,0,sizeof(cl_mem), (void*)&gpuContent);
-		clSetKernelArg(kernel,1,sizeof(cl_mem), (void*)&gpuOffset);
-		clSetKernelArg(kernel,2,sizeof(int), (void*)&gpuGbColNum);
-		clSetKernelArg(kernel,3,sizeof(cl_mem), (void*)&gpuGbExp);
-		clSetKernelArg(kernel,4,sizeof(cl_mem), (void*)&mathexp);
-		clSetKernelArg(kernel,5,sizeof(cl_mem), (void*)&gpuGbType);
-		clSetKernelArg(kernel,6,sizeof(cl_mem), (void*)&gpuGbSize);
-		clSetKernelArg(kernel,7,sizeof(long), (void*)&gpuTupleNum);
-		clSetKernelArg(kernel,8,sizeof(cl_mem), (void*)&gpuGbKey);
-		clSetKernelArg(kernel,9,sizeof(cl_mem), (void*)&gpu_psum);
-		clSetKernelArg(kernel,10,sizeof(cl_mem), (void*)&gpuResult);
-		clSetKernelArg(kernel,11,sizeof(cl_mem), (void*)&gpuResOffset);
+		context->kernel = clCreateKernel(context->program,"agg_cal",0);
+		clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&gpuContent);
+		clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)&gpuOffset);
+		clSetKernelArg(context->kernel,2,sizeof(int), (void*)&gpuGbColNum);
+		clSetKernelArg(context->kernel,3,sizeof(cl_mem), (void*)&gpuGbExp);
+		clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&mathexp);
+		clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)&gpuGbType);
+		clSetKernelArg(context->kernel,6,sizeof(cl_mem), (void*)&gpuGbSize);
+		clSetKernelArg(context->kernel,7,sizeof(long), (void*)&gpuTupleNum);
+		clSetKernelArg(context->kernel,8,sizeof(cl_mem), (void*)&gpuGbKey);
+		clSetKernelArg(context->kernel,9,sizeof(cl_mem), (void*)&gpu_psum);
+		clSetKernelArg(context->kernel,10,sizeof(cl_mem), (void*)&gpuResult);
+		clSetKernelArg(context->kernel,11,sizeof(cl_mem), (void*)&gpuResOffset);
 
-		clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 		
 		clReleaseMemObject(gpuGbKey);
 		clReleaseMemObject(gpu_psum);
 	}else{
-		kernel = clCreateKernel(context->program,"agg_cal_cons",0);
-		clSetKernelArg(kernel,0,sizeof(cl_mem), (void*)&gpuContent);
-		clSetKernelArg(kernel,1,sizeof(cl_mem), (void*)&gpuOffset);
-		clSetKernelArg(kernel,2,sizeof(int), (void*)&gpuGbColNum);
-		clSetKernelArg(kernel,3,sizeof(cl_mem), (void*)&gpuGbExp);
-		clSetKernelArg(kernel,4,sizeof(cl_mem), (void*)&mathexp);
-		clSetKernelArg(kernel,5,sizeof(cl_mem), (void*)&gpuGbType);
-		clSetKernelArg(kernel,6,sizeof(cl_mem), (void*)&gpuGbSize);
-		clSetKernelArg(kernel,7,sizeof(long), (void*)&gpuTupleNum);
-		clSetKernelArg(kernel,8,sizeof(cl_mem), (void*)&gpuGbKey);
-		clSetKernelArg(kernel,9,sizeof(cl_mem), (void*)&gpu_psum);
-		clSetKernelArg(kernel,10,sizeof(cl_mem), (void*)&gpuResult);
-		clSetKernelArg(kernel,11,sizeof(cl_mem), (void*)&gpuResOffset);
+		context->kernel = clCreateKernel(context->program,"agg_cal_cons",0);
+		clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&gpuContent);
+		clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)&gpuOffset);
+		clSetKernelArg(context->kernel,2,sizeof(int), (void*)&gpuGbColNum);
+		clSetKernelArg(context->kernel,3,sizeof(cl_mem), (void*)&gpuGbExp);
+		clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&mathexp);
+		clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)&gpuGbType);
+		clSetKernelArg(context->kernel,6,sizeof(cl_mem), (void*)&gpuGbSize);
+		clSetKernelArg(context->kernel,7,sizeof(long), (void*)&gpuTupleNum);
+		clSetKernelArg(context->kernel,8,sizeof(cl_mem), (void*)&gpuGbKey);
+		clSetKernelArg(context->kernel,9,sizeof(cl_mem), (void*)&gpu_psum);
+		clSetKernelArg(context->kernel,10,sizeof(cl_mem), (void*)&gpuResult);
+		clSetKernelArg(context->kernel,11,sizeof(cl_mem), (void*)&gpuResOffset);
 
-		clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &threadNum,0,0,0,0);
+		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
 	}
 
 	for(int i=0; i<res->totalAttr;i++){

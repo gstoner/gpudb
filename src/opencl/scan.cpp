@@ -97,7 +97,6 @@ static void deallocBlockSums()
 static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElements, int level, struct clContext *context, struct statistic *pp)
 {
 
-    cl_kernel kernel;
     unsigned int blockSize = BLOCK_SIZE; 
     unsigned int numBlocks = 
         max(1, (int)ceil((int)numElements / (2.f * blockSize)));
@@ -142,44 +141,44 @@ static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElemen
     if (numBlocks > 1)
     {
 
-        kernel = clCreateKernel(context->program,"prescan",0);
+        context->kernel = clCreateKernel(context->program,"prescan",0);
 
-        clSetKernelArg(kernel,0,sizeof(cl_mem), (void*)&outArray);
-        clSetKernelArg(kernel,1,sizeof(cl_mem), (void*)&inArray);
-        clSetKernelArg(kernel,2,sizeof(cl_mem), (void*)&g_scanBlockSums[level]);
+        clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&outArray);
+        clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)&inArray);
+        clSetKernelArg(context->kernel,2,sizeof(cl_mem), (void*)&g_scanBlockSums[level]);
 
 	tmp = numThreads * 2;
-        clSetKernelArg(kernel,3,sizeof(int), (void*)&(tmp));
+        clSetKernelArg(context->kernel,3,sizeof(int), (void*)&(tmp));
 	tmp = 0;
-        clSetKernelArg(kernel,4,sizeof(int), (void*)&(tmp));
-        clSetKernelArg(kernel,5,sizeof(int), (void*)&(tmp));
+        clSetKernelArg(context->kernel,4,sizeof(int), (void*)&(tmp));
+        clSetKernelArg(context->kernel,5,sizeof(int), (void*)&(tmp));
 	tmp = 1;
-        clSetKernelArg(kernel,6,sizeof(int), (void*)&(tmp));
+        clSetKernelArg(context->kernel,6,sizeof(int), (void*)&(tmp));
 	tmp = 0;
-        clSetKernelArg(kernel,8,sizeof(int), (void*)&(tmp));
-        clSetKernelArg(kernel,9,sharedMemLastBlock, NULL);
+        clSetKernelArg(context->kernel,8,sizeof(int), (void*)&(tmp));
+        clSetKernelArg(context->kernel,9,sharedMemLastBlock, NULL);
 
-        clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &globalSize,&localSize,0,0,0);
+        clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
         if (np2LastBlock)
         {
-            kernel = clCreateKernel(context->program,"prescan",0);
-            clSetKernelArg(kernel,0,sizeof(cl_mem), (void*)&outArray);
-            clSetKernelArg(kernel,1,sizeof(cl_mem), (void*)&inArray);
-            clSetKernelArg(kernel,2,sizeof(cl_mem), (void*)&g_scanBlockSums[level]);
-            clSetKernelArg(kernel,3,sizeof(int), (void*)&numEltsLastBlock);
+            context->kernel = clCreateKernel(context->program,"prescan",0);
+            clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&outArray);
+            clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)&inArray);
+            clSetKernelArg(context->kernel,2,sizeof(cl_mem), (void*)&g_scanBlockSums[level]);
+            clSetKernelArg(context->kernel,3,sizeof(int), (void*)&numEltsLastBlock);
 
 	    tmp = numBlocks -1 ;
-            clSetKernelArg(kernel,4,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,4,sizeof(int), (void*)&(tmp));
 	    tmp = numElements - numEltsLastBlock;
-            clSetKernelArg(kernel,5,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,5,sizeof(int), (void*)&(tmp));
 	    tmp = 1;
-            clSetKernelArg(kernel,6,sizeof(int), (void*)&(tmp));
-            clSetKernelArg(kernel,8,sizeof(int), (void*)&(tmp));
-            clSetKernelArg(kernel,9,sharedMemLastBlock, NULL);
+            clSetKernelArg(context->kernel,6,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,8,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,9,sharedMemLastBlock, NULL);
 
             globalSize = localSize = numThreadsLastBlock;
-            clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &globalSize,&localSize,0,0,0);
+            clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
         }
 
@@ -188,72 +187,72 @@ static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElemen
                               numBlocks, 
                               level+1, context,pp);
 
-        kernel = clCreateKernel(context->program,"uniformAdd",0);
-        clSetKernelArg(kernel,0,sizeof(cl_mem), (void*)&outArray);
-        clSetKernelArg(kernel,1,sizeof(cl_mem), (void*)&g_scanBlockSums[level]);
+        context->kernel = clCreateKernel(context->program,"uniformAdd",0);
+        clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&outArray);
+        clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)&g_scanBlockSums[level]);
 	tmp = numElements - numEltsLastBlock;
-        clSetKernelArg(kernel,2,sizeof(int), (void*)&(tmp));
+        clSetKernelArg(context->kernel,2,sizeof(int), (void*)&(tmp));
         tmp = 0;
-        clSetKernelArg(kernel,3,sizeof(int), (void*)&(tmp));
-        clSetKernelArg(kernel,4,sizeof(int), (void*)&(tmp));
+        clSetKernelArg(context->kernel,3,sizeof(int), (void*)&(tmp));
+        clSetKernelArg(context->kernel,4,sizeof(int), (void*)&(tmp));
 
         localSize = numThreads;
         globalSize = max(1, numBlocks-np2LastBlock) * localSize; 
-        clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &globalSize,&localSize,0,0,0);
+        clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
         if (np2LastBlock)
         {
-            kernel = clCreateKernel(context->program,"uniformAdd",0);
-            clSetKernelArg(kernel,0,sizeof(cl_mem), (void*)&outArray);
-            clSetKernelArg(kernel,1,sizeof(cl_mem), (void*)&g_scanBlockSums[level]);
-            clSetKernelArg(kernel,2,sizeof(int), (void*)&numEltsLastBlock);
+            context->kernel = clCreateKernel(context->program,"uniformAdd",0);
+            clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&outArray);
+            clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)&g_scanBlockSums[level]);
+            clSetKernelArg(context->kernel,2,sizeof(int), (void*)&numEltsLastBlock);
             tmp = numBlocks -1;
-            clSetKernelArg(kernel,3,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,3,sizeof(int), (void*)&(tmp));
             tmp = numElements - numEltsLastBlock;
-            clSetKernelArg(kernel,4,sizeof(int), (void*)(tmp));
+            clSetKernelArg(context->kernel,4,sizeof(int), (void*)(tmp));
 
             globalSize = localSize = numThreadsLastBlock;
-            clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &globalSize,&localSize,0,0,0);
+            clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
         }
     }
     else if (isPowerOfTwo(numElements))
     {
-            kernel = clCreateKernel(context->program,"prescan",0);
-            clSetKernelArg(kernel,0,sizeof(cl_mem), (void*)&outArray);
-            clSetKernelArg(kernel,1,sizeof(cl_mem), (void*)&inArray);
-            clSetKernelArg(kernel,2,sizeof(cl_mem), NULL);
+            context->kernel = clCreateKernel(context->program,"prescan",0);
+            clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&outArray);
+            clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)&inArray);
+            clSetKernelArg(context->kernel,2,sizeof(cl_mem), NULL);
 	    tmp = numThreads * 2;
-            clSetKernelArg(kernel,3,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,3,sizeof(int), (void*)&(tmp));
 	    tmp = 0;
-            clSetKernelArg(kernel,4,sizeof(int), (void*)&(tmp));
-            clSetKernelArg(kernel,5,sizeof(int), (void*)&(tmp));
-            clSetKernelArg(kernel,6,sizeof(int), (void*)&(tmp));
-            clSetKernelArg(kernel,8,sizeof(int), (void*)&(tmp));
-            clSetKernelArg(kernel,9,sharedMemLastBlock, NULL);
+            clSetKernelArg(context->kernel,4,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,5,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,6,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,8,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,9,sharedMemLastBlock, NULL);
 
             localSize = numThreads;
             globalSize = max(1, numBlocks-np2LastBlock) * localSize; 
-            clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &globalSize,&localSize,0,0,0);
+            clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
     }
     else
     {
-            kernel = clCreateKernel(context->program,"prescan",0);
-            clSetKernelArg(kernel,0,sizeof(cl_mem), (void*)&outArray);
-            clSetKernelArg(kernel,1,sizeof(cl_mem), (void*)&inArray);
-            clSetKernelArg(kernel,2,sizeof(cl_mem), NULL);
-            clSetKernelArg(kernel,3,sizeof(int), (void*)&numElements);
+            context->kernel = clCreateKernel(context->program,"prescan",0);
+            clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&outArray);
+            clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)&inArray);
+            clSetKernelArg(context->kernel,2,sizeof(cl_mem), NULL);
+            clSetKernelArg(context->kernel,3,sizeof(int), (void*)&numElements);
 	    tmp = 0;
-            clSetKernelArg(kernel,4,sizeof(int), (void*)&(tmp));
-            clSetKernelArg(kernel,5,sizeof(int), (void*)&(tmp));
-            clSetKernelArg(kernel,6,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,4,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,5,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,6,sizeof(int), (void*)&(tmp));
 	    tmp = 1;
-            clSetKernelArg(kernel,8,sizeof(int), (void*)&(tmp));
-            clSetKernelArg(kernel,9,sharedMemLastBlock, NULL);
+            clSetKernelArg(context->kernel,8,sizeof(int), (void*)&(tmp));
+            clSetKernelArg(context->kernel,9,sharedMemLastBlock, NULL);
 
             localSize = numThreads;
             globalSize = max(1, numBlocks-np2LastBlock) * localSize; 
-            clEnqueueNDRangeKernel(context->queue, kernel, 1, 0, &globalSize,&localSize,0,0,0);
+            clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
     }
 }
