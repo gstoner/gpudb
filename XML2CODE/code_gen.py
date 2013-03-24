@@ -1607,7 +1607,12 @@ def generate_code(tree):
         print >>fo, "\t\tfreeTable(" + resName + ");"
 
         print >>fo, "\t\tif(pass !=1){"
-        print >>fo, "\t\t\tmergeIntoTable(" + resultNode + ",join1,&pp);"
+
+        if CODETYPE == 0:
+            print >>fo, "\t\t\tmergeIntoTable(" + resultNode + ",join1,&pp);"
+        else:
+            print >>fo, "\t\t\tmergeIntoTable(" + resultNode + ",join1,&context,&pp);"
+
         print >>fo, "\t\t\tfreeTable(join1);"
         print >>fo, "\t\t}else"
         print >>fo, "\t\t\t" + resultNode + "=join1;"
@@ -1736,6 +1741,12 @@ def generate_code(tree):
     else:
         print >>fo, "\tmaterializeCol(&mn, &context,&pp);"
     print >>fo, "\tfreeTable("+resultNode + ");\n"
+
+    if CODETYPE == 1:
+        print >>fo, "\tclReleaseCommandQueue(context.queue);"
+        print >>fo, "\tclReleaseContext(context.context);"
+        print >>fo, "\tclReleaseProgram(context.program);\n"
+
     print >>fo, "\tclock_gettime(CLOCK_REALTIME,&end);"
     print >>fo, "\tdouble timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;"
     print >>fo, "\tprintf(\"Time: %lf\\n\", timeE/(1000*1000));"
