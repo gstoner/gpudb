@@ -50,8 +50,7 @@ static void preallocBlockSums(unsigned int maxNumElements, struct clContext *con
 
     do
     {       
-        unsigned int numBlocks = 
-            max(1, (int)ceil((int)numElts / (2.f * blockSize)));
+        unsigned int numBlocks = max(1, (int)ceil((int)numElts / (2.f * blockSize)));
         if (numBlocks > 1)
         {
             level++;
@@ -67,8 +66,7 @@ static void preallocBlockSums(unsigned int maxNumElements, struct clContext *con
     
     do
     {
-        unsigned int numBlocks = 
-            max(1, (int)ceil((int)numElts / (2.f * blockSize)));
+        unsigned int numBlocks = max(1, (int)ceil((int)numElts / (2.f * blockSize)));
         if (numBlocks > 1) 
         {
             g_scanBlockSums[level++] = clCreateBuffer(context->context,CL_MEM_READ_WRITE, numBlocks*sizeof(int), NULL, &error);
@@ -98,8 +96,7 @@ static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElemen
 {
 
     unsigned int blockSize = BLOCK_SIZE; 
-    unsigned int numBlocks = 
-        max(1, (int)ceil((int)numElements / (2.f * blockSize)));
+    unsigned int numBlocks = max(1, (int)ceil((int)numElements / (2.f * blockSize)));
     unsigned int numThreads;
 
     if (numBlocks > 1)
@@ -111,8 +108,7 @@ static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElemen
 
     unsigned int numEltsPerBlock = numThreads * 2;
 
-    unsigned int numEltsLastBlock = 
-        numElements - (numBlocks-1) * numEltsPerBlock;
+    unsigned int numEltsLastBlock = numElements - (numBlocks-1) * numEltsPerBlock;
     unsigned int numThreadsLastBlock = max(1, numEltsLastBlock / 2);
     unsigned int np2LastBlock = 0;
     unsigned int sharedMemLastBlock = 0;
@@ -125,14 +121,11 @@ static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElemen
             numThreadsLastBlock = floorPow2(numEltsLastBlock);    
         
         unsigned int extraSpace = (2 * numThreadsLastBlock) / NUM_BANKS;
-        sharedMemLastBlock = 
-            sizeof(int) * (2 * numThreadsLastBlock + extraSpace);
+        sharedMemLastBlock = sizeof(int) * (2 * numThreadsLastBlock + extraSpace);
     }
 
     unsigned int extraSpace = numEltsPerBlock / NUM_BANKS;
-    unsigned int sharedMemSize = 
-        sizeof(int) * (numEltsPerBlock + extraSpace);
-
+    unsigned int sharedMemSize = sizeof(int) * (numEltsPerBlock + extraSpace);
 
     size_t localSize = numThreads;
     size_t globalSize = max(1, numBlocks-np2LastBlock) * localSize; 

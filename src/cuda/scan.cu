@@ -66,8 +66,7 @@ static void preallocBlockSums(unsigned int maxNumElements)
 
     do
     {       
-        unsigned int numBlocks = 
-            max(1, (int)ceil((int)numElts / (2.f * blockSize)));
+        unsigned int numBlocks = max(1, (int)ceil((int)numElts / (2.f * blockSize)));
         if (numBlocks > 1)
         {
             level++;
@@ -83,8 +82,7 @@ static void preallocBlockSums(unsigned int maxNumElements)
     
     do
     {       
-        unsigned int numBlocks = 
-            max(1, (int)ceil((int)numElts / (2.f * blockSize)));
+        unsigned int numBlocks = max(1, (int)ceil((int)numElts / (2.f * blockSize)));
         if (numBlocks > 1) 
         {
             cudaMalloc((void**) &g_scanBlockSums[level++],  
@@ -110,24 +108,10 @@ static void deallocBlockSums()
     g_numLevelsAllocated = 0;
 }
 
-static void saven_initialPrefixSum(unsigned int maxNumElements)
-{
-	if(g_numEltsAllocated == 0)
-		preallocBlockSums(maxNumElements);
-	else
-		if(g_numEltsAllocated<maxNumElements)
-		{
-			deallocBlockSums();
-			preallocBlockSums(maxNumElements);
-		}
-	
-}
-
 static void prescanArrayRecursive(int *outArray, const int *inArray, int numElements, int level, struct statistic *pp)
 {
     unsigned int blockSize = BLOCK_SIZE; 
-    unsigned int numBlocks = 
-        max(1, (int)ceil((int)numElements / (2.f * blockSize)));
+    unsigned int numBlocks = max(1, (int)ceil((int)numElements / (2.f * blockSize)));
     unsigned int numThreads;
 
     if (numBlocks > 1)
@@ -139,8 +123,7 @@ static void prescanArrayRecursive(int *outArray, const int *inArray, int numElem
 
     unsigned int numEltsPerBlock = numThreads * 2;
 
-    unsigned int numEltsLastBlock = 
-        numElements - (numBlocks-1) * numEltsPerBlock;
+    unsigned int numEltsLastBlock = numElements - (numBlocks-1) * numEltsPerBlock;
     unsigned int numThreadsLastBlock = max(1, numEltsLastBlock / 2);
     unsigned int np2LastBlock = 0;
     unsigned int sharedMemLastBlock = 0;
@@ -153,14 +136,11 @@ static void prescanArrayRecursive(int *outArray, const int *inArray, int numElem
             numThreadsLastBlock = floorPow2(numEltsLastBlock);    
         
         unsigned int extraSpace = (2 * numThreadsLastBlock) / NUM_BANKS;
-        sharedMemLastBlock = 
-            sizeof(int) * (2 * numThreadsLastBlock + extraSpace);
+        sharedMemLastBlock = sizeof(int) * (2 * numThreadsLastBlock + extraSpace);
     }
 
     unsigned int extraSpace = numEltsPerBlock / NUM_BANKS;
-    unsigned int sharedMemSize = 
-        sizeof(int) * (numEltsPerBlock + extraSpace);
-
+    unsigned int sharedMemSize = sizeof(int) * (numEltsPerBlock + extraSpace);
 
     dim3  grid(max(1, numBlocks - np2LastBlock), 1, 1); 
     dim3  threads(numThreads, 1, 1);
