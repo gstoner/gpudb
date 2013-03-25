@@ -40,8 +40,6 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 	size_t globalSize = 512;
 	size_t localSize = 128;
 
-	size_t threadNum = globalSize;
-
 	context->kernel = clCreateKernel(context->program,"materialize",0);
 	clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&gpuContent);
 	clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)&gpuColOffset);
@@ -51,7 +49,7 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 	clSetKernelArg(context->kernel,5,sizeof(int), (void*)&tn->tupleSize);
 	clSetKernelArg(context->kernel,6,sizeof(cl_mem), (void*)&gpuResult);
 
-	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 	clEnqueueReadBuffer(context->queue,gpuResult,CL_TRUE,0,size,res,0,0,0);
 

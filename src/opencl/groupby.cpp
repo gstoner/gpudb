@@ -64,8 +64,6 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	size_t globalSize = 1024;
 	size_t localSize = 128;
 
-	size_t threadNum = globalSize;
-
 	cl_mem gpu_hashNum;
 	cl_mem gpu_psum;
 	cl_mem gpuGbCount;
@@ -105,7 +103,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void *)&gpuGbKey);
 		clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void *)&gpu_hashNum);
 
-		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 		clReleaseMemObject(gpuGbType);
 		clReleaseMemObject(gpuGbSize);
@@ -121,7 +119,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&gpu_hashNum);
 		clSetKernelArg(context->kernel,1,sizeof(int),(void *)&hsize);
 		clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void *)&gpuGbCount);
-		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 		clEnqueueReadBuffer(context->queue, gpuGbCount, CL_TRUE, 0, sizeof(int), &gbCount,0,0,0);
 
@@ -179,7 +177,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		clSetKernelArg(context->kernel,10,sizeof(cl_mem), (void*)&gpuResult);
 		clSetKernelArg(context->kernel,11,sizeof(cl_mem), (void*)&gpuResOffset);
 
-		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 		
 		clReleaseMemObject(gpuGbKey);
 		clReleaseMemObject(gpu_psum);
@@ -198,7 +196,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		clSetKernelArg(context->kernel,10,sizeof(cl_mem), (void*)&gpuResult);
 		clSetKernelArg(context->kernel,11,sizeof(cl_mem), (void*)&gpuResOffset);
 
-		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 	}
 
 	for(int i=0; i<res->totalAttr;i++){

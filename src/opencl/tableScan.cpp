@@ -52,7 +52,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 	cl_mem * column;
 
-	size_t globalSize = 1024;
+	size_t globalSize = 1024*256;
 	size_t localSize = 256;
 
 	size_t threadNum = globalSize;
@@ -144,7 +144,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
 				clSetKernelArg(context->kernel, 2, sizeof(int), (void *)&whereValue);
 				clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 			}else if (sn->tn->attrType[index] == FLOAT){
 				int rel = where->exp[0].relation;
@@ -165,7 +165,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
 				clSetKernelArg(context->kernel, 2, sizeof(float), (void *)&whereValue);
 				clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 			}else{
 				context->kernel = clCreateKernel(context->program, "genScanFilter_init", 0);
@@ -175,7 +175,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel, 3, sizeof(long), (void *)&totalTupleNum);
 				clSetKernelArg(context->kernel, 4, sizeof(cl_mem), (void *)&gpuExp);
 				clSetKernelArg(context->kernel, 5, sizeof(cl_mem), (void *)&gpuFilter);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 			}
 
 		}else if(format == DICT){
@@ -200,7 +200,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&gpuExp);
 			clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)&gpuDictFilter);
 
-			clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+			clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 			clReleaseMemObject(gpuDictHeader);
 
@@ -222,7 +222,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void *)&gpuExp);
 			clSetKernelArg(context->kernel,6,sizeof(int), (void *)&where->andOr);
 			clSetKernelArg(context->kernel,7,sizeof(cl_mem), (void *)&gpuFilter);
-			clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+			clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 		}
 
@@ -249,7 +249,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					clSetKernelArg(context->kernel,3, sizeof(int), (void*)&dNum);
 					clSetKernelArg(context->kernel,4, sizeof(cl_mem), (void*)&gpuFilter);
 					clSetKernelArg(context->kernel,5, sizeof(int), (void*)&byteNum);
-					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 					clReleaseMemObject(gpuDictFilter);
 					dictFinal = where->andOr;
@@ -284,7 +284,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&gpuExp);
 					clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)&gpuDictFilter);
 
-					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 					dictFilter= -1;
 					clReleaseMemObject(gpuDictHeader);
 
@@ -321,7 +321,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 						clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
 						clSetKernelArg(context->kernel, 2, sizeof(int), (void *)&whereValue);
 						clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 					}else{
 						int rel = where->exp[i].relation;
@@ -341,7 +341,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 						clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
 						clSetKernelArg(context->kernel, 2, sizeof(int), (void *)&whereValue);
 						clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 					}
 
@@ -364,7 +364,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 						clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
 						clSetKernelArg(context->kernel, 2, sizeof(float), (void *)&whereValue);
 						clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 					}else{
 						int rel = where->exp[i].relation;
@@ -384,7 +384,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 						clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
 						clSetKernelArg(context->kernel, 2, sizeof(float), (void *)&whereValue);
 						clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 					}
 				}else{
 					if(where->andOr == AND)
@@ -398,7 +398,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					clSetKernelArg(context->kernel,3,sizeof(long),(void *)&totalTupleNum);
 					clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void *)&gpuExp);
 					clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void *)&gpuFilter);
-					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 				}
 
 			}else if(format == DICT){
@@ -422,7 +422,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&gpuExp);
 					clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)&gpuDictFilter);
 
-					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 				}
 
 				dictFilter = 0;
@@ -442,7 +442,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void *)&gpuExp);
 				clSetKernelArg(context->kernel,6,sizeof(int), (void *)&where->andOr);
 				clSetKernelArg(context->kernel,7,sizeof(cl_mem), (void *)&gpuFilter);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 			}
 
 		}
@@ -459,7 +459,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			clSetKernelArg(context->kernel,3,sizeof(int), (void *) &dNum);
 			clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void *) &gpuFilter);
 			clSetKernelArg(context->kernel,3,sizeof(int), (void *) &byteNum);
-			clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+			clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 			clReleaseMemObject(gpuDictFilter);
 		}
@@ -475,7 +475,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 	clSetKernelArg(context->kernel, 0, sizeof(cl_mem), (void *) &gpuFilter);
 	clSetKernelArg(context->kernel, 1, sizeof(long), (void *) &totalTupleNum);
 	clSetKernelArg(context->kernel, 2, sizeof(cl_mem), (void *) &gpuCount);
-	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 	scanImpl(gpuCount,threadNum,gpuPsum,context, pp);
 
@@ -546,7 +546,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel,5,sizeof(int),(void *)&count);
 				clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void *)&gpuFilter);
 				clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void *)&result[i]);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 			}else if(format == DICT){
 				struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[index];
@@ -568,7 +568,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void *)&count);
 				clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void *)&gpuFilter);
 				clSetKernelArg(context->kernel,8,sizeof(cl_mem),(void *)&result[i]);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 				clReleaseMemObject(gpuDictHeader);
 
@@ -583,7 +583,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel,2,sizeof(long),(void*)&totalTupleNum);
 				clSetKernelArg(context->kernel,3,sizeof(long),(void*)&offset);
 				clSetKernelArg(context->kernel,4,sizeof(int), (void*)&dNum);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 				clCreateKernel(context->program,"scan_int",0);
 				clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpuRle);
@@ -593,7 +593,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel,5,sizeof(int),(void*)&count);
 				clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void*)&gpuFilter);
 				clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void*)&result[i]);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &threadNum,0,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 				clReleaseMemObject(gpuRle);
 			}
