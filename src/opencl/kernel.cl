@@ -1435,7 +1435,7 @@ inline void storeSharedChunkToMem(__global int* g_odata,
                                       int mem_ai, int mem_bi,
                                       int bankOffsetA, int bankOffsetB, bool isNP2)
 {
-    barrier(CLK_LOCAL_MEM_FENCE); 
+    barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
 
     g_odata[mem_ai] = s_data[ai + bankOffsetA];
     if (isNP2)
@@ -1474,7 +1474,7 @@ inline unsigned int buildSum(__local int *s_data)
 
     for (int d = get_local_size(0); d > 0; d >>= 1)
     {
-	barrier(CLK_LOCAL_MEM_FENCE);
+	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
         if (thid < d)
         {
@@ -1502,7 +1502,7 @@ void scanRootToLeaves(__local int *s_data, unsigned int stride)
     {
         stride >>= 1;
 
-	barrier(CLK_LOCAL_MEM_FENCE);
+	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
         if (thid < d)
         {
@@ -1565,7 +1565,7 @@ __kernel void uniformAdd(__global int *g_data,
 
     int address = mul24((int)get_group_id(0), (int)(get_local_size(0) << 1)) + baseIndex + get_local_id(0);
 
-    barrier(CLK_LOCAL_MEM_FENCE);
+    barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
 
     g_data[address]              += uni;
     g_data[address + get_local_size(0)] += (get_local_id(0) + get_local_size(0) < n) * uni;
