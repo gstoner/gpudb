@@ -32,7 +32,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	struct tableNode * res = NULL;
 
 	int *cpu_count, *resPsum;
-	int count = 0;
+	long count = 0;
 	int i;
 
 	cl_int error = 0;
@@ -42,8 +42,11 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	cl_mem  gpu_bucket, gpu_fact, gpu_dim;
 	cl_mem gpu_count,  gpu_psum, gpu_resPsum;
 
-	size_t globalSize = 2048*256;
 	size_t localSize = 256;
+	int blockNum = jNode->leftTable->tupleNum / localSize +1; 
+	if(blockNum > 2048)
+		blockNum = 2048;
+	size_t globalSize = blockNum * localSize;
 
 	size_t threadNum = globalSize;
 
@@ -186,7 +189,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpu_fact);
 		clSetKernelArg(context->kernel,2,sizeof(long),(void *)&jNode->leftTable->tupleNum);
 		clSetKernelArg(context->kernel,3,sizeof(int),(void *)&dNum);
-		clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void *)&gpuFactFilter);
+		clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void *)&gpuFactFilter);
 
 		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
