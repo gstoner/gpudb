@@ -1403,9 +1403,9 @@ inline void loadSharedChunkFromMem(__local int *s_data,
                                                                            int n, int baseIndex,
                                                                            int* ai, int* bi,
                                                                            int* mem_ai, int* mem_bi,
-                                                                           int* bankOffsetA, int* bankOffsetB, bool isNP2)
+                                                                           int* bankOffsetA, int* bankOffsetB, int isNP2)
 {
-        int thid = get_local_id(0);
+        size_t thid = get_local_id(0);
         *mem_ai = baseIndex + thid;
         *mem_bi = *mem_ai + get_local_size(0);
 
@@ -1433,9 +1433,9 @@ inline void storeSharedChunkToMem(__global int* g_odata,
                                       int n,
                                       int ai, int bi,
                                       int mem_ai, int mem_bi,
-                                      int bankOffsetA, int bankOffsetB, bool isNP2)
+                                      int bankOffsetA, int bankOffsetB, int isNP2)
 {
-    barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE); 
+    barrier(CLK_LOCAL_MEM_FENCE); 
 
     g_odata[mem_ai] = s_data[ai + bankOffsetA];
     if (isNP2)
@@ -1451,7 +1451,7 @@ inline void storeSharedChunkToMem(__global int* g_odata,
 
 inline void clearLastElement(__local int* s_data,
                                  __global int *g_blockSums,
-                                 int blockIndex, bool storeSum)
+                                 int blockIndex, int storeSum)
 {
     if (get_local_id(0) == 0)
     {
@@ -1467,18 +1467,18 @@ inline void clearLastElement(__local int* s_data,
     }
 }
 
-inline unsigned int buildSum(__local int *s_data)
+inline int buildSum(__local int *s_data)
 {
-    int thid = get_local_id(0);
-    unsigned int stride = 1;
+    size_t thid = get_local_id(0);
+    int stride = 1;
 
-    for (int d = get_local_size(0); d > 0; d >>= 1)
+    for (size_t d = get_local_size(0); d > 0; d >>= 1)
     {
-	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+	barrier(CLK_LOCAL_MEM_FENCE);
 
         if (thid < d)
         {
-            int i  = mul24((int)mul24(2, (int)stride), thid);
+            int i  = mul24(mul24(2, stride), thid);
             int ai = i + stride - 1;
             int bi = ai + stride;
 
@@ -1494,19 +1494,19 @@ inline unsigned int buildSum(__local int *s_data)
     return stride;
 }
 
-void scanRootToLeaves(__local int *s_data, unsigned int stride)
+void scanRootToLeaves(__local int *s_data, int stride)
 {
-     int thid = get_local_id(0);
+    size_t thid = get_local_id(0);
 
-    for (int d = 1; d <= get_local_size(0); d *= 2)
+    for (size_t d = 1; d <= get_local_size(0); d *= 2)
     {
         stride >>= 1;
 
-	barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+	barrier(CLK_LOCAL_MEM_FENCE);
 
         if (thid < d)
         {
-            int i  = mul24((int)mul24(2, (int)stride), thid);
+            int i  = mul24(mul24(2, stride), thid);
             int ai = i + stride - 1;
             int bi = ai + stride;
 
@@ -1520,7 +1520,7 @@ void scanRootToLeaves(__local int *s_data, unsigned int stride)
     }
 }
 
-void prescanBlock(__local int *data, int blockIndex, __global int *blockSums, bool storeSum)
+void prescanBlock(__local int *data, int blockIndex, __global int *blockSums, int storeSum)
 {
     int stride = buildSum(data);               // build the sum in place up the tree
     clearLastElement(data, blockSums,
@@ -1540,7 +1540,7 @@ __kernel void prescan(__global int *g_odata,
 
     loadSharedChunkFromMem(s_data, g_idata, n,
                                   (baseIndex == 0) ?
-                                  mul24((int)get_group_id(0), (int)(get_local_size(0) << 1)):baseIndex,
+                                  mul24(get_group_id(0), (get_local_size(0) << 1)):baseIndex,
                                   &ai, &bi, &mem_ai, &mem_bi,
                                   &bankOffsetA, &bankOffsetB, isNP2);
 
@@ -1563,9 +1563,9 @@ __kernel void uniformAdd(__global int *g_data,
     if (get_local_id(0) == 0)
         uni = uniforms[get_group_id(0) + blockOffset];
 
-    int address = mul24((int)get_group_id(0), (int)(get_local_size(0) << 1)) + baseIndex + get_local_id(0);
+    int address = mul24(get_group_id(0), (get_local_size(0) << 1)) + baseIndex + get_local_id(0);
 
-    barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     g_data[address]              += uni;
     g_data[address + get_local_size(0)] += (get_local_id(0) + get_local_size(0) < n) * uni;
