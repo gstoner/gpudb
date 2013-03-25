@@ -52,11 +52,17 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 	cl_mem * column;
 
-	size_t globalSize = 1024*256;
+	long totalTupleNum = sn->tn->tupleNum;
+
 	size_t localSize = 256;
+	int blockNum = (totalTupleNum + localSize - 1) / localSize;
+
+	if(blockNum >1024)
+		blockNum = 1024;
+
+	size_t globalSize = blockNum * localSize; 
 
 	size_t threadNum = globalSize;
-	long totalTupleNum = sn->tn->tupleNum;
 	int attrNum;
 
 	attrNum = sn->whereAttrNum;
