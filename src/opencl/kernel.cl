@@ -827,21 +827,21 @@ __kernel void count_join_result_rle(__global int* num, __global int* psum, __glo
 
 }
 
-__kernel  void count_join_result(__global int* num, __global int* psum, __global char* bucket, __global char* fact, long inNum, __global int* count, __global int * factFilter){
+__kernel  void count_join_result(__global int* num, __global int* psum, __global int* bucket, __global int* fact, long inNum, __global int* count, __global int * factFilter){
         int lcount = 0;
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
 
         for(size_t i=offset;i<inNum;i+=stride){
-                int fkey = ((int *)(fact))[i];
+                int fkey = fact[i];
                 int hkey = fkey &(HSIZE-1);
                 int keyNum = num[hkey];
 		int fvalue = 0;
 
                 for(int j=0;j<keyNum;j++){
                         int pSum = psum[hkey];
-                        int dimKey = ((int *)(bucket))[2*j + 2*pSum];
-                        int dimId = ((int *)(bucket))[2*j + 2*pSum + 1];
+                        int dimKey = bucket[2*j + 2*pSum];
+                        int dimId = bucket[2*j + 2*pSum + 1];
                         if( dimKey == fkey){
                                 lcount ++;
 				fvalue = dimId;
