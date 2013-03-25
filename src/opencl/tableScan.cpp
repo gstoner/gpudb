@@ -508,7 +508,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 		int pos = colWherePos[i];
 		int index = sn->outputIndex[i];
-		tupleSize += tn->sn->attrSize[index];
+		tupleSize += sn->tn->attrSize[index];
 
 		if(pos != -1){
 			scanCol[i] = column[pos];
