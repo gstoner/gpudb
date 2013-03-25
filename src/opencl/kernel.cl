@@ -1568,7 +1568,7 @@ __kernel void uniformAdd(__global int *g_data,
     barrier(CLK_LOCAL_MEM_FENCE);
 
     g_data[address]              += uni;
-    g_data[address + get_group_id(0)] += (get_local_id(0) + get_local_size(0) < n) * uni;
+    g_data[address + get_local_size(0)] += (get_local_id(0) + get_local_size(0) < n) * uni;
 }
 
 // for materialization
