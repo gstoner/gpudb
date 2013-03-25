@@ -16,10 +16,10 @@ gpudb: gpu cpu
 	 g++ -pg tableScan.o hashJoin.o materialize.o groupby.o  driver.o parseKernel.o $(LDFLAGS) -o GPUDATABASE
 
 cpu: driver.cpp parseKernel.cpp
-	g++ -c -g driver.cpp parseKernel.cpp
+	g++ -c -g -Wall driver.cpp parseKernel.cpp
 
 gpu: tableScan.cpp hashJoin.cpp  materialize.cpp groupby.cpp 
-	g++ -c -g tableScan.cpp hashJoin.cpp  materialize.cpp groupby.cpp
+	g++ -c -g -Wall tableScan.cpp hashJoin.cpp  materialize.cpp groupby.cpp
 
 all: loader gpudb
 
