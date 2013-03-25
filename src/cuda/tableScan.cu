@@ -1140,6 +1140,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 		int pos = colWherePos[i];
 		int index = sn->outputIndex[i];
+		tupleSize += sn->tn->attrSize[index];
 
 		if(pos != -1){
 			scanCol[i] = column[pos];
