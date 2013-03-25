@@ -213,7 +213,8 @@ static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElemen
             context->kernel = clCreateKernel(context->program,"prescan",0);
             clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&outArray);
             clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)&inArray);
-            clSetKernelArg(context->kernel,2,sizeof(cl_mem), NULL);
+	    cl_mem tmpP = NULL;
+            clSetKernelArg(context->kernel,2,sizeof(cl_mem), (void*)&tmpP);
 	    tmp = numThreads * 2;
             clSetKernelArg(context->kernel,3,sizeof(int), (void*)&(tmp));
 	    tmp = 0;
@@ -233,7 +234,8 @@ static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElemen
             context->kernel = clCreateKernel(context->program,"prescan",0);
             clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&outArray);
             clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)&inArray);
-            clSetKernelArg(context->kernel,2,sizeof(cl_mem), NULL);
+	    cl_mem tmpP = NULL;
+            clSetKernelArg(context->kernel,2,sizeof(cl_mem), (void*)&tmpP);
             clSetKernelArg(context->kernel,3,sizeof(int), (void*)&numElements);
 	    tmp = 0;
             clSetKernelArg(context->kernel,4,sizeof(int), (void*)&(tmp));
