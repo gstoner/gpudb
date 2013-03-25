@@ -86,6 +86,13 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	cl_mem gpu_psum1;
 
 	gpu_hashNum = clCreateBuffer(context->context, CL_MEM_READ_WRITE, sizeof(int)*HSIZE, NULL, &error);
+
+	context->kernel = clCreateKernel(context->program,"cl_memset_int",0);
+	clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)gpu_hashNum);
+	int tmp = HSIZE;
+	clSetKernelArg(context->kernel,1,sizeof(int), (void*)&tmp);
+	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+
 	gpu_count = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*threadNum,NULL,&error);
 	gpu_resPsum = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*threadNum,NULL,&error);
 

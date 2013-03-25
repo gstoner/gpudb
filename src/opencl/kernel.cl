@@ -68,6 +68,15 @@ inline int testCon_string(__global char *buf1, __global char* buf2, int size, in
         return res;
 }
 
+__kernel void cl_memset_int(__global int * ar, int num){
+        size_t stride = get_global_size(0);
+        size_t offset = get_global_id(0);
+
+        for(size_t i=offset; i<num; i+= stride)
+                ar[i] = 0;
+}
+
+
 __kernel void transform_dict_filter_and(__global int * dictFilter, __global int *fact, long tupleNum, int dNum,  __global int * filter, int byteNum){
 
 	size_t stride = get_global_size(0);
