@@ -1538,7 +1538,7 @@ __kernel void prescan(__global int *g_odata,
 {
     int ai, bi, mem_ai, mem_bi, bankOffsetA, bankOffsetB;
     size_t bid = get_group_id(0);
-    size_t bsize = get_local_size(0);
+    int bsize = get_local_size(0);
 
     loadSharedChunkFromMem(s_data, g_idata, n,
                                   (baseIndex == 0) ?
@@ -1566,7 +1566,7 @@ __kernel void uniformAdd(__global int *g_data,
         uni = uniforms[get_group_id(0) + blockOffset];
 
     size_t bid = get_group_id(0);
-    size_t bsize = get_local_size(0);
+    int bsize = get_local_size(0);
 
     int address = mul24(bid, (bsize << 1)) + baseIndex + get_local_id(0);
 
