@@ -111,7 +111,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 
 	scanImpl(gpu_hashNum,HSIZE,gpu_psum, context,pp);
 
-	clEnqueueWriteBuffer(context->queue,gpu_psum,CL_TRUE,0,sizeof(int)*HSIZE,gpu_psum,0,0,0);
+	clEnqueueCopyBuffer(context->queue,gpu_psum,gpu_psum1,0,0,sizeof(int)*HSIZE,gpu_psum,0,0,0);
 
 	context->kernel = clCreateKernel(context->program,"build_hash_table",0); 
 	clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpu_dim);
