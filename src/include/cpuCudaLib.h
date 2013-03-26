@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/mman.h>
 #include "common.h"
 
 static void initTable(struct tableNode * tn){
