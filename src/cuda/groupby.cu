@@ -238,7 +238,7 @@ __global__ void agg_cal(char ** content, int colNum, struct groupByExp* exp, int
 					((int *)result[j])[offset] = value;
 				}else{
 					int index = exp[j].exp.opValue;
-					int attrSize = gbSize[index];
+					int attrSize = gbSize[j];
 					if(attrSize == sizeof(int))
 						((int *)result[j])[offset] = ((int*)content[index])[i];
 					else
