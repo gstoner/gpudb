@@ -202,7 +202,7 @@ static void prescanArrayRecursive(cl_mem outArray, cl_mem inArray, int numElemen
             tmp = numBlocks -1;
             clSetKernelArg(context->kernel,3,sizeof(int), (void*)&(tmp));
             tmp = numElements - numEltsLastBlock;
-            clSetKernelArg(context->kernel,4,sizeof(int), (void*)(tmp));
+            clSetKernelArg(context->kernel,4,sizeof(int), (void*)&(tmp));
 
             globalSize = localSize = numThreadsLastBlock;
             clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
