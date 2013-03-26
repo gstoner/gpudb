@@ -158,4 +158,59 @@ static void freeOrderByNode(struct orderByNode * tn){
 #endif
 }
 
+static void printCol(char *col, int size, int type,int tupleNum,int pos){
+	if (pos ==GPU){
+		if(type == INT){
+			int * cpuCol = (int *)malloc(size * tupleNum);
+			cudaMemcpy(cpuCol,col,size * tupleNum, cudaMemcpyDeviceToHost);
+			for(int i=0;i<tupleNum;i++){
+				printf("%d\n", ((int*)cpuCol)[i]);
+			}
+			free(cpuCol);
+		}else if (type == FLOAT){
+			float * cpuCol = (float *)malloc(size * tupleNum);
+			cudaMemcpy(cpuCol,col,size * tupleNum, cudaMemcpyDeviceToHost);
+			for(int i=0;i<tupleNum;i++){
+				printf("%f\n", ((float*)cpuCol)[i]);
+			}
+			free(cpuCol);
+
+		}else if (type == STRING){
+
+			char * cpuCol = (int *)malloc(size * tupleNum);
+			cudaMemcpy(cpuCol,col,size * tupleNum, cudaMemcpyDeviceToHost);
+			for(int i=0;i<tupleNum;i++){
+				char tbuf[128] = {0};
+				memset(tbuf,0,sizeof(tbuf));
+				memcpy(tbuf,cpuCol + i*size, size);
+				printf("%s\n", tbuf);
+			}
+			free(cpuCol);
+		}
+	}else if (pos == MEM){
+		if(type == INT){
+			int * cpuCol = (int*)col; 
+			for(int i=0;i<tupleNum;i++){
+				printf("%d\n", ((int*)cpuCol)[i]);
+			}
+
+		}else if (type == FLOAT){
+
+			float * cpuCol = (float*)col; 
+			for(int i=0;i<tupleNum;i++){
+				printf("%d\n", ((float*)cpuCol)[i]);
+			}
+		}else if (type == STRING){
+			char * cpuCol = col; 
+			for(int i=0;i<tupleNum;i++){
+				char tbuf[128] = {0};
+				memset(tbuf,0,sizeof(tbuf));
+				memcpy(tbuf,cpuCol + i*size, size);
+				printf("%s\n", tbuf);
+			}
+
+		}
+	}
+}
+
 #endif
