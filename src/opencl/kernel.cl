@@ -1380,7 +1380,7 @@ __kernel void agg_cal(__global char * content, __global int *colOffset, int colN
                                         ((int *)(result + resOffset[j]))[offset] = value;
                                 }else{
                                         int index = exp[j].exp.opValue;
-                                        int attrSize = gbSize[index];
+                                        int attrSize = gbSize[j];
                                         if(attrSize == sizeof(int))
                                                 ((int *)(result+resOffset[j]))[offset] = ((int*)(content + colOffset[index]))[i];
                                         else{
