@@ -177,7 +177,7 @@ static void printCol(char *col, int size, int type,int tupleNum,int pos){
 
 		}else if (type == STRING){
 
-			char * cpuCol = (int *)malloc(size * tupleNum);
+			char * cpuCol = (char *)malloc(size * tupleNum);
 			cudaMemcpy(cpuCol,col,size * tupleNum, cudaMemcpyDeviceToHost);
 			for(int i=0;i<tupleNum;i++){
 				char tbuf[128] = {0};
