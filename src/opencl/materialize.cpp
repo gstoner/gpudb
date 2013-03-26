@@ -34,7 +34,7 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 		if(tn->dataPos[i] == MEM)
 			clEnqueueWriteBuffer(context->queue,gpuContent,CL_TRUE,offset,tn->tupleNum * tn->attrSize[i],tn->content[i],0,0,0);
 		else
-			clEnqueueCopyBuffer(context->queue,tn->content[i],gpuContent,0,offset,tn->tupleNum * tn->attrSize,0,0,0);
+			clEnqueueCopyBuffer(context->queue,(cl_mem)tn->content[i],gpuContent,0,offset,tn->tupleNum * tn->attrSize[i],0,0,0);
 			
 		offset += tn->tupleNum * tn->attrSize[i];
 	}
