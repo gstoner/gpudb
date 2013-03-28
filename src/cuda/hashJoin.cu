@@ -193,7 +193,6 @@ __global__ static void count_join_result(int* num, int* psum, char* bucket, char
 		factFilter[i] = fvalue;
 	}
 
-	__syncthreads();
 	count[offset] = lcount;
 }
 
