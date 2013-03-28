@@ -117,10 +117,6 @@ static void freeScan(struct scanNode * rel){
 	rel->filter = NULL;
 	freeTable(rel->tn);
 
-#ifdef GPUOPENCL
-	free(rel->clContext);
-	rel->clContext = NULL;
-#endif
 }
 
 static void freeMathExp(struct mathExp exp){
@@ -141,10 +137,6 @@ static void freeGroupByNode(struct groupByNode * tn){
 	free(tn->gbExp);
 	tn->gbExp = NULL;
 	freeTable(tn->table);
-#ifdef GPUOPENCL
-	free(tn->clContext);
-	tn->clContext = NULL;
-#endif
 }
 
 static void freeOrderByNode(struct orderByNode * tn){
@@ -153,10 +145,63 @@ static void freeOrderByNode(struct orderByNode * tn){
 	free(tn->orderByIndex);
 	tn->orderByIndex = NULL;
 	freeTable(tn->table);
-#ifdef GPUOPENCL
-	free(tn->clContext);
-	tn->clContext = NULL;
-#endif
 }
+
+static void printCol(char *col, int size, int type,int tupleNum,int pos, struct clContext * context){
+        if (pos ==GPU){
+                if(type == INT){
+                        int * cpuCol = (int *)malloc(size * tupleNum);
+                        cudaMemcpy(cpuCol,col,size * tupleNum, cudaMemcpyDeviceToHost);
+			clEnqueueReadBuffer(context->queue, (cl_mem)col, CL_TRUE, 0, size*tupleNum, cpuCol,0,0,0);
+                        for(int i=0;i<tupleNum;i++){
+                                printf("%d\n", ((int*)cpuCol)[i]);
+                        }
+                        free(cpuCol);
+                }else if (type == FLOAT){
+                        float * cpuCol = (float *)malloc(size * tupleNum);
+			clEnqueueReadBuffer(context->queue, (cl_mem)col, CL_TRUE, 0, size*tupleNum, cpuCol,0,0,0);
+                        for(int i=0;i<tupleNum;i++){
+                                printf("%f\n", ((float*)cpuCol)[i]);
+                        }
+                        free(cpuCol);
+
+                }else if (type == STRING){
+
+                        char * cpuCol = (char *)malloc(size * tupleNum);
+			clEnqueueReadBuffer(context->queue, (cl_mem)col, CL_TRUE, 0, size*tupleNum, cpuCol,0,0,0);
+                        for(int i=0;i<tupleNum;i++){
+                                char tbuf[128] = {0};
+                                memset(tbuf,0,sizeof(tbuf));
+                                memcpy(tbuf,cpuCol + i*size, size);
+                                printf("%s\n", tbuf);
+                        }
+                        free(cpuCol);
+                }
+        }else if (pos == MEM){
+                if(type == INT){
+                        int * cpuCol = (int*)col;
+                        for(int i=0;i<tupleNum;i++){
+                                printf("%d\n", ((int*)cpuCol)[i]);
+                        }
+
+                }else if (type == FLOAT){
+
+                        float * cpuCol = (float*)col;
+                        for(int i=0;i<tupleNum;i++){
+                                printf("%d\n", ((float*)cpuCol)[i]);
+                        }
+                }else if (type == STRING){
+                        char * cpuCol = col;
+                        for(int i=0;i<tupleNum;i++){
+                                char tbuf[128] = {0};
+                                memset(tbuf,0,sizeof(tbuf));
+                                memcpy(tbuf,cpuCol + i*size, size);
+                                printf("%s\n", tbuf);
+                        }
+
+                }
+        }
+}
+
 
 #endif
