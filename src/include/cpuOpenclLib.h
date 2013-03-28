@@ -151,7 +151,6 @@ static void printCol(char *col, int size, int type,int tupleNum,int pos, struct 
         if (pos ==GPU){
                 if(type == INT){
                         int * cpuCol = (int *)malloc(size * tupleNum);
-                        cudaMemcpy(cpuCol,col,size * tupleNum, cudaMemcpyDeviceToHost);
 			clEnqueueReadBuffer(context->queue, (cl_mem)col, CL_TRUE, 0, size*tupleNum, cpuCol,0,0,0);
                         for(int i=0;i<tupleNum;i++){
                                 printf("%d\n", ((int*)cpuCol)[i]);
