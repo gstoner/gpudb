@@ -691,7 +691,7 @@ def generate_code(tree):
         print >>fo, "\tcontext.context = clCreateContext(0,1,&device,NULL,NULL,&error);"
         print >>fo, "\tcontext.queue = clCreateCommandQueue(context.context, device, 0, &error);"
         print >>fo, "\tcontext.program = clCreateProgramWithSource(context.context, psc, (const char **)&ps, 0, &error);"
-        print >>fo, "\tclBuildProgram(context.program, 0, 0 , 0 , 0, &error);\n"
+        print >>fo, "\terror = clBuildProgram(context.program, 0, 0 , 0 , 0, 0);\n"
 
     print >>fo, "\tstruct timespec start,end;"
     print >>fo, "\tclock_gettime(CLOCK_REALTIME,&start);"
