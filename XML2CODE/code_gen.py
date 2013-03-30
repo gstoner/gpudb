@@ -597,6 +597,7 @@ def printMathFunc(fo,prefix, mathFunc):
     else:
         print >>fo, prefix + ".op = " + mathFunc.opName + ";"
         print >>fo, prefix + ".opNum = 2;"
+        print >>fo, prefix + ".exp = (struct mathExp *) malloc(sizeof(struct mathExp) * 2);"
         prefix1 = prefix + ".exp[0]"
         prefix2 = prefix + ".exp[1]"
         printMathFunc(fo,prefix1,mathFunc.leftOp)
@@ -1674,6 +1675,7 @@ def generate_code(tree):
                 print >>fo, "\tgbNode->tupleSize += "+resultNode + "->attrSize[" + str(colIndex) + "];"
                 print >>fo, "\tgbNode->gbExp[" + str(i) + "].func = NOOP;"
                 print >>fo, "\tgbNode->gbExp[" + str(i) + "].exp.op = NOOP;"
+                print >>fo, "\tgbNode->gbExp[" + str(i) + "].exp.exp = NULL;"
                 print >>fo, "\tgbNode->gbExp[" + str(i) + "].exp.opNum = 1;"
                 print >>fo, "\tgbNode->gbExp[" + str(i) + "].exp.opType = COLUMN;"
                 print >>fo, "\tgbNode->gbExp[" + str(i) + "].exp.opValue = " + str(exp.column_name) + ";"
@@ -1692,6 +1694,7 @@ def generate_code(tree):
 
                 print >>fo, "\tgbNode->gbExp[" + str(i) + "].func = NOOP;"
                 print >>fo, "\tgbNode->gbExp[" + str(i) + "].exp.op = NOOP;"
+                print >>fo, "\tgbNode->gbExp[" + str(i) + "].exp.exp = NULL;"
                 print >>fo, "\tgbNode->gbExp[" + str(i) + "].exp.opNum = 1;"
                 print >>fo, "\tgbNode->gbExp[" + str(i) + "].exp.opType = CONS;"
                 print >>fo, "\tgbNode->gbExp[" + str(i) + "].exp.opValue = " + str(exp.cons_value) + ";"
