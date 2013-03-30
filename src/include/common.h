@@ -123,7 +123,7 @@ struct mathExp {
 	int opNum;			// the number of operands
 
 // 	when opNum is 2 ,
-	struct mathExp *exp;		// if the opNum is 2, this field stores the two operands
+	struct mathExp exp[2];		// if the opNum is 2, this field stores the two operands
 
 //	when opNum is 1,
 	int opType;			// whether it is a regular column or a constant
