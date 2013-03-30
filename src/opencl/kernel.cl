@@ -585,7 +585,8 @@ __kernel void scan_dict_other(__global char *col, __global char * dict, int byte
 			for(int k=0;k<dheader->bitNum/8;k++)
 				buf[k] = (col + sizeof(struct dictHeader) + i* dheader->bitNum/8)[k];
 
-			buf = (char *) &dheader->hash[key];
+			int kvalue = dheader->hash[key];
+			buf = (char *) &kvalue;
 			for(int k=0;k<colSize;k++)
 				(result+pos)[k] = buf[k];
                         pos += colSize;
@@ -1071,7 +1072,8 @@ __kernel void joinDim_dict_other(__global int *resPsum, __global char * dim, __g
 			char *buf = (char *)&key;
 			for(int k=0;k<byteNum;k++)
 				buf[k] = (dim + (dimId-1) * byteNum)[k];
-			buf = (char *)&dheader->hash[key];
+			int kvalue = dheader->hash[key];
+			buf = (char *)&kvalue;
 			for(int k=0;k<attrSize;k++)
 				(result+localOffset)[k] = buf[k];
                         localOffset += attrSize;
