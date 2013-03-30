@@ -593,7 +593,7 @@ __kernel void scan_dict_other(__global char *col, __global char * dict, int byte
         }
 }
 
-__kernel void scan_dict_int(__global char *col, __global char * dict,int byteNum,int colSize, long tupleNum, __global int *psum, long resultNum, __global int * filter, __global char * result){
+__kernel void scan_dict_int(__global char *col, __global char * dict,int byteNum,int colSize, long tupleNum, __global int *psum, long resultNum, __global int * filter, __global int * result){
 
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
@@ -606,7 +606,7 @@ __kernel void scan_dict_int(__global char *col, __global char * dict,int byteNum
 			char * buf = (char *)&key;
 			for(int k=0;k<byteNum;k++)
 				buf[k] = (col+i*byteNum)[k];
-                        ((int *)result)[localCount] = dheader->hash[key];
+                        result[localCount] = dheader->hash[key];
                         localCount ++;
                 }
         }
@@ -682,12 +682,12 @@ __kernel void unpack_rle(__global char * fact, __global char * rle, long tupleNu
 
 //The following kernels are for traditional hash joins
 
-__kernel void count_hash_num(__global char *dim, long  inNum, __global int *num){
+__kernel void count_hash_num(__global int *dim, long  inNum, __global int *num){
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
 
         for(size_t i=offset;i<inNum;i+=stride){
-                int joinKey = ((int *)dim)[i];
+                int joinKey = dim[i];
                 int hKey = joinKey & (HSIZE-1);
                 atomic_add(&(num[hKey]),1);
         }
@@ -748,7 +748,7 @@ __kernel void transform_dict_filter(__global int * dictFilter, __global char *fa
         int numInt = (tupleNum * byteNum +sizeof(int) - 1) / sizeof(int)  ;
 
         for(size_t i=offset; i<numInt; i += stride){
-                int tmp = ((int *)(fact + sizeof(struct dictHeader)))[i];
+                int tmp = ((__global int *)(fact + sizeof(struct dictHeader)))[i];
 
                 for(int j=0; j< sizeof(int)/byteNum; j++){
                         int fkey = 0;
@@ -970,7 +970,8 @@ __kernel void joinFact_dict_other(__global int *resPsum, __global char * fact,  
 			char *buf = (char *) &key;
 			for(int k=0;k<byteNum;k++)
 				buf[k] = (fact + i*byteNum)[k];
-			buf = (char *)&dheader->hash[key];
+			int kvalue = dheader->hash[key];
+			buf = (char *)&kvalue;
 			for(int k=0;k<attrSize;k++)
 				(result + localOffset)[k] = buf[k];
                         localOffset += attrSize;
@@ -1245,7 +1246,7 @@ __kernel void build_groupby_key(__global char * content, __global long * colOffs
                                 gpuStrncat(buf, tbuf, gbSize[j]);
 
                         }else if (gbType[j] == INT){
-                                int key = ((int *)(content+offset))[i];
+                                int key = ((__global int *)(content+offset))[i];
                                 gpuItoa(key,tbuf,10);
                                 gpuStrcat(buf,tbuf);
                         }
