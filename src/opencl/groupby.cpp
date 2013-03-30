@@ -147,10 +147,21 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 
 	cl_mem gpuGbExp = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(struct groupByExp)*res->totalAttr, gb->gbExp, &error);
 
-	cl_mem mathexp = clCreateBuffer(context->context, CL_MEM_READ_ONLY, 2*sizeof(struct mathExp)*res->totalAttr,NULL, &error);
+	cl_mem mathexp = clCreateBuffer(context->context, CL_MEM_READ_ONLY, 2*sizeof(struct colExp)*res->totalAttr,NULL, &error);
+
+	struct colExp tmpExp[2];
 	for(int i=0;i<res->totalAttr;i++){
 		if(gb->gbExp[i].exp.opNum == 2){
-			clEnqueueWriteBuffer(context->queue, mathexp, CL_TRUE, 2*i*sizeof(struct mathExp),2*sizeof(struct mathExp),gb->gbExp[i].exp.exp,0,0,0);
+			tmpExp[0].op = gb->gbExp[i].exp.exp[0].op;
+			tmpExp[0].opNum = gb->gbExp[i].exp.exp[0].opNum;
+			tmpExp[0].opType = gb->gbExp[i].exp.exp[0].opType;
+			tmpExp[0].opValue = gb->gbExp[i].exp.exp[0].opValue;
+
+			tmpExp[1].op = gb->gbExp[i].exp.exp[1].op;
+			tmpExp[1].opNum = gb->gbExp[i].exp.exp[1].opNum;
+			tmpExp[1].opType = gb->gbExp[i].exp.exp[1].opType;
+			tmpExp[1].opValue = gb->gbExp[i].exp.exp[1].opValue;
+			clEnqueueWriteBuffer(context->queue, mathexp, CL_TRUE, 2*i*sizeof(struct colExp),2*sizeof(struct colExp),tmpExp,0,0,0);
 		}
 	}
 
