@@ -232,6 +232,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 		int dictFilter = 0;
 		int dictFinal = OR;
+		int dictInit = 1;
 
 		for(int i=1;i<where->expNum;i++){
 			whereIndex = where->exp[i].index;
@@ -242,7 +243,10 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 			if(prevIndex != index){
 				if(prevFormat == DICT){
-					if(dictFinal == OR)
+					if(dictInit == 1){
+						context->kernel = clCreateKernel(context->program,"transform_dict_filter_init",0);
+						dictInit = 0;
+					}else if(dictFinal == OR)
 						context->kernel = clCreateKernel(context->program,"transform_dict_filter_or",0);
 					else
 						context->kernel = clCreateKernel(context->program,"transform_dict_filter_and",0); 
@@ -452,7 +456,10 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 		}
 
 		if(prevFormat == DICT){
-			if(dictFinal == AND)
+			if(dictInit == 1){
+				context->kernel = clCreateKernel(context->program,"transform_dict_filter_init",0); 
+				dictInit = 0;
+			}else if(dictFinal == AND)
 				context->kernel = clCreateKernel(context->program,"transform_dict_filter_and",0); 
 			else
 				context->kernel = clCreateKernel(context->program,"transform_dict_filter_or",0); 
