@@ -20,8 +20,9 @@ const char * createProgram(string path, int * num){
 	string srcStdStr = oss.str();
 
 	char * res = (char *)malloc(srcStdStr.length());
+	memset(res,0,srcStdStr.length());
 
-	memcpy(res,srcStdStr.c_str(),srcStdStr.length());
+	strcpy(res,srcStdStr.c_str(),srcStdStr.length());
 
 	return res;
 }
