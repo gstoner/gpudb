@@ -19,8 +19,8 @@ const char * createProgram(string path, int * num){
 	oss << kernelFile.rdbuf();
 	string srcStdStr = oss.str();
 
-	char * res = (char *)malloc(srcStdStr.length());
-	memset(res,0,srcStdStr.length());
+	char * res = (char *)malloc(srcStdStr.length()+1);
+	memset(res,0,srcStdStr.length()+1);
 
 	strcpy(res,srcStdStr.c_str());
 
