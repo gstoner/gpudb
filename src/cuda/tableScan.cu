@@ -976,9 +976,10 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 			if(prevIndex != index){
 				if(prevFormat == DICT){
-					if(dictInit == 1)
+					if(dictInit == 1){
 						transform_dict_filter_init<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter,byteNum);
-					else if(dictFinal == OR)
+						dictInit = 0;
+					}else if(dictFinal == OR)
 						transform_dict_filter_or<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter,byteNum);
 					else
 						transform_dict_filter_and<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter,byteNum);
@@ -1121,9 +1122,10 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 		}
 
 		if(prevFormat == DICT){
-			if (dictInit == 1)
+			if (dictInit == 1){
 				transform_dict_filter_init<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter, byteNum);
-			else if(dictFinal == AND)
+				dictInit = 0;
+			}else if(dictFinal == AND)
 				transform_dict_filter_and<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter, byteNum);
 			else
 				transform_dict_filter_or<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter, byteNum);
