@@ -118,6 +118,15 @@ struct scanNode{
 
 };
 
+
+// this is for opencl use only
+struct colExp{
+	int op;
+	int opNum;
+	int opType;
+	int opValue;
+};
+
 struct mathExp {
 	int op;				// the math operation
 	int opNum;			// the number of operands
