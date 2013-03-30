@@ -1291,27 +1291,27 @@ float getExp(__global char *content, __global int * colOffset,struct mathExp exp
 	return res;
 }
 
-float calMathExp(__global char *content, __global int * colOffset,struct mathExp exp, __global struct mathExp *mexp, int pos){
+float calMathExp(__global char *content, __global int * colOffset,struct groupByExp exp, __global struct mathExp *mexp, int pos){
         float res ;
 
-        if(exp.op == NOOP){
-                if (exp.opType == CONS)
-                        res = exp.opValue;
+        if(exp.exp.op == NOOP){
+                if (exp.exp.opType == CONS)
+                        res = exp.exp.opValue;
                 else{
-                        int index = exp.opValue;
+                        int index = exp.exp.opValue;
                         res = ((int *)(content+colOffset[index]))[pos];
                 }
 
-        }else if(exp.op == PLUS ){
+        }else if(exp.exp.op == PLUS ){
                 res = getExp(content,colOffset,mexp[2*pos],mexp,pos) + getExp(content, colOffset,mexp[2*pos+1], mexp,pos);
 
-        }else if (exp.op == MINUS){
+        }else if (exp.exp.op == MINUS){
                 res = getExp(content,colOffset,mexp[2*pos],mexp,pos) - getExp(content, colOffset,mexp[2*pos+1], mexp,pos);
 
-        }else if (exp.op == MULTIPLY){
+        }else if (exp.exp.op == MULTIPLY){
                 res = getExp(content,colOffset,mexp[2*pos],mexp,pos) * getExp(content, colOffset,mexp[2*pos+1], mexp,pos);
 
-        }else if (exp.op == DIVIDE){
+        }else if (exp.exp.op == DIVIDE){
                 res = getExp(content,colOffset,mexp[2*pos],mexp,pos) / getExp(content, colOffset,mexp[2*pos+1], mexp,pos);
         }
 
@@ -1350,7 +1350,7 @@ __kernel void agg_cal_cons(__global char * content, __global int* colOffset, int
                 for(int j=0;j<colNum;j++){
                         int func = exp[j].func;
                         if (func == SUM){
-                                float tmpRes = calMathExp(content, colOffset,exp[j].exp, mexp, i);
+                                float tmpRes = calMathExp(content, colOffset,exp[j], mexp, i);
                                 buf[j] += tmpRes;
                         }
                 }
@@ -1390,7 +1390,7 @@ __kernel void agg_cal(__global char * content, __global int *colOffset, int colN
                                 }
 
                         }else if (func == SUM){
-                                float tmpRes = calMathExp(content, colOffset, exp[j].exp,mexp, i);
+                                float tmpRes = calMathExp(content, colOffset, exp[j],mexp, i);
                                 AtomicAdd((__global float *)& ((float *)(result+resOffset[j]))[offset], tmpRes);
                         }
                 }
