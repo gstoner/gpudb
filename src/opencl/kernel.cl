@@ -1273,7 +1273,7 @@ __kernel void count_group_num(__global int *num, int tupleNum, __global int *tot
         atomic_add(totalCount,localCount);
 }
 
-float getExp(__global char *content, __global int * colOffset,struct mathExp exp,int pos){
+float getExp(__global char *content, __global int * colOffset,struct colExp exp,int pos){
 	float res = 0;;
         if(exp.op == NOOP){
                 if (exp.opType == CONS)
