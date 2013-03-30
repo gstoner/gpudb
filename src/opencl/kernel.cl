@@ -76,6 +76,25 @@ __kernel void cl_memset_int(__global int * ar, int num){
                 ar[i] = 0;
 }
 
+__kernel void transform_dict_filter_init(__global int * dictFilter, __global int *fact, long tupleNum, int dNum,  __global int * filter, int byteNum){
+
+	size_t stride = get_global_size(0);
+	size_t offset = get_global_id(0);
+
+        int numInt = (tupleNum * byteNum +sizeof(int) - 1) / sizeof(int) ;
+
+        for(size_t i=offset; i<numInt; i += stride){
+                int tmp = fact[i];
+                unsigned long bit = 1;
+
+                for(int j=0; j< sizeof(int)/byteNum; j++){
+                        int t = (bit << ((j+1)*byteNum*8)) -1 - ((1<<(j*byteNum*8))-1);
+                        int fkey = (tmp & t)>> (j*byteNum*8) ;
+                        filter[i* sizeof(int)/byteNum + j] = dictFilter[fkey];
+                }
+        }
+}
+
 
 __kernel void transform_dict_filter_and(__global int * dictFilter, __global int *fact, long tupleNum, int dNum,  __global int * filter, int byteNum){
 
@@ -738,29 +757,6 @@ __kernel void count_join_result_dict(__global int *num, __global int* psum, __gl
 
 }
 
-__kernel void transform_dict_filter(__global int * dictFilter, __global char *fact, long tupleNum, int dNum,  __global int * filter){
-
-	size_t stride = get_global_size(0);
-	size_t offset = get_global_id(0);
-
-        __global struct dictHeader *dheader = (__global struct dictHeader *) fact;
-
-        int byteNum = dheader->bitNum/8;
-        int numInt = (tupleNum * byteNum +sizeof(int) - 1) / sizeof(int)  ;
-
-        for(size_t i=offset; i<numInt; i += stride){
-                int tmp = ((__global int *)(fact + sizeof(struct dictHeader)))[i];
-
-                for(int j=0; j< sizeof(int)/byteNum; j++){
-                        int fkey = 0;
-			char *buf = (char *)&fkey;
-			for(int k=0;k<byteNum;k++)
-				buf[k] = (((char *)&tmp) + j*byteNum)[k];
-
-                        filter[i* sizeof(int)/byteNum + j] = dictFilter[fkey];
-                }
-        }
-}
 
 __kernel void filter_count(long tupleNum, __global int * count, __global int * factFilter){
 

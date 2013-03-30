@@ -93,6 +93,25 @@ __global__ static void transform_dict_filter_and(int * dictFilter, char *fact, l
 	}
 }
 
+__global__ static void transform_dict_filter_init(int * dictFilter, char *fact, long tupleNum, int dNum,  int * filter,int byteNum){
+
+	int stride = blockDim.x * gridDim.x;
+	int offset = blockIdx.x*blockDim.x + threadIdx.x;
+
+	int numInt = (tupleNum * byteNum +sizeof(int) - 1) / sizeof(int) ;
+
+	for(long i=offset; i<numInt; i += stride){
+		int tmp = ((int *)fact)[i];
+		unsigned long bit = 1;
+
+		for(int j=0; j< sizeof(int)/byteNum; j++){
+			int t = (bit << ((j+1)*byteNum*8)) -1 - ((1<<(j*byteNum*8))-1);
+			int fkey = (tmp & t)>> (j*byteNum*8) ;
+			filter[i* sizeof(int)/byteNum + j] = dictFilter[fkey];
+		}
+	}
+}
+
 __global__ static void transform_dict_filter_or(int * dictFilter, char *fact, long tupleNum, int dNum,  int * filter,int byteNum){
 
 	int stride = blockDim.x * gridDim.x;
@@ -946,6 +965,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 		int dictFilter = 0;
 		int dictFinal = OR;
+		int dictInit = 1;
 
 		for(int i=1;i<where->expNum;i++){
 			whereIndex = where->exp[i].index;
@@ -956,7 +976,9 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 			if(prevIndex != index){
 				if(prevFormat == DICT){
-					if(dictFinal == OR)
+					if(dictInit == 1)
+						transform_dict_filter_init<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter,byteNum);
+					else if(dictFinal == OR)
 						transform_dict_filter_or<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter,byteNum);
 					else
 						transform_dict_filter_and<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter,byteNum);
@@ -1099,7 +1121,9 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 		}
 
 		if(prevFormat == DICT){
-			if(dictFinal == AND)
+			if (dictInit == 1)
+				transform_dict_filter_init<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter, byteNum);
+			else if(dictFinal == AND)
 				transform_dict_filter_and<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter, byteNum);
 			else
 				transform_dict_filter_or<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter, byteNum);
