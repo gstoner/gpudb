@@ -20,15 +20,15 @@ inline int stringCmp(__global char * buf1, __global char * buf2, int size){
 inline int testCon_int(int buf1, __global char* buf2, int size, int type, int rel){
         int res = 1;
 	if(rel == EQ){
-                res = ( buf1 == *(((int*)buf2)) );
+                res = ( buf1 == *(((__global int*)buf2)) );
 	}else if (rel == GTH){
-		res = ( buf1 > *(((int*)buf2)) );
+		res = ( buf1 > *(((__global int*)buf2)) );
 	}else if (rel == LTH){
-		res = ( buf1 < *(((int*)buf2)) );
+		res = ( buf1 < *(((__global int*)buf2)) );
 	}else if (rel == GEQ){
-		res = ( buf1 >= *(((int*)buf2)) );
+		res = ( buf1 >= *(((__global int*)buf2)) );
 	}else if (rel == LEQ){
-		res = ( buf1 <= *(((int*)buf2)) );
+		res = ( buf1 <= *(((__global int*)buf2)) );
 	}
 	return res;
 }
@@ -36,15 +36,15 @@ inline int testCon_int(int buf1, __global char* buf2, int size, int type, int re
 inline int testCon_float(float buf1, __global char* buf2, int size, int type, int rel){
         int res = 1;
 	if(rel == EQ){
-		res = ( buf1 == *(((float*)buf2)) );
+		res = ( buf1 == *(((__global float*)buf2)) );
 	}else if (rel == GTH){
-		res = ( buf1 > *(((float*)buf2)) );
+		res = ( buf1 > *(((__global float*)buf2)) );
 	}else if (rel == LTH){
-		res = ( buf1 < *(((float*)buf2)) );
+		res = ( buf1 < *(((__global float*)buf2)) );
 	}else if (rel == GEQ){
-		res = ( buf1 >= *(((float*)buf2)) );
+		res = ( buf1 >= *(((__global float*)buf2)) );
 	}else if (rel == LEQ){
-		res = ( buf1 <= *(((float*)buf2)) );
+		res = ( buf1 <= *(((__global float*)buf2)) );
 	}
 	return res;
 }
@@ -120,10 +120,8 @@ __kernel void genScanFilter_dict_init(__global char *col, int colSize, int colTy
 	size_t tid = get_global_id(0);
         int con;
 
-        struct dictHeader *dheader = (struct dictHeader *) col;
-
         for(size_t i=tid;i<dNum;i+=stride){
-                int fkey = dheader->hash[i];
+                int fkey = ((__global struct dictHeader*)col)->hash[i];
                 con = testCon_int(fkey,where->content,colSize,colType,where->relation);
                 dfilter[i] = con;
         }
@@ -134,10 +132,9 @@ __kernel void genScanFilter_dict_or(__global char *col, int colSize, int colType
 	size_t tid = get_global_id(0);
         int con;
 
-        struct dictHeader *dheader = (struct dictHeader *) col;
-
         for(size_t i=tid;i<dNum;i+=stride){
-                int fkey = dheader->hash[i];
+                int fkey = ((__global struct dictHeader*)col)->hash[i];
+                con = testCon_int(fkey,where->content,colSize,colType,where->relation);
                 con = testCon_int(fkey,where->content,colSize,colType,where->relation);
                 dfilter[i] |= con;
         }
@@ -148,10 +145,8 @@ __kernel void genScanFilter_dict_and(__global char *col, int colSize, int colTyp
 	size_t tid = get_global_id(0);
         int con;
 
-        struct dictHeader *dheader = (struct dictHeader *) col;
-
         for(size_t i=tid;i<dNum;i+=stride){
-                int fkey = dheader->hash[i];
+                int fkey = ((__global struct dictHeader*)col)->hash[i];
                 con = testCon_int(fkey,where->content,colSize,colType,where->relation);
                 dfilter[i] &= con;
         }
@@ -162,13 +157,12 @@ __kernel void genScanFilter_rle(__global char *col, int colSize, int colType, lo
 	size_t tid = get_global_id(0);
         int con;
 
-        struct rleHeader *rheader = (struct rleHeader *) col;
-        int dNum = rheader->dictNum;
+        int dNum = ((__global struct rleHeader*)col)->dictNum;
 
         for(size_t i = tid; i<dNum; i += stride){
-                int fkey = ((int *)(col+sizeof(struct rleHeader)))[i];
-                int fcount = ((int *)(col+sizeof(struct rleHeader)))[i + dNum];
-                int fpos = ((int *)(col+sizeof(struct rleHeader)))[i + 2*dNum];
+                int fkey = ((__global int *)(col+sizeof(struct rleHeader)))[i];
+                int fcount = ((__global int *)(col+sizeof(struct rleHeader)))[i + dNum];
+                int fpos = ((__global int *)(col+sizeof(struct rleHeader)))[i + 2*dNum];
 
                 if((fcount + fpos) < tupleOffset)
                         continue;
@@ -580,7 +574,7 @@ __kernel void scan_dict_other(__global char *col, __global char * dict, int byte
 
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
-        struct dictHeader *dheader = (struct dictHeader*)dict;
+        __global struct dictHeader *dheader = (__global struct dictHeader*)dict;
         int pos = psum[tid] * colSize;
 
         for(size_t i = tid; i<tupleNum; i+= stride){
@@ -604,7 +598,7 @@ __kernel void scan_dict_int(__global char *col, __global char * dict,int byteNum
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int localCount = psum[tid];
-        struct dictHeader *dheader = (struct dictHeader*)dict;
+        __global struct dictHeader *dheader = (__global struct dictHeader*)dict;
 
         for(size_t i = tid; i<tupleNum; i+= stride){
                 if(filter[i] == 1){
@@ -633,7 +627,7 @@ __kernel void scan_other(__global char *col, int colSize, long tupleNum, __globa
         }
 }
 
-__kernel void scan_int(__global char *col, int colSize, long tupleNum, __global int *psum, long resultNum, __global int * filter, __global char * result){
+__kernel void scan_int(__global int *col, int colSize, long tupleNum, __global int *psum, long resultNum, __global int * filter, __global int * result){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int localCount = psum[tid] ;
@@ -641,7 +635,7 @@ __kernel void scan_int(__global char *col, int colSize, long tupleNum, __global 
         for(size_t i = tid; i<tupleNum;i+=stride){
 
                 if(filter[i] == 1){
-                        ((int*)result)[localCount] = ((int*)col)[i];
+                        result[localCount] = col[i];
                         localCount ++;
                 }
         }
@@ -654,9 +648,9 @@ __kernel void unpack_rle(__global char * fact, __global char * rle, long tupleNu
 
         for(size_t i=offset; i<dNum; i+=stride){
 
-                int fvalue = ((int *)(fact+sizeof(struct rleHeader)))[i];
-                int fcount = ((int *)(fact+sizeof(struct rleHeader)))[i + dNum];
-                int fpos = ((int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
+                int fvalue = ((__global int *)(fact+sizeof(struct rleHeader)))[i];
+                int fcount = ((__global int *)(fact+sizeof(struct rleHeader)))[i + dNum];
+                int fpos = ((__global int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
 
                 if((fcount + fpos) < tupleOffset)
                         continue;
@@ -669,18 +663,18 @@ __kernel void unpack_rle(__global char * fact, __global char * rle, long tupleNu
                         if(tcount > tupleNum)
                                 tcount = tupleNum;
                         for(int k=0;k<tcount;k++){
-                                ((int*)rle)[k] = fvalue;
+                                ((__global int*)rle)[k] = fvalue;
                         }
 
                 }else if ((fpos + fcount) > (tupleOffset + tupleNum)){
                         int tcount = tupleNum  + tupleOffset - fpos;
                         for(int k=0;k<tcount;k++){
-                                ((int*)rle)[fpos-tupleOffset + k] = fvalue;
+                                ((__global int*)rle)[fpos-tupleOffset + k] = fvalue;
                         }
 
                 }else{
                         for(int k=0;k<fcount;k++){
-                                ((int*)rle)[fpos-tupleOffset + k] = fvalue;
+                                ((__global int*)rle)[fpos-tupleOffset + k] = fvalue;
                         }
                 }
         }
@@ -699,30 +693,29 @@ __kernel void count_hash_num(__global char *dim, long  inNum, __global int *num)
         }
 }
 
-__kernel void build_hash_table(__global char *dim, long inNum, __global int *psum, __global char * bucket){
+__kernel void build_hash_table(__global int *dim, long inNum, __global int *psum, __global int * bucket){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
 
         for(size_t i=offset;i<inNum;i+=stride){
-                int joinKey = ((int *) dim)[i];
+                int joinKey = dim[i];
                 int hKey = joinKey & (HSIZE-1);
                 int pos = atomic_add(&psum[hKey],1) * 2;
-                ((int*)bucket)[pos] = joinKey;
+                bucket[pos] = joinKey;
                 pos += 1;
                 int dimId = i+1;
-                ((int*)bucket)[pos] = dimId;
+                bucket[pos] = dimId;
         }
 
 }
 
-__kernel void count_join_result_dict(__global int *num, __global int* psum, __global char* bucket, __global char* fact, int dNum, __global int* dictFilter){
+__kernel void count_join_result_dict(__global int *num, __global int* psum, __global int* bucket, __global char* fact, int dNum, __global int* dictFilter){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
 
-        struct dictHeader *dheader;
-        dheader = (struct dictHeader *) fact;
+        __global struct dictHeader *dheader = (__global struct dictHeader *) fact;
 
         for(size_t i=offset;i<dNum;i+=stride){
                 int fkey = dheader->hash[i];
@@ -732,8 +725,8 @@ __kernel void count_join_result_dict(__global int *num, __global int* psum, __gl
 
                 for(int j=0;j<keyNum;j++){
                         int pSum = psum[hkey];
-                        int dimKey = ((int *)(bucket))[2*j + 2*pSum];
-                        int dimId = ((int *)(bucket))[2*j + 2*pSum + 1];
+                        int dimKey = bucket[2*j + 2*pSum];
+                        int dimId = bucket[2*j + 2*pSum + 1];
                         if( dimKey == fkey){
 				fvalue = dimId;
                                 break;
@@ -749,8 +742,7 @@ __kernel void transform_dict_filter(__global int * dictFilter, __global char *fa
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
 
-        struct dictHeader *dheader;
-        dheader = (struct dictHeader *) fact;
+        __global struct dictHeader *dheader = (__global struct dictHeader *) fact;
 
         int byteNum = dheader->bitNum/8;
         int numInt = (tupleNum * byteNum +sizeof(int) - 1) / sizeof(int)  ;
@@ -782,18 +774,18 @@ __kernel void filter_count(long tupleNum, __global int * count, __global int * f
         count[offset] = lcount;
 }
 
-__kernel void count_join_result_rle(__global int* num, __global int* psum, __global char* bucket, __global char* fact, long tupleNum, long tupleOffset,  __global int * factFilter){
+__kernel void count_join_result_rle(__global int* num, __global int* psum, __global int* bucket, __global char* fact, long tupleNum, long tupleOffset,  __global int * factFilter){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
 
-        struct rleHeader *rheader = (struct rleHeader *)fact;
+        __global struct rleHeader *rheader = (__global struct rleHeader *)fact;
         int dNum = rheader->dictNum;
 
         for(size_t i=offset; i<dNum; i += stride){
-                int fkey = ((int *)(fact+sizeof(struct rleHeader)))[i];
-                int fcount = ((int *)(fact+sizeof(struct rleHeader)))[i + dNum];
-                int fpos = ((int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
+                int fkey = ((__global int *)(fact+sizeof(struct rleHeader)))[i];
+                int fcount = ((__global int *)(fact+sizeof(struct rleHeader)))[i + dNum];
+                int fpos = ((__global int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
 
                 if((fcount + fpos) < tupleOffset)
                         continue;
@@ -807,8 +799,8 @@ __kernel void count_join_result_rle(__global int* num, __global int* psum, __glo
                 for(int j=0;j<keyNum;j++){
 
                         int pSum = psum[hkey];
-                        int dimKey = ((int *)(bucket))[2*j + 2*pSum];
-                        int dimId = ((int *)(bucket))[2*j + 2*pSum + 1];
+                        int dimKey = bucket[2*j + 2*pSum];
+                        int dimId = bucket[2*j + 2*pSum + 1];
 
                         if( dimKey == fkey){
 
@@ -868,13 +860,13 @@ __kernel void rle_psum(__global int *count, __global char * fact,  long  tupleNu
 	size_t offset = get_global_id(0);
 	size_t stride = get_global_size(0);
 
-        struct rleHeader *rheader = (struct rleHeader *) fact;
+        __global struct rleHeader *rheader = (__global struct rleHeader *) fact;
         int dNum = rheader->dictNum;
 
         for(size_t i= offset; i<dNum; i+= stride){
 
-                int fcount = ((int *)(fact+sizeof(struct rleHeader)))[i + dNum];
-                int fpos = ((int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
+                int fcount = ((__global int *)(fact+sizeof(struct rleHeader)))[i + dNum];
+                int fpos = ((__global int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
                 int lcount= 0;
 
                 if((fcount + fpos) < tupleOffset)
@@ -912,18 +904,18 @@ __kernel void rle_psum(__global int *count, __global char * fact,  long  tupleNu
 
 }
 
-__kernel void joinFact_rle(__global int *resPsum, __global char * fact,  int attrSize, long  tupleNum, long tupleOffset, __global int * filter, __global char * result){
+__kernel void joinFact_rle(__global int *resPsum, __global char * fact,  int attrSize, long  tupleNum, long tupleOffset, __global int * filter, __global int * result){
 
 	size_t startIndex = get_global_id(0);
 	size_t stride = get_global_size(0);
 
-        struct rleHeader *rheader = (struct rleHeader *) fact;
+        __global struct rleHeader *rheader = (__global struct rleHeader *) fact;
         int dNum = rheader->dictNum;
 
         for(size_t i = startIndex; i<dNum; i += stride){
-                int fkey = ((int *)(fact+sizeof(struct rleHeader)))[i];
-                int fcount = ((int *)(fact+sizeof(struct rleHeader)))[i + dNum];
-                int fpos = ((int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
+                int fkey = ((__global int *)(fact+sizeof(struct rleHeader)))[i];
+                int fcount = ((__global int *)(fact+sizeof(struct rleHeader)))[i + dNum];
+                int fpos = ((__global int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
 
                 if((fcount + fpos) < tupleOffset)
                         continue;
@@ -936,7 +928,7 @@ __kernel void joinFact_rle(__global int *resPsum, __global char * fact,  int att
                         int toffset = resPsum[i];
                         for(int j=0;j<tcount;j++){
                                 if(filter[j] != 0){
-                                        ((int*)result)[toffset] = fkey ;
+                                        result[toffset] = fkey ;
                                         toffset ++;
                                 }
                         }
@@ -946,7 +938,7 @@ __kernel void joinFact_rle(__global int *resPsum, __global char * fact,  int att
                         int toffset = resPsum[i];
                         for(int j=0;j<tcount;j++){
                                 if(filter[fpos-tupleOffset+j] !=0){
-                                        ((int*)result)[toffset] = fkey ;
+                                        result[toffset] = fkey ;
                                         toffset ++;
                                 }
                         }
@@ -955,7 +947,7 @@ __kernel void joinFact_rle(__global int *resPsum, __global char * fact,  int att
                         int toffset = resPsum[i];
                         for(int j=0;j<fcount;j++){
                                 if(filter[fpos-tupleOffset+j] !=0){
-                                        ((int*)result)[toffset] = fkey ;
+                                        result[toffset] = fkey ;
                                         toffset ++;
                                 }
                         }
@@ -970,7 +962,7 @@ __kernel void joinFact_dict_other(__global int *resPsum, __global char * fact,  
 	size_t stride = get_global_size(0);
         long localOffset = resPsum[startIndex] * attrSize;
 
-        struct dictHeader *dheader = (struct dictHeader*)dict;
+        __global struct dictHeader *dheader = (__global struct dictHeader*)dict;
 
         for(size_t i=startIndex;i<num;i+=stride){
                 if(filter[i] != 0){
@@ -986,13 +978,13 @@ __kernel void joinFact_dict_other(__global int *resPsum, __global char * fact,  
         }
 }
 
-__kernel void joinFact_dict_int(__global int *resPsum, __global char * fact, __global char *dict, int byteNum, int attrSize, long  num, __global int * filter, __global char * result){
+__kernel void joinFact_dict_int(__global int *resPsum, __global char * fact, __global char *dict, int byteNum, int attrSize, long  num, __global int * filter, __global int * result){
 
 	size_t startIndex = get_global_id(0);
 	size_t stride = get_global_size(0);
         long localCount = resPsum[startIndex];
 
-        struct dictHeader *dheader = (struct dictHeader*)dict;
+        __global struct dictHeader *dheader = (__global struct dictHeader*)dict;
 
         for(size_t i=startIndex;i<num;i+=stride){
                 if(filter[i] != 0){
@@ -1000,7 +992,7 @@ __kernel void joinFact_dict_int(__global int *resPsum, __global char * fact, __g
 			char *buf = (char *)&key;
 			for(int k=0;k<byteNum;k++)
 				buf[k] = (fact + i *byteNum)[k];
-                        ((int*)result)[localCount] = dheader->hash[key];
+                        result[localCount] = dheader->hash[key];
                         localCount ++;
                 }
         }
@@ -1021,7 +1013,7 @@ __kernel void joinFact_other(__global int *resPsum, __global char * fact,  int a
         }
 }
 
-__kernel void joinFact_int(__global int *resPsum, __global char * fact,  int attrSize, long  num, __global int * filter, __global char * result){
+__kernel void joinFact_int(__global int *resPsum, __global int * fact,  int attrSize, long  num, __global int * filter, __global int * result){
 
 	size_t startIndex = get_global_id(0);
 	size_t stride = get_global_size(0);
@@ -1029,31 +1021,31 @@ __kernel void joinFact_int(__global int *resPsum, __global char * fact,  int att
 
         for(size_t i=startIndex;i<num;i+=stride){
                 if(filter[i] != 0){
-                        ((int*)result)[localCount] = ((int *)fact)[i];
+                        result[localCount] = fact[i];
                         localCount ++;
                 }
         }
 }
 
-__kernel void joinDim_rle(__global int *resPsum, __global char * dim, int attrSize, long tupleNum, long tupleOffset, __global int * filter, __global char * result){
+__kernel void joinDim_rle(__global int *resPsum, __global char * dim, int attrSize, long tupleNum, long tupleOffset, __global int * filter, __global int * result){
 
 	size_t startIndex = get_global_id(0);
 	size_t stride = get_global_size(0);
         long localCount = resPsum[startIndex];
 
-        struct rleHeader *rheader = (struct rleHeader *) dim;
+        __global struct rleHeader *rheader = (__global struct rleHeader *) dim;
         int dNum = rheader->dictNum;
 
         for(size_t i = startIndex; i<tupleNum; i += stride){
                 int dimId = filter[i];
                 if(dimId != 0){
                         for(int j=0;j<dNum;j++){
-                                int dkey = ((int *)(dim+sizeof(struct rleHeader)))[j];
-                                int dcount = ((int *)(dim+sizeof(struct rleHeader)))[j + dNum];
-                                int dpos = ((int *)(dim+sizeof(struct rleHeader)))[j + 2*dNum];
+                                int dkey = ((__global int *)(dim+sizeof(struct rleHeader)))[j];
+                                int dcount = ((__global int *)(dim+sizeof(struct rleHeader)))[j + dNum];
+                                int dpos = ((__global int *)(dim+sizeof(struct rleHeader)))[j + 2*dNum];
 
                                 if(dpos == dimId || ((dpos < dimId) && (dpos + dcount) > dimId)){
-                                        ((int*)result)[localCount] = dkey ;
+                                        result[localCount] = dkey ;
                                         localCount ++;
                                         break;
                                 }
@@ -1069,7 +1061,7 @@ __kernel void joinDim_dict_other(__global int *resPsum, __global char * dim, __g
 	size_t stride = get_global_size(0);
         long localOffset = resPsum[startIndex] * attrSize;
 
-        struct dictHeader *dheader = (struct dictHeader*)dict;
+        __global struct dictHeader *dheader = (__global struct dictHeader*)dict;
 
         for(size_t i=startIndex;i<num;i+=stride){
                 int dimId = filter[i];
@@ -1086,13 +1078,13 @@ __kernel void joinDim_dict_other(__global int *resPsum, __global char * dim, __g
         }
 }
 
-__kernel void joinDim_dict_int(__global int *resPsum, __global char * dim, __global char *dict, int byteNum, int attrSize, long num, __global int * filter, __global char * result){
+__kernel void joinDim_dict_int(__global int *resPsum, __global char * dim, __global char *dict, int byteNum, int attrSize, long num, __global int * filter, __global int * result){
 
 	size_t startIndex = get_global_id(0);
 	size_t stride = get_global_size(0);
         long localCount = resPsum[startIndex];
 
-        struct dictHeader *dheader = (struct dictHeader*)dict;
+        __global struct dictHeader *dheader = (__global struct dictHeader*)dict;
 
         for(size_t i=startIndex;i<num;i+=stride){
                 int dimId = filter[i];
@@ -1101,13 +1093,13 @@ __kernel void joinDim_dict_int(__global int *resPsum, __global char * dim, __glo
 			char * buf = (char *)&key;
 			for(int k=0;k<byteNum;k++)
 				buf[k] = (dim + (dimId-1)*byteNum)[k];
-                        ((int*)result)[localCount] = dheader->hash[key];
+                        result[localCount] = dheader->hash[key];
                         localCount ++;
                 }
         }
 }
 
-__kernel void joinDim_int(__global int *resPsum, __global char * dim, int attrSize, long num, __global int * filter, __global char * result){
+__kernel void joinDim_int(__global int *resPsum, __global int * dim, int attrSize, long num, __global int * filter, __global int * result){
 
 	size_t startIndex = get_global_id(0);
 	size_t stride = get_global_size(0);
@@ -1116,7 +1108,7 @@ __kernel void joinDim_int(__global int *resPsum, __global char * dim, int attrSi
         for(size_t i=startIndex;i<num;i+=stride){
                 int dimId = filter[i];
                 if( dimId != 0){
-                        ((int*)result)[localCount] = ((int*)dim)[dimId-1];
+                        result[localCount] = dim[dimId-1];
                         localCount ++;
                 }
         }
@@ -1285,7 +1277,7 @@ float getExp(__global char *content, __global int * colOffset,struct mathExp exp
                         res = exp.opValue;
                 else{
                         int index = exp.opValue;
-                        res = ((int *)(content+colOffset[index]))[pos];
+                        res = ((__global int *)(content+colOffset[index]))[pos];
                 }
 	}
 	return res;
@@ -1299,7 +1291,7 @@ float calMathExp(__global char *content, __global int * colOffset,struct groupBy
                         res = exp.exp.opValue;
                 else{
                         int index = exp.exp.opValue;
-                        res = ((int *)(content+colOffset[index]))[pos];
+                        res = ((__global int *)(content+colOffset[index]))[pos];
                 }
 
         }else if(exp.exp.op == PLUS ){
@@ -1357,7 +1349,7 @@ __kernel void agg_cal_cons(__global char * content, __global int* colOffset, int
         }
 
         for(int i=0;i<colNum;i++)
-                AtomicAdd((__global float *)&((float *)(result+resOffset[i]))[0], buf[i]);
+                AtomicAdd(&((__global float *)(result+resOffset[i]))[0], buf[i]);
 }
 
 __kernel void agg_cal(__global char * content, __global int *colOffset, int colNum, __global struct groupByExp* exp, __global struct mathExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset){
@@ -1377,12 +1369,12 @@ __kernel void agg_cal(__global char * content, __global int *colOffset, int colN
 
                                 if(type == CONS){
                                         int value = exp[j].exp.opValue;
-                                        ((int *)(result + resOffset[j]))[offset] = value;
+                                        ((__global int *)(result + resOffset[j]))[offset] = value;
                                 }else{
                                         int index = exp[j].exp.opValue;
                                         int attrSize = gbSize[j];
                                         if(attrSize == sizeof(int))
-                                                ((int *)(result+resOffset[j]))[offset] = ((int*)(content + colOffset[index]))[i];
+                                                ((__global int *)(result+resOffset[j]))[offset] = ((__global int*)(content + colOffset[index]))[i];
                                         else{
 						for(int k=0;k<attrSize;k++)
 							(result+resOffset[j] + offset*attrSize)[k] = (content + colOffset[index] + i*attrSize)[k];
@@ -1391,7 +1383,7 @@ __kernel void agg_cal(__global char * content, __global int *colOffset, int colN
 
                         }else if (func == SUM){
                                 float tmpRes = calMathExp(content, colOffset, exp[j],mexp, i);
-                                AtomicAdd((__global float *)& ((float *)(result+resOffset[j]))[offset], tmpRes);
+                                AtomicAdd(& ((__global float *)(result+resOffset[j]))[offset], tmpRes);
                         }
                 }
         }
@@ -1478,7 +1470,7 @@ inline void clearLastElement(__local int* s_data,
 
 inline int buildSum(__local int *s_data)
 {
-    size_t thid = get_local_id(0);
+    int thid = get_local_id(0);
     int stride = 1;
 
     for (size_t d = get_local_size(0); d > 0; d >>= 1)
@@ -1505,7 +1497,7 @@ inline int buildSum(__local int *s_data)
 
 void scanRootToLeaves(__local int *s_data, int stride)
 {
-    size_t thid = get_local_id(0);
+    int thid = get_local_id(0);
 
     for (size_t d = 1; d <= get_local_size(0); d *= 2)
     {
@@ -1546,7 +1538,7 @@ __kernel void prescan(__global int *g_odata,
                                                 )
 {
     int ai, bi, mem_ai, mem_bi, bankOffsetA, bankOffsetB;
-    size_t bid = get_group_id(0);
+    int bid = get_group_id(0);
     int bsize = get_local_size(0);
 
     loadSharedChunkFromMem(s_data, g_idata, n,
@@ -1574,7 +1566,7 @@ __kernel void uniformAdd(__global int *g_data,
     if (get_local_id(0) == 0)
         uni = uniforms[get_group_id(0) + blockOffset];
 
-    size_t bid = get_group_id(0);
+    int bid = get_group_id(0);
     int bsize = get_local_size(0);
 
     int address = mul24(bid, (bsize << 1)) + baseIndex + get_local_id(0);
