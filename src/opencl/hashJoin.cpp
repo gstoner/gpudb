@@ -91,7 +91,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&gpu_hashNum);
 	int tmp = HSIZE;
 	clSetKernelArg(context->kernel,1,sizeof(int), (void*)&tmp);
-	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 	gpu_count = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*threadNum,NULL,&error);
 	gpu_resPsum = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*threadNum,NULL,&error);
@@ -114,7 +114,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpu_dim);
 	clSetKernelArg(context->kernel,1,sizeof(long),(void*)&jNode->rightTable->tupleNum);
 	clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void*)&gpu_hashNum);
-	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 	scanImpl(gpu_hashNum,HSIZE,gpu_psum, context,pp);
 
@@ -125,7 +125,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	clSetKernelArg(context->kernel,1,sizeof(long),(void*)&jNode->rightTable->tupleNum);
 	clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void*)&gpu_psum1);
 	clSetKernelArg(context->kernel,3,sizeof(cl_mem),(void*)&gpu_bucket);
-	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 	if (dataPos == MEM || dataPos == PINNED)
 		clReleaseMemObject(gpu_dim);
@@ -157,7 +157,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&gpuFactFilter);
 	tmp = jNode->leftTable->tupleNum;
 	clSetKernelArg(context->kernel,1,sizeof(int), (void*)&tmp);
-	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 	if(format == UNCOMPRESSED){
 		context->kernel = clCreateKernel(context->program,"count_join_result",0);
@@ -168,7 +168,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		clSetKernelArg(context->kernel,4,sizeof(long),(void *)&jNode->leftTable->tupleNum);
 		clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void *)&gpu_count);
 		clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void *)&gpuFactFilter);
-		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 	}else if(format == DICT){
 		int dNum;
@@ -195,7 +195,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		clSetKernelArg(context->kernel,3,sizeof(cl_mem),(void *)&gpu_fact);
 		clSetKernelArg(context->kernel,4,sizeof(int),(void *)&dNum);
 		clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void *)&gpuDictFilter);
-		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 		context->kernel = clCreateKernel(context->program,"transform_dict_filter",0);
 		clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&gpuDictFilter);
@@ -204,7 +204,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		clSetKernelArg(context->kernel,3,sizeof(int),(void *)&dNum);
 		clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void *)&gpuFactFilter);
 
-		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 		clReleaseMemObject(gpuDictFilter);
 
@@ -212,7 +212,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		clSetKernelArg(context->kernel,0,sizeof(long),(void *)&jNode->leftTable->tupleNum);
 		clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpu_count);
 		clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void *)&gpuFactFilter);
-		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 	}else if (format == RLE){
 
@@ -223,13 +223,13 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		clSetKernelArg(context->kernel,3,sizeof(cl_mem),(void*)&gpu_fact);
 		clSetKernelArg(context->kernel,4,sizeof(long),(void*)&jNode->leftTable->tupleNum);
 		clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void*)&gpuFactFilter);
-		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 		context->kernel = clCreateKernel(context->program,"filter_count",0);
 		clSetKernelArg(context->kernel,0,sizeof(long),(void *)&jNode->leftTable->tupleNum);
 		clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpu_count);
 		clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void *)&gpuFactFilter);
-		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 	}
 
 
@@ -339,7 +339,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				clSetKernelArg(context->kernel,3,sizeof(long),(void*)&jNode->leftTable->tupleNum);
 				clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void*)&gpuFactFilter);
 				clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void*)&gpu_result);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 			}else if (format == DICT){
 				struct dictHeader * dheader;
@@ -366,12 +366,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpu_resPsum);
 				clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void*)&gpu_fact);
 				clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void*)&gpuDictHeader);
-				clSetKernelArg(context->kernel,4,sizeof(int),(void*)&byteNum);
-				clSetKernelArg(context->kernel,5,sizeof(int),(void*)&attrSize);
-				clSetKernelArg(context->kernel,6,sizeof(long),(void*)&jNode->leftTable->tupleNum);
-				clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void*)&gpuFactFilter);
-				clSetKernelArg(context->kernel,8,sizeof(cl_mem),(void*)&gpu_result);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				clSetKernelArg(context->kernel,3,sizeof(int),(void*)&byteNum);
+				clSetKernelArg(context->kernel,4,sizeof(int),(void*)&attrSize);
+				clSetKernelArg(context->kernel,5,sizeof(long),(void*)&jNode->leftTable->tupleNum);
+				clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void*)&gpuFactFilter);
+				clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void*)&gpu_result);
+				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 				clReleaseMemObject(gpuDictHeader);
 
@@ -392,7 +392,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void*)&gpuRle);
 				clSetKernelArg(context->kernel,2,sizeof(long),(void*)&jNode->leftTable->tupleNum);
 				clSetKernelArg(context->kernel,3,sizeof(int),(void*)&dNum);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 				context->kernel = clCreateKernel(context->program,"joinFact_int",0);
 				clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)gpu_resPsum);
@@ -401,7 +401,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				clSetKernelArg(context->kernel,3,sizeof(long),(void*)&jNode->leftTable->tupleNum);
 				clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)gpuFactFilter);
 				clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)gpu_result);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 				clReleaseMemObject(gpuRle);
 
@@ -428,7 +428,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void*)&gpuFactFilter);
 				clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void*)&gpu_result);
 				
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 			}else if (format == DICT){
 				struct dictHeader * dheader;
@@ -460,7 +460,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void*)&gpuFactFilter);
 				clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void*)&gpu_result);
 
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 				clReleaseMemObject(gpuDictHeader);
 
 			}else if (format == RLE){
@@ -479,7 +479,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void*)&gpuFactFilter);
 				clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void*)&gpu_result);
 
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 			}
 		}
 		
