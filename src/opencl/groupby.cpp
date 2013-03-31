@@ -85,7 +85,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		offset += attrSize * gb->table->tupleNum;
 	}
 
-	cl_mem gpuOffset = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(long)*gb->table->tupleNum,cpuOffset,&error);
+	cl_mem gpuOffset = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(long)*gb->table->toatlAttr,cpuOffset,&error);
 
 	if(gbConstant != 1){
 
