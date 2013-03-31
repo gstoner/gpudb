@@ -141,7 +141,6 @@ __global__ static void count_join_result_rle(int* num, int* psum, char* bucket, 
 				for(int k=0;k<fcount;k++)
 					factFilter[fpos+k] = dimId;
 
-
 				break;
 			}
 		}
@@ -179,7 +178,7 @@ __global__ static void count_join_result(int* num, int* psum, char* bucket, char
 
 // unpack the column that is compresses using Run Length Encoding
 
-__global__ void static unpack_rle(char * fact, char * rle, long tupleNum, long tupleOffset, int dNum){
+__global__ void static unpack_rle(char * fact, char * rle, long tupleNum,int dNum){
 
 	int offset = blockIdx.x*blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
@@ -190,30 +189,8 @@ __global__ void static unpack_rle(char * fact, char * rle, long tupleNum, long t
 		int fcount = ((int *)(fact+sizeof(struct rleHeader)))[i + dNum];
 		int fpos = ((int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
 
-		if((fcount + fpos) < tupleOffset)
-			continue;
-
-		if(fpos >= (tupleOffset + tupleNum))
-			break;
-
-		if(fpos < tupleOffset){
-			int tcount = fcount + fpos - tupleOffset;
-			if(tcount > tupleNum)
-				tcount = tupleNum;
-			for(int k=0;k<tcount;k++){
-				((int*)rle)[k] = fvalue; 
-			}
-
-		}else if ((fpos + fcount) > (tupleOffset + tupleNum)){
-			int tcount = tupleNum  + tupleOffset - fpos;
-			for(int k=0;k<tcount;k++){
-				((int*)rle)[fpos-tupleOffset + k] = fvalue;
-			}
-
-		}else{
-			for(int k=0;k<fcount;k++){
-				((int*)rle)[fpos-tupleOffset + k] = fvalue;
-			}
+		for(int k=0;k<fcount;k++){
+			((int*)rle)[fpos + k] = fvalue;
 		}
 	}
 }
@@ -221,7 +198,7 @@ __global__ void static unpack_rle(char * fact, char * rle, long tupleNum, long t
 // generate psum for RLE compressed column based on filter
 // current implementaton: scan through rle element and find the correponsding element in the filter
 
-__global__ void static rle_psum(int *count, char * fact,  long  tupleNum, long tupleOffset, int * filter){
+__global__ void static rle_psum(int *count, char * fact,  long  tupleNum, int * filter){
 
 	int offset = blockIdx.x*blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
@@ -235,37 +212,11 @@ __global__ void static rle_psum(int *count, char * fact,  long  tupleNum, long t
 		int fpos = ((int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
 		int lcount= 0;
 
-		if((fcount + fpos) < tupleOffset)
-			continue;
-
-		if(fpos >= (tupleOffset + tupleNum))
-			break;
-
-		if(fpos < tupleOffset){
-			int tcount = fcount + fpos - tupleOffset;
-			if(tcount > tupleNum)
-				tcount = tupleNum;
-			for(int k=0;k<tcount;k++){
-				if(filter[k]!=0)
-					lcount++;
-			}
-			count[i] = lcount;
-
-		}else if ((fpos + fcount) > (tupleOffset + tupleNum)){
-			int tcount = tupleNum  + tupleOffset - fpos;
-			for(int k=0;k<tcount;k++){
-				if(filter[fpos-tupleOffset + k]!=0)
-					lcount++;
-			}
-			count[i] = lcount;
-
-		}else{
-			for(int k=0;k<fcount;k++){
-				if(filter[fpos-tupleOffset + k]!=0)
-					lcount++;
-			}
-			count[i] = lcount;
+		for(int k=0;k<fcount;k++){
+			if(filter[fpos + k]!=0)
+				lcount++;
 		}
+		count[i] = lcount;
 	}
 
 }
@@ -273,7 +224,7 @@ __global__ void static rle_psum(int *count, char * fact,  long  tupleNum, long t
 //filter the column that is compressed using Run Length Encoding
 //current implementation:
 
-__global__ void static joinFact_rle(int *resPsum, char * fact,  int attrSize, long  tupleNum, long tupleOffset, int * filter, char * result){
+__global__ void static joinFact_rle(int *resPsum, char * fact,  int attrSize, long  tupleNum, int * filter, char * result){
 
 	int startIndex = blockIdx.x*blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
@@ -286,39 +237,11 @@ __global__ void static joinFact_rle(int *resPsum, char * fact,  int attrSize, lo
 		int fcount = ((int *)(fact+sizeof(struct rleHeader)))[i + dNum];
 		int fpos = ((int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
 
-		if((fcount + fpos) < tupleOffset)
-			continue;
-
-		if(fpos >= (tupleOffset + tupleNum))
-			break;
-
-		if(fpos < tupleOffset){
-			int tcount = fcount + fpos - tupleOffset;
-			int toffset = resPsum[i];
-			for(int j=0;j<tcount;j++){
-				if(filter[j] != 0){
-					((int*)result)[toffset] = fkey ;
-					toffset ++;
-				}
-			}
-
-		}else if ((fpos + fcount) > (tupleOffset + tupleNum)){
-			int tcount = tupleOffset + tupleNum - fpos;
-			int toffset = resPsum[i];
-			for(int j=0;j<tcount;j++){
-				if(filter[fpos-tupleOffset+j] !=0){
-					((int*)result)[toffset] = fkey ;
-					toffset ++;
-				}
-			}
-
-		}else{
-			int toffset = resPsum[i];
-			for(int j=0;j<fcount;j++){
-				if(filter[fpos-tupleOffset+j] !=0){
-					((int*)result)[toffset] = fkey ;
-					toffset ++;
-				}
+		int toffset = resPsum[i];
+		for(int j=0;j<fcount;j++){
+			if(filter[fpos-j] !=0){
+				((int*)result)[toffset] = fkey ;
+				toffset ++;
 			}
 		}
 	}
@@ -407,7 +330,7 @@ __global__ void static joinFact_int(int *resPsum, char * fact,  int attrSize, lo
 	}
 }
 
-__global__ void static joinDim_rle(int *resPsum, char * dim, int attrSize, long tupleNum, long tupleOffset, int * filter, char * result){
+__global__ void static joinDim_rle(int *resPsum, char * dim, int attrSize, long tupleNum, int * filter, char * result){
 
 	int startIndex = blockIdx.x*blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
@@ -833,7 +756,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 				char * gpuRle;
 				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuRle, jNode->leftTable->tupleNum * sizeof(int)));
 
-				unpack_rle<<<grid,block>>>(gpu_fact, gpuRle,jNode->leftTable->tupleNum, 0, dNum);
+				unpack_rle<<<grid,block>>>(gpu_fact, gpuRle,jNode->leftTable->tupleNum, dNum);
 
 
 				joinFact_int<<<grid,block>>>(gpu_resPsum,gpuRle, attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
@@ -889,7 +812,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 					gpu_fact = table;
 				}
 
-				joinDim_rle<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum, 0,gpuFactFilter,gpu_result);
+				joinDim_rle<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum, gpuFactFilter,gpu_result);
 			}
 		}
 		
