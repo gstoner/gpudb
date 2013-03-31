@@ -114,7 +114,7 @@ __global__ static void filter_count(long tupleNum, int * count, int * factFilter
 
 
 // if the foreign key is compressed using rle, call this method to generate join filter
-__global__ static void count_join_result_rle(int* num, int* psum, char* bucket, char* fact, long tupleNum, long tupleOffset,  int * factFilter){
+__global__ static void count_join_result_rle(int* num, int* psum, char* bucket, char* fact, long tupleNum, int * factFilter){
 
 	int stride = blockDim.x * gridDim.x;
 	long offset = blockIdx.x*blockDim.x + threadIdx.x;
@@ -127,39 +127,20 @@ __global__ static void count_join_result_rle(int* num, int* psum, char* bucket, 
 		int fcount = ((int *)(fact+sizeof(struct rleHeader)))[i + dNum];
 		int fpos = ((int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
 
-		if((fcount + fpos) < tupleOffset)
-			continue;
-
-		if(fpos >= (tupleOffset + tupleNum))
-			break;
-
 		int hkey = fkey &(HSIZE-1);
 		int keyNum = num[hkey];
+		int pSum = psum[hkey];
 
 		for(int j=0;j<keyNum;j++){
 
-			int pSum = psum[hkey];
 			int dimKey = ((int *)(bucket))[2*j + 2*pSum];
 			int dimId = ((int *)(bucket))[2*j + 2*pSum + 1];
 
 			if( dimKey == fkey){
 
-				if(fpos < tupleOffset){
-					int tcount = fcount + fpos - tupleOffset;
-					if(tcount > tupleNum)
-						tcount = tupleNum;
-					for(int k=0;k<tcount;k++)
-						factFilter[k] = dimId;
+				for(int k=0;k<fcount;k++)
+					factFilter[fpos+k] = dimId;
 
-				}else if((fpos + fcount) > (tupleOffset + tupleNum)){
-					int tcount = tupleOffset + tupleNum - fpos ;
-					for(int k=0;k<tcount;k++)
-						factFilter[fpos+k-tupleOffset] = dimId;
-				}else{
-					for(int k=0;k<fcount;k++)
-						factFilter[fpos+k-tupleOffset] = dimId;
-
-				}
 
 				break;
 			}
@@ -674,6 +655,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	}
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuFactFilter,filterSize));
+	CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuFactFilter,0,filterSize));
 
 	if(format == UNCOMPRESSED)
 		count_join_result<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, gpu_count,gpuFactFilter);
@@ -707,7 +689,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
 	}else if (format == RLE){
 
-		count_join_result_rle<<<512,64>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, 0,gpuFactFilter);
+		count_join_result_rle<<<512,64>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, gpuFactFilter);
 
 		filter_count<<<grid, block>>>(jNode->leftTable->tupleNum, gpu_count, gpuFactFilter);
 	}
