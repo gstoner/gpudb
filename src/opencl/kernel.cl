@@ -771,7 +771,7 @@ __kernel void filter_count(long tupleNum, __global int * count, __global int * f
         count[offset] = lcount;
 }
 
-__kernel void count_join_result_rle(__global int* num, __global int* psum, __global int* bucket, __global char* fact, long tupleNum, long tupleOffset,  __global int * factFilter){
+__kernel void count_join_result_rle(__global int* num, __global int* psum, __global int* bucket, __global char* fact, long tupleNum, __global int * factFilter){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
@@ -784,39 +784,20 @@ __kernel void count_join_result_rle(__global int* num, __global int* psum, __glo
                 int fcount = ((__global int *)(fact+sizeof(struct rleHeader)))[i + dNum];
                 int fpos = ((__global int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
 
-                if((fcount + fpos) < tupleOffset)
-                        continue;
-
-                if(fpos >= (tupleOffset + tupleNum))
-                        break;
-
                 int hkey = fkey &(HSIZE-1);
                 int keyNum = num[hkey];
+                int pSum = psum[hkey];
 
                 for(int j=0;j<keyNum;j++){
 
-                        int pSum = psum[hkey];
                         int dimKey = bucket[2*j + 2*pSum];
                         int dimId = bucket[2*j + 2*pSum + 1];
 
                         if( dimKey == fkey){
 
-                                if(fpos < tupleOffset){
-                                        int tcount = fcount + fpos - tupleOffset;
-                                        if(tcount > tupleNum)
-                                                tcount = tupleNum;
-                                        for(int k=0;k<tcount;k++)
-                                                factFilter[k] = dimId;
+                                for(int k=0;k<fcount;k++)
+                                        factFilter[fpos+k-tupleOffset] = dimId;
 
-                                }else if((fpos + fcount) > (tupleOffset + tupleNum)){
-                                        int tcount = tupleOffset + tupleNum - fpos ;
-                                        for(int k=0;k<tcount;k++)
-                                                factFilter[fpos+k-tupleOffset] = dimId;
-                                }else{
-                                        for(int k=0;k<fcount;k++)
-                                                factFilter[fpos+k-tupleOffset] = dimId;
-
-                                }
 
                                 break;
                         }
