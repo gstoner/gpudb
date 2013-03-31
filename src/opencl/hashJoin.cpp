@@ -155,7 +155,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 
 	context->kernel = clCreateKernel(context->program,"cl_memset_int",0);
 	clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&gpu_hashNum);
-	int tmp = jNode->leftTable->tupleNum;
+	tmp = jNode->leftTable->tupleNum;
 	clSetKernelArg(context->kernel,1,sizeof(int), (void*)&tmp);
 	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
