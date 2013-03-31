@@ -91,8 +91,6 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		gpuGbType = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(int)*gb->groupByColNum,gb->groupByType,&error);
 		gpuGbSize = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(int)*gb->groupByColNum,gb->groupBySize,&error);
 
-		gpuGbSize = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(int)*gb->table->tupleNum,NULL,&error);
-
 		gpuGbIndex = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*gb->groupByColNum,gb->groupByIndex,&error);
 
 		gpu_hashNum = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(int)*HSIZE,NULL,&error);
