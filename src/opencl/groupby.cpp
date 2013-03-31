@@ -77,9 +77,9 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		int attrSize = gb->table->attrSize[i];
 		cpuOffset[i] = offset;
 		if(gb->table->dataPos[i]==MEM)
-			clEnqueueWriteBuffer(context->queue, gpuContent, CL_TRUE, offset, attrSize * gb->table->tupleNum, gb->table->content[i],0,0,0);
+			error = clEnqueueWriteBuffer(context->queue, gpuContent, CL_TRUE, offset, attrSize * gb->table->tupleNum, gb->table->content[i],0,0,0);
 		else
-			clEnqueueCopyBuffer(context->queue,(cl_mem)gb->table->content[i],gpuContent,0,offset,gb->table->tupleNum * attrSize,0,0,0);
+			error = clEnqueueCopyBuffer(context->queue,(cl_mem)gb->table->content[i],gpuContent,0,offset,gb->table->tupleNum * attrSize,0,0,0);
 
 		offset += attrSize * gb->table->tupleNum;
 	}
