@@ -171,7 +171,7 @@ __kernel void genScanFilter_dict_and(__global char *col, int colSize, int colTyp
         }
 }
 
-__kernel void genScanFilter_rle(__global char *col, int colSize, int colType, long tupleNum, long tupleOffset, __global struct whereExp *where, int andOr, __global int * filter){
+__kernel void genScanFilter_rle(__global char *col, int colSize, int colType, long tupleNum, __global struct whereExp *where, int andOr, __global int * filter){
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int con;
@@ -183,42 +183,16 @@ __kernel void genScanFilter_rle(__global char *col, int colSize, int colType, lo
                 int fcount = ((__global int *)(col+sizeof(struct rleHeader)))[i + dNum];
                 int fpos = ((__global int *)(col+sizeof(struct rleHeader)))[i + 2*dNum];
 
-                if((fcount + fpos) < tupleOffset)
-                        continue;
-
-                if(fpos >= (tupleOffset + tupleNum))
-                        break;
 
                 con = testCon_int(fkey,where->content,colSize,colType,where->relation);
 
-                if(fpos < tupleOffset){
-                        int tcount = fcount + fpos - tupleOffset;
-                        if(tcount > tupleNum)
-                                tcount = tupleNum;
-                        for(int k=0;k<tcount;k++){
-                                if(andOr == AND)
-                                        filter[k] &= con;
-                                else
-                                        filter[k] |= con;
-                        }
+		for(int k=0;k<fcount;k++){
+			if(andOr == AND)
+				filter[fpos+k] &= con;
+			else
+				filter[fpos+k] |= con;
+		}
 
-                }else if((fpos + fcount) > (tupleOffset + tupleNum)){
-                        int tcount = tupleOffset + tupleNum - fpos ;
-                        for(int k=0;k<tcount;k++){
-                                if(andOr == AND)
-                                        filter[fpos+k-tupleOffset] &= con;
-                                else
-                                        filter[fpos+k-tupleOffset] |= con;
-                        }
-                }else{
-                        for(int k=0;k<fcount;k++){
-                                if(andOr == AND)
-                                        filter[fpos+k-tupleOffset] &= con;
-                                else
-                                        filter[fpos+k-tupleOffset] |= con;
-                        }
-
-                }
         }
 }
 
@@ -661,7 +635,7 @@ __kernel void scan_int(__global int *col, int colSize, long tupleNum, __global i
         }
 }
 
-__kernel void unpack_rle(__global char * fact, __global char * rle, long tupleNum, long tupleOffset, int dNum){
+__kernel void unpack_rle(__global char * fact, __global char * rle, long tupleNum, int dNum){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
@@ -672,31 +646,9 @@ __kernel void unpack_rle(__global char * fact, __global char * rle, long tupleNu
                 int fcount = ((__global int *)(fact+sizeof(struct rleHeader)))[i + dNum];
                 int fpos = ((__global int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
 
-                if((fcount + fpos) < tupleOffset)
-                        continue;
-
-                if(fpos >= (tupleOffset + tupleNum))
-                        break;
-
-                if(fpos < tupleOffset){
-                        int tcount = fcount + fpos - tupleOffset;
-                        if(tcount > tupleNum)
-                                tcount = tupleNum;
-                        for(int k=0;k<tcount;k++){
-                                ((__global int*)rle)[k] = fvalue;
-                        }
-
-                }else if ((fpos + fcount) > (tupleOffset + tupleNum)){
-                        int tcount = tupleNum  + tupleOffset - fpos;
-                        for(int k=0;k<tcount;k++){
-                                ((__global int*)rle)[fpos-tupleOffset + k] = fvalue;
-                        }
-
-                }else{
-                        for(int k=0;k<fcount;k++){
-                                ((__global int*)rle)[fpos-tupleOffset + k] = fvalue;
-                        }
-                }
+		for(int k=0;k<fcount;k++){
+			((__global int*)rle)[fpos+ k] = fvalue;
+		}
         }
 }
 
@@ -796,7 +748,7 @@ __kernel void count_join_result_rle(__global int* num, __global int* psum, __glo
                         if( dimKey == fkey){
 
                                 for(int k=0;k<fcount;k++)
-                                        factFilter[fpos+k-tupleOffset] = dimId;
+                                        factFilter[fpos+k] = dimId;
 
 
                                 break;
