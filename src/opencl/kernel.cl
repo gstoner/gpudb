@@ -1101,7 +1101,7 @@ unsigned int StringHash(const char* s)
 }
 
 
-__kernel void build_groupby_key(__global char * content, __global long * colOffset, int gbColNum, __global int * gbIndex, __global int * gbType, __global int * gbSize, int tupleNum, __global int * key, __global int *num){
+__kernel void build_groupby_key(__global char * content, __global long * colOffset, int gbColNum, __global int * gbIndex, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *num){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);

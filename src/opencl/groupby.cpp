@@ -25,7 +25,8 @@
 struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, struct statistic * pp){
 
 	struct tableNode * res = NULL;
-	int gpuTupleNum, gpuGbColNum;
+	long gpuTupleNum;
+	int gpuGbColNum;
 	cl_mem gpuGbIndex;
 	cl_mem gpuGbType, gpuGbSize;
 
@@ -188,7 +189,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&mathexp);
 		clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)&gpuGbType);
 		clSetKernelArg(context->kernel,6,sizeof(cl_mem), (void*)&gpuGbSize);
-		clSetKernelArg(context->kernel,7,sizeof(int), (void*)&gpuTupleNum);
+		clSetKernelArg(context->kernel,7,sizeof(long), (void*)&gpuTupleNum);
 		clSetKernelArg(context->kernel,8,sizeof(cl_mem), (void*)&gpuGbKey);
 		clSetKernelArg(context->kernel,9,sizeof(cl_mem), (void*)&gpu_psum);
 		clSetKernelArg(context->kernel,10,sizeof(cl_mem), (void*)&gpuResult);
