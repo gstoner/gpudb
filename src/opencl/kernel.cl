@@ -833,7 +833,7 @@ __kernel  void count_join_result(__global int* num, __global int* psum, __global
         count[offset] = lcount;
 }
 
-__kernel void rle_psum(__global int *count, __global char * fact,  long  tupleNum, long tupleOffset, __global int * filter){
+__kernel void rle_psum(__global int *count, __global char * fact,  long  tupleNum,  __global int * filter){
 
 	size_t offset = get_global_id(0);
 	size_t stride = get_global_size(0);
@@ -847,42 +847,16 @@ __kernel void rle_psum(__global int *count, __global char * fact,  long  tupleNu
                 int fpos = ((__global int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
                 int lcount= 0;
 
-                if((fcount + fpos) < tupleOffset)
-                        continue;
-
-                if(fpos >= (tupleOffset + tupleNum))
-                        break;
-
-                if(fpos < tupleOffset){
-                        int tcount = fcount + fpos - tupleOffset;
-                        if(tcount > tupleNum)
-                                tcount = tupleNum;
-                        for(int k=0;k<tcount;k++){
-                                if(filter[k]!=0)
-                                        lcount++;
-                        }
-                        count[i] = lcount;
-
-                }else if ((fpos + fcount) > (tupleOffset + tupleNum)){
-                        int tcount = tupleNum  + tupleOffset - fpos;
-                        for(int k=0;k<tcount;k++){
-                                if(filter[fpos-tupleOffset + k]!=0)
-                                        lcount++;
-                        }
-                        count[i] = lcount;
-
-                }else{
-                        for(int k=0;k<fcount;k++){
-                                if(filter[fpos-tupleOffset + k]!=0)
-                                        lcount++;
-                        }
-                        count[i] = lcount;
-                }
+		for(int k=0;k<fcount;k++){
+			if(filter[fpos+ k]!=0)
+				lcount++;
+		}
+		count[i] = lcount;
         }
 
 }
 
-__kernel void joinFact_rle(__global int *resPsum, __global char * fact,  int attrSize, long  tupleNum, long tupleOffset, __global int * filter, __global int * result){
+__kernel void joinFact_rle(__global int *resPsum, __global char * fact,  int attrSize, long  tupleNum, __global int * filter, __global int * result){
 
 	size_t startIndex = get_global_id(0);
 	size_t stride = get_global_size(0);
@@ -895,41 +869,13 @@ __kernel void joinFact_rle(__global int *resPsum, __global char * fact,  int att
                 int fcount = ((__global int *)(fact+sizeof(struct rleHeader)))[i + dNum];
                 int fpos = ((__global int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
 
-                if((fcount + fpos) < tupleOffset)
-                        continue;
-
-                if(fpos >= (tupleOffset + tupleNum))
-                        break;
-
-                if(fpos < tupleOffset){
-                        int tcount = fcount + fpos - tupleOffset;
-                        int toffset = resPsum[i];
-                        for(int j=0;j<tcount;j++){
-                                if(filter[j] != 0){
-                                        result[toffset] = fkey ;
-                                        toffset ++;
-                                }
-                        }
-
-                }else if ((fpos + fcount) > (tupleOffset + tupleNum)){
-                        int tcount = tupleOffset + tupleNum - fpos;
-                        int toffset = resPsum[i];
-                        for(int j=0;j<tcount;j++){
-                                if(filter[fpos-tupleOffset+j] !=0){
-                                        result[toffset] = fkey ;
-                                        toffset ++;
-                                }
-                        }
-
-                }else{
-                        int toffset = resPsum[i];
-                        for(int j=0;j<fcount;j++){
-                                if(filter[fpos-tupleOffset+j] !=0){
-                                        result[toffset] = fkey ;
-                                        toffset ++;
-                                }
-                        }
-                }
+		int toffset = resPsum[i];
+		for(int j=0;j<fcount;j++){
+			if(filter[fpos-j] !=0){
+				result[toffset] = fkey ;
+				toffset ++;
+			}
+		}
         }
 
 }
@@ -1006,7 +952,7 @@ __kernel void joinFact_int(__global int *resPsum, __global int * fact,  int attr
         }
 }
 
-__kernel void joinDim_rle(__global int *resPsum, __global char * dim, int attrSize, long tupleNum, long tupleOffset, __global int * filter, __global int * result){
+__kernel void joinDim_rle(__global int *resPsum, __global char * dim, int attrSize, long tupleNum,__global int * filter, __global int * result){
 
 	size_t startIndex = get_global_id(0);
 	size_t stride = get_global_size(0);
