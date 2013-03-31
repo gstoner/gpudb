@@ -376,6 +376,8 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 	else
 		res->tupleNum = gbCount;
 
+	printf("groupByNum %d\n",res->tupleNum);
+
 	char ** gpuResult;
 	char ** result;
 	
