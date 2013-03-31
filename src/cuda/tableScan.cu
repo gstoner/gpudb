@@ -173,7 +173,7 @@ __global__ static void genScanFilter_dict_and(char *col, int colSize, int colTyp
 	}
 }
 
-__global__ static void genScanFilter_rle(char *col, int colSize, int colType, long tupleNum, long tupleOffset, struct whereExp *where, int andOr, int * filter){
+__global__ static void genScanFilter_rle(char *col, int colSize, int colType, long tupleNum, struct whereExp *where, int andOr, int * filter){
         int stride = blockDim.x * gridDim.x;
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	int con;
@@ -186,42 +186,15 @@ __global__ static void genScanFilter_rle(char *col, int colSize, int colType, lo
 		int fcount = ((int *)(col+sizeof(struct rleHeader)))[i + dNum];
 		int fpos = ((int *)(col+sizeof(struct rleHeader)))[i + 2*dNum];
 
-		if((fcount + fpos) < tupleOffset)
-			continue;
-
-		if(fpos >= (tupleOffset + tupleNum))
-			break;
-
 		con = testCon((char *)&fkey,where->content,colSize,colType,where->relation);
 	
-		if(fpos < tupleOffset){
-			int tcount = fcount + fpos - tupleOffset;
-			if(tcount > tupleNum)
-				tcount = tupleNum;
-			for(int k=0;k<tcount;k++){
-				if(andOr == AND)
-					filter[k] &= con;
-				else
-					filter[k] |= con;
-			}
-
-		}else if((fpos + fcount) > (tupleOffset + tupleNum)){
-			int tcount = tupleOffset + tupleNum - fpos ;
-			for(int k=0;k<tcount;k++){
-				if(andOr == AND)
-					filter[fpos+k-tupleOffset] &= con;
-				else
-					filter[fpos+k-tupleOffset] |= con;
-			}
-		}else{
-			for(int k=0;k<fcount;k++){
-				if(andOr == AND)
-					filter[fpos+k-tupleOffset] &= con;
-				else
-					filter[fpos+k-tupleOffset] |= con;
-			}
-
+		for(int k=0;k<fcount;k++){
+			if(andOr == AND)
+				filter[fpos+k] &= con;
+			else
+				filter[fpos+k] |= con;
 		}
+
 	}
 }
 
@@ -744,7 +717,7 @@ __global__ static void scan_int(char *col, int colSize, long tupleNum, int *psum
 	}
 }
 
-__global__ void static unpack_rle(char * fact, char * rle, long tupleNum, long tupleOffset, int dNum){
+__global__ void static unpack_rle(char * fact, char * rle, long tupleNum, int dNum){
 
 	int offset = blockIdx.x*blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
@@ -755,30 +728,8 @@ __global__ void static unpack_rle(char * fact, char * rle, long tupleNum, long t
 		int fcount = ((int *)(fact+sizeof(struct rleHeader)))[i + dNum];
 		int fpos = ((int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
 
-		if((fcount + fpos) < tupleOffset)
-			continue;
-
-		if(fpos >= (tupleOffset + tupleNum))
-			break;
-
-		if(fpos < tupleOffset){
-			int tcount = fcount + fpos - tupleOffset;
-			if(tcount > tupleNum)
-				tcount = tupleNum;
-			for(int k=0;k<tcount;k++){
-				((int*)rle)[k] = fvalue;
-			}
-
-		}else if ((fpos + fcount) > (tupleOffset + tupleNum)){
-			int tcount = tupleNum  + tupleOffset - fpos;
-			for(int k=0;k<tcount;k++){
-				((int*)rle)[fpos-tupleOffset + k] = fvalue;
-			}
-
-		}else{
-			for(int k=0;k<fcount;k++){
-				((int*)rle)[fpos-tupleOffset + k] = fvalue;
-			}
+		for(int k=0;k<fcount;k++){
+			((int*)rle)[fpos+ k] = fvalue;
 		}
 	}
 }
@@ -958,7 +909,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 			else if (sn->tn->dataPos[index] == UVA)
 				column[whereIndex] = sn->tn->content[index];
 
-			genScanFilter_rle<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, 0,gpuExp, where->andOr, gpuFilter);
+			genScanFilter_rle<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, gpuExp, where->andOr, gpuFilter);
 		}
 
 		CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
@@ -1114,7 +1065,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 			}else if (format == RLE){
 				//CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index], sn->whereSize[index], cudaMemcpyHostToDevice));
-				genScanFilter_rle<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, 0, gpuExp, where->andOr, gpuFilter);
+				genScanFilter_rle<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, gpuExp, where->andOr, gpuFilter);
 
 			}
 
@@ -1223,7 +1174,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuRle, totalTupleNum * sizeof(int)));
 
-				unpack_rle<<<grid,block>>>(scanCol[i], gpuRle,totalTupleNum, 0, dNum);
+				unpack_rle<<<grid,block>>>(scanCol[i], gpuRle,totalTupleNum, dNum);
 
 				CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
