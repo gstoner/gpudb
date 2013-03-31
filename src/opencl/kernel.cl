@@ -1111,7 +1111,7 @@ __kernel void build_groupby_key(__global char * content, __global long * colOffs
                 for (int j=0; j< gbColNum; j++){
                         char tbuf[32]={0};
                         int index = gbIndex[j];
-			long offset = colOffset[index]; 
+			long offset = colOffset[index];
 
                         if (index == -1){
                                 gpuItoa(1,tbuf,10);
