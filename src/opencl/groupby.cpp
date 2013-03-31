@@ -100,12 +100,13 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		context->kernel = clCreateKernel(context->program, "build_groupby_key",0);
 		clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&gpuContent);
 		clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpuOffset);
-		clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void *)&gpuGbIndex);
-		clSetKernelArg(context->kernel,3,sizeof(cl_mem),(void *)&gpuGbType);
-		clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void *)&gpuGbSize);
-		clSetKernelArg(context->kernel,5,sizeof(long),(void *)&gpuTupleNum);
-		clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void *)&gpuGbKey);
-		clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void *)&gpu_hashNum);
+		clSetKernelArg(context->kernel,2,sizeof(int),(void *)&gpuGbColNum);
+		clSetKernelArg(context->kernel,3,sizeof(cl_mem),(void *)&gpuGbIndex);
+		clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void *)&gpuGbType);
+		clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void *)&gpuGbSize);
+		clSetKernelArg(context->kernel,6,sizeof(long),(void *)&gpuTupleNum);
+		clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void *)&gpuGbKey);
+		clSetKernelArg(context->kernel,8,sizeof(cl_mem),(void *)&gpu_hashNum);
 
 		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
