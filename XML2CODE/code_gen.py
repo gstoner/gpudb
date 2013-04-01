@@ -693,6 +693,11 @@ def generate_code(tree):
         print >>fo, "\tcontext.program = clCreateProgramWithSource(context.context, psc, (const char **)&ps, 0, &error);"
         print >>fo, "\terror = clBuildProgram(context.program, 0, 0 , 0 , 0, 0);\n"
 
+    else:
+        print >>fo, "int * cudaTmp;"
+        print >>fo, "cudaMalloc((void**)&cudaTmp,sizeof(int));"
+        print >>fo, "cudaFree(cudaTmp);"
+
     print >>fo, "\tstruct timespec start,end;"
     print >>fo, "\tclock_gettime(CLOCK_REALTIME,&start);"
     print >>fo, "\tstruct statistic pp;"
