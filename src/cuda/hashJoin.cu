@@ -461,6 +461,9 @@ __global__ void static joinDim_other_soa(int *resPsum, char * dim, int attrSize,
  */
 
 struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
+
+	struct timespec start,end;
+        clock_gettime(CLOCK_REALTIME,&start);
 	struct tableNode * res = NULL;
 
 	int *cpu_count, *resPsum;
@@ -837,6 +840,10 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_count));
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_hashNum));
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_psum));
+
+	clock_gettime(CLOCK_REALTIME,&end);
+        double timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;
+        printf("HashJoin Time: %lf\n", timeE/(1000*1000));
 
 	return res;
 
