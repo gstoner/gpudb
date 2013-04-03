@@ -14,25 +14,25 @@
 #include "scanImpl.cu"
 
 
-__global__ static void count_hash_num(char *dim, long  inNum,int *num){
+__global__ static void count_hash_num(char *dim, long  inNum,int *num,int hsize){
 	int stride = blockDim.x * gridDim.x;
 	int offset = blockIdx.x * blockDim.x + threadIdx.x;
 
 	for(int i=offset;i<inNum;i+=stride){
 		int joinKey = ((int *)dim)[i]; 
-		int hKey = joinKey & (HSIZE-1);
+		int hKey = joinKey & (hsize-1);
 		atomicAdd(&(num[hKey]),1);
 	}
 }
 
-__global__ static void build_hash_table(char *dim, long inNum, int *psum, char * bucket){
+__global__ static void build_hash_table(char *dim, long inNum, int *psum, char * bucket,int hsize){
 
 	int stride = blockDim.x * gridDim.x;
 	int offset = blockIdx.x * blockDim.x + threadIdx.x;
 
 	for(int i=offset;i<inNum;i+=stride){
 		int joinKey = ((int *) dim)[i]; 
-		int hKey = joinKey & (HSIZE-1);
+		int hKey = joinKey & (hsize-1);
 		int pos = atomicAdd(&psum[hKey],1) * 2;
 		((int*)bucket)[pos] = joinKey;
 		pos += 1;
@@ -43,7 +43,7 @@ __global__ static void build_hash_table(char *dim, long inNum, int *psum, char *
 }
 
 // if the foreign key is compressed using dict-encoding, call this method to generate dict filter first
-__global__ static void count_join_result_dict(int *num, int* psum, char* bucket, char* fact, int dNum, int* dictFilter){
+__global__ static void count_join_result_dict(int *num, int* psum, char* bucket, char* fact, int dNum, int* dictFilter,int hsize){
 
 	int stride = blockDim.x * gridDim.x;
 	int offset = blockIdx.x*blockDim.x + threadIdx.x;
@@ -53,7 +53,7 @@ __global__ static void count_join_result_dict(int *num, int* psum, char* bucket,
 	
 	for(int i=offset;i<dNum;i+=stride){
 		int fkey = dheader->hash[i];
-		int hkey = fkey &(HSIZE-1);
+		int hkey = fkey &(hsize-1);
 		int keyNum = num[hkey];
 		int fvalue = 0;
 
@@ -114,7 +114,7 @@ __global__ static void filter_count(long tupleNum, int * count, int * factFilter
 
 
 // if the foreign key is compressed using rle, call this method to generate join filter
-__global__ static void count_join_result_rle(int* num, int* psum, char* bucket, char* fact, long tupleNum, int * factFilter){
+__global__ static void count_join_result_rle(int* num, int* psum, char* bucket, char* fact, long tupleNum, int * factFilter,int hsize){
 
 	int stride = blockDim.x * gridDim.x;
 	long offset = blockIdx.x*blockDim.x + threadIdx.x;
@@ -127,7 +127,7 @@ __global__ static void count_join_result_rle(int* num, int* psum, char* bucket, 
 		int fcount = ((int *)(fact+sizeof(struct rleHeader)))[i + dNum];
 		int fpos = ((int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
 
-		int hkey = fkey &(HSIZE-1);
+		int hkey = fkey &(hsize-1);
 		int keyNum = num[hkey];
 		int pSum = psum[hkey];
 
@@ -149,14 +149,14 @@ __global__ static void count_join_result_rle(int* num, int* psum, char* bucket, 
 }
 
 // if the foreign key is not compressed at all, call this method to generate join filter
-__global__ static void count_join_result(int* num, int* psum, char* bucket, char* fact, long inNum, int* count, int * factFilter){
+__global__ static void count_join_result(int* num, int* psum, char* bucket, char* fact, long inNum, int* count, int * factFilter,int hsize){
 	int lcount = 0;
 	int stride = blockDim.x * gridDim.x;
 	long offset = blockIdx.x*blockDim.x + threadIdx.x;
 
 	for(int i=offset;i<inNum;i+=stride){
 		int fkey = ((int *)(fact))[i];
-		int hkey = fkey &(HSIZE-1);
+		int hkey = fkey &(hsize-1);
 		int keyNum = num[hkey];
 		int fvalue = 0;
 
@@ -525,16 +525,20 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
 	int *gpu_psum1;
 
+	int hsize = 1;
+	while(hsize < jNode->rightTable->tupleNum)
+		hsize *=2;
 
-	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_hashNum,sizeof(int)*HSIZE));
-	CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpu_hashNum,0,sizeof(int)*HSIZE));
+
+	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_hashNum,sizeof(int)*hsize));
+	CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpu_hashNum,0,sizeof(int)*hsize));
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_count,sizeof(int)*threadNum));
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_resPsum,sizeof(int)*threadNum));
 
-	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_psum,HSIZE*sizeof(int)));
+	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_psum,hsize*sizeof(int)));
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_bucket, 2*primaryKeySize));
-	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_psum1,HSIZE*sizeof(int)));
+	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_psum1,hsize*sizeof(int)));
 
 	int dataPos = jNode->rightTable->dataPos[jNode->rightKeyIndex];
 
@@ -546,13 +550,13 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 		gpu_dim = jNode->rightTable->content[jNode->rightKeyIndex];
 	}
 
-	count_hash_num<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,gpu_hashNum);
+	count_hash_num<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,gpu_hashNum,hsize);
 
-	scanImpl(gpu_hashNum,HSIZE,gpu_psum, pp);
+	scanImpl(gpu_hashNum,hsize,gpu_psum, pp);
 
-	CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_psum1,gpu_psum,sizeof(int)*HSIZE,cudaMemcpyDeviceToDevice));
+	CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_psum1,gpu_psum,sizeof(int)*hsize,cudaMemcpyDeviceToDevice));
 
-	build_hash_table<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,gpu_psum1,gpu_bucket);
+	build_hash_table<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,gpu_psum1,gpu_bucket,hsize);
 
 	if (dataPos == MEM || dataPos == PINNED)
 		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_dim));
@@ -584,7 +588,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuFactFilter,0,filterSize));
 
 	if(format == UNCOMPRESSED)
-		count_join_result<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, gpu_count,gpuFactFilter);
+		count_join_result<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, gpu_count,gpuFactFilter,hsize);
 
 	else if(format == DICT){
 		int dNum;
@@ -605,7 +609,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 		int * gpuDictFilter;
 		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
 
-		count_join_result_dict<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, dNum, gpuDictFilter);
+		count_join_result_dict<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, dNum, gpuDictFilter,hsize);
 
 		transform_dict_filter<<<grid,block>>>(gpuDictFilter, gpu_fact, jNode->leftTable->tupleNum, dNum, gpuFactFilter);
 
@@ -615,7 +619,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
 	}else if (format == RLE){
 
-		count_join_result_rle<<<512,64>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, gpuFactFilter);
+		count_join_result_rle<<<512,64>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, jNode->leftTable->tupleNum, gpuFactFilter,hsize);
 
 		filter_count<<<grid, block>>>(jNode->leftTable->tupleNum, gpu_count, gpuFactFilter);
 	}
