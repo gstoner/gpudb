@@ -700,7 +700,7 @@ def generate_code(tree):
 
     print >>fo, "\tstruct timespec start,end;"
     print >>fo, "\tstruct timespec diskStart, diskEnd;"
-    print >>fo, "\tdouble diskLoad = 0;"
+    print >>fo, "\tdouble diskTotal = 0;"
     print >>fo, "\tclock_gettime(CLOCK_REALTIME,&start);"
     print >>fo, "\tstruct statistic pp;"
     print >>fo, "\tpp.total = pp.kernel = 0;"
@@ -1047,7 +1047,7 @@ def generate_code(tree):
 
             if CODETYPE == 0:
                 if POS == 0:
-                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
+                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)malloc(outSize);\n"
                 elif POS == 1:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
                 elif POS == 2:
