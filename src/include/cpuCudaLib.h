@@ -87,7 +87,7 @@ static void freeTable(struct tableNode * tn){
 
         for(i=0;i<tn->totalAttr;i++){
 		if(tn->dataPos[i] == MEM)
-                	munmap(tn->content[i], tn->attrTotalSize[i]);
+                	free(tn->content[i]);
 		else if(tn->dataPos[i] == GPU)
 			cudaFree(tn->content[i]);
 		else if(tn->dataPos[i] == UVA || tn->dataPos[i] == PINNED)

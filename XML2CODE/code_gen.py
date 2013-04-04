@@ -694,11 +694,13 @@ def generate_code(tree):
         print >>fo, "\terror = clBuildProgram(context.program, 0, 0 , \"-I .\" , 0, 0);\n"
 
     else:
-        print >>fo, "int * cudaTmp;"
-        print >>fo, "cudaMalloc((void**)&cudaTmp,sizeof(int));"
-        print >>fo, "cudaFree(cudaTmp);"
+        print >>fo, "\tint * cudaTmp;"
+        print >>fo, "\tcudaMalloc((void**)&cudaTmp,sizeof(int));"
+        print >>fo, "\tcudaFree(cudaTmp);"
 
     print >>fo, "\tstruct timespec start,end;"
+    print >>fo, "\tstruct timespec diskStart, diskEnd;"
+    print >>fo, "\tdouble diskLoad = 0;"
     print >>fo, "\tclock_gettime(CLOCK_REALTIME,&start);"
     print >>fo, "\tstruct statistic pp;"
     print >>fo, "\tpp.total = pp.kernel = 0;"
@@ -804,15 +806,18 @@ def generate_code(tree):
             if CODETYPE == 0:
                 if POS == 1:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void **)&" + tnName+"->content["+str(i)+"],outSize));"
-                    print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
                 elif POS == 2:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void **)&" + tnName+"->content["+str(i)+"],outSize));"
-                    print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
                 else:
-                    print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = outTable;"
+                    print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)malloc(outSize);"
 
             else:
-                print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = outTable;"
+                print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)malloc(outSize);"
+
+            print >>fo, "\tclock_gettime(CLOCK_REALTIME,&diskStart);"
+            print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
+            print >>fo, "\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
+            print >>fo, "\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
 
             print >>fo, "\t\tclose(outFd);"
 
@@ -1045,15 +1050,18 @@ def generate_code(tree):
                     print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
                 elif POS == 1:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-                    print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
                 elif POS == 2:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-                    print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
                 else:
-                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
+                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char*)malloc(outSize);\n"
 
             else:
-                print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
+                print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)malloc(outSize);\n"
+
+            print >>fo, "\tclock_gettime(CLOCK_REALTIME,&diskStart);"
+            print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
+            print >>fo, "\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
+            print >>fo, "\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
 
             print >>fo, "\t\tclose(outFd);"
             print >>fo, "\t\t" + factName + "->attrTotalSize[" + str(i) + "] = outSize;"
@@ -1489,17 +1497,20 @@ def generate_code(tree):
 
             if CODETYPE == 0:
                 if POS == 0:
-                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
+                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char*)malloc(outSize);\n"
                 elif POS == 1:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-                    print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
                 elif POS == 2:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
-                    print >>fo, "\t\tmemcpy(" + factName + "->content[" + str(i) + "], outTable, outSize);"
                 else:
-                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
+                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)malloc(outSize);\n"
             else:
-                print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = outTable;\n"
+                print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)malloc(outSize);\n"
+
+            print >>fo, "\tclock_gettime(CLOCK_REALTIME,&diskStart);"
+            print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
+            print >>fo, "\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
+            print >>fo, "\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
 
             print >>fo, "\t\tclose(outFd);"
             print >>fo, "\t\t" + factName + "->attrTotalSize[" + str(i) + "] = outSize;"
@@ -1754,7 +1765,8 @@ def generate_code(tree):
 
     print >>fo, "\tclock_gettime(CLOCK_REALTIME,&end);"
     print >>fo, "\tdouble timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;"
-    print >>fo, "\tprintf(\"Time: %lf\\n\", timeE/(1000*1000));"
+    print >>fo, "\tprintf(\"Disk Load Time: %lf\\n\", diskTotal/(1000*1000));"
+    print >>fo, "\tprintf(\"Total Time: %lf\\n\", timeE/(1000*1000));"
     print >>fo, "}\n"
 
     fo.close()
