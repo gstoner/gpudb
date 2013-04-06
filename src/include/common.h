@@ -198,8 +198,8 @@ struct materializeNode{
 };
 
 struct statistic{
-	double kernel;
-	double total;
+	float kernel;
+	float total;
 };
 
 
