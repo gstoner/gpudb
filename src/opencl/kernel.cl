@@ -1471,3 +1471,451 @@ __kernel void materialize(__global char * content, __global long * colOffset, in
                 }
         }
 }
+
+
+// for order by
+
+#define SAMPLE_STRIDE 128
+#define SHARED_SIZE_LIMIT 1024 
+
+int gpu_strcmp(const char *s1, const char *s2, int len){
+        int res = 0;
+
+        for(int i=0;i < len;i++){
+                if(s1[i]<s2[i]){
+                        res = -1;
+                        break;
+                }else if(s1[i]>s2[i]){
+                        res = 1;
+                        break;
+                }
+        }
+        return res;
+
+}
+
+#define W (sizeof(int) * 8)
+int nextPowerOfTwo(int x){
+    /*
+        --x;
+        x |= x >> 1;
+        x |= x >> 2;
+        x |= x >> 4;
+        x |= x >> 8;
+        x |= x >> 16;
+        return ++x;
+    */
+    return 1U << (W - __clz(x - 1));
+}
+
+int iDivUp(int a, int b){
+    return ((a % b) == 0) ? (a / b) : (a / b + 1);
+}
+
+int getSampleCount(int dividend){
+    return iDivUp(dividend, SAMPLE_STRIDE);
+}
+
+int binarySearchInInt(int val, int *data, int L, int stride, int sortDir){
+    if (L == 0)
+    {
+        return 0;
+    }
+
+    int pos = 0;
+
+    for (; stride > 0; stride >>= 1)
+    {
+        int newPos = umin(pos + stride, L);
+
+        if ((sortDir && (data[newPos - 1] <= val)) || (!sortDir && (data[newPos - 1] >= val)))
+        {
+            pos = newPos;
+        }
+    }
+
+    return pos;
+}
+
+int binarySearchExInt(int val, int *data, int L, int stride, int sortDir){
+    if (L == 0)
+    {
+        return 0;
+    }
+
+    int pos = 0;
+
+    for (; stride > 0; stride >>= 1)
+    {
+        int newPos = umin(pos + stride, L);
+
+        if ((sortDir && (data[newPos - 1] < val)) || (!sortDir && (data[newPos - 1] > val)))
+        {
+            pos = newPos;
+        }
+    }
+
+    return pos;
+}
+
+int binarySearchIn(char * val, char *data, int L, int stride, int sortDir, int keySize){
+    if (L == 0)
+    {
+        return 0;
+    }
+
+    int pos = 0;
+
+    for (; stride > 0; stride >>= 1)
+    {
+        int newPos = umin(pos + stride, L);
+
+        if ((sortDir && (gpu_strcmp(data+(newPos-1)*keySize,val,keySize) != 1)) || (!sortDir && (gpu_strcmp(data + (newPos-1)*keySize,val,keySize)!=-1)))
+        {
+            pos = newPos;
+        }
+    }
+
+    return pos;
+}
+
+int binarySearchEx(char * val, char *data, int L, int stride, int sortDir, int keySize){
+    if (L == 0)
+    {
+        return 0;
+    }
+
+    int pos = 0;
+
+    for (; stride > 0; stride >>= 1)
+    {
+        int newPos = umin(pos + stride, L);
+
+        if ((sortDir && (gpu_strcmp(data+(newPos-1)*keySize,val,keySize) == -1)) || (!sortDir && (gpu_strcmp(data + (newPos-1)*keySize,val,keySize)==1)))
+        {
+            pos = newPos;
+        }
+    }
+
+    return pos;
+}
+
+__kernel void generateSampleRanksKernel(
+        int *d_RanksA,
+        int *d_RanksB,
+        char *d_SrcKey,
+        int keySize,
+        int stride,
+        int N,
+        int threadCount,
+        int sortDir
+)
+{
+    size_t pos = get_global_id(0);
+
+    if (pos >= threadCount)
+    {
+        return;
+    }
+
+    const int           i = pos & ((stride / SAMPLE_STRIDE) - 1);
+    const int segmentBase = (pos - i) * (2 * SAMPLE_STRIDE);
+    d_SrcKey += segmentBase * keySize;
+    d_RanksA += segmentBase / SAMPLE_STRIDE;
+    d_RanksB += segmentBase / SAMPLE_STRIDE;
+
+    const int segmentElementsA = stride;
+    const int segmentElementsB = umin(stride, N - segmentBase - stride);
+    const int  segmentSamplesA = getSampleCount(segmentElementsA);
+    const int  segmentSamplesB = getSampleCount(segmentElementsB);
+
+    if (i < segmentSamplesA)
+    {
+        d_RanksA[i] = i * SAMPLE_STRIDE;
+        d_RanksB[i] = binarySearchEx(
+                          d_SrcKey+i * SAMPLE_STRIDE*keySize, d_SrcKey + stride*keySize,
+                          segmentElementsB, nextPowerOfTwo(segmentElementsB),sortDir,keySize
+                      );
+    }
+
+    if (i < segmentSamplesB)
+    {
+        d_RanksB[(stride / SAMPLE_STRIDE) + i] = i * SAMPLE_STRIDE;
+        d_RanksA[(stride / SAMPLE_STRIDE) + i] = binarySearchIn(
+                                                     d_SrcKey+(stride + i * SAMPLE_STRIDE)*keySize, d_SrcKey + 0,
+                                                     segmentElementsA, nextPowerOfTwo(segmentElementsA),sortDir,keySize
+                                                 );
+    }
+}
+
+
+__kernel void mergeRanksAndIndicesKernel(
+    int *d_Limits,
+    int *d_Ranks,
+    int stride,
+    int N,
+    int threadCount
+)
+{
+    size_t pos = get_global_id(0); 
+
+    if (pos >= threadCount)
+    {
+        return;
+    }
+
+    const int           i = pos & ((stride / SAMPLE_STRIDE) - 1);
+    const int segmentBase = (pos - i) * (2 * SAMPLE_STRIDE);
+    d_Ranks  += (pos - i) * 2;
+    d_Limits += (pos - i) * 2;
+
+    const int segmentElementsA = stride;
+    const int segmentElementsB = umin(stride, N - segmentBase - stride);
+    const int  segmentSamplesA = getSampleCount(segmentElementsA);
+    const int  segmentSamplesB = getSampleCount(segmentElementsB);
+
+    if (i < segmentSamplesA)
+    {
+        int dstPos = binarySearchExInt(d_Ranks[i], d_Ranks + segmentSamplesA, segmentSamplesB, nextPowerOfTwo(segmentSamplesB),1) + i;
+        d_Limits[dstPos] = d_Ranks[i];
+    }
+
+    if (i < segmentSamplesB)
+    {
+        int dstPos = binarySearchInInt(d_Ranks[segmentSamplesA + i], d_Ranks, segmentSamplesA, nextPowerOfTwo(segmentSamplesA),1) + i;
+        d_Limits[dstPos] = d_Ranks[segmentSamplesA + i];
+    }
+}
+
+
+void merge(
+        char *dstKey,
+        int *dstVal,
+        char *srcAKey,
+        int *srcAVal,
+        char *srcBKey,
+        int *srcBVal,
+        int lenA,
+        int nPowTwoLenA,
+        int lenB,
+        int nPowTwoLenB,
+        int sortDir,
+        int keySize
+)
+{
+        char keyA[64], keyB[64];
+        int valA, valB, dstPosA, dstPosB;
+
+	size_t threadId = get_local_id(0);
+
+    if ( < lenA)
+    {
+	for(int i=0;i<keySize;i++)
+		keyA[i] = srcAKey[threadId * keySize + i];
+        valA = srcAVal[threadId];
+        dstPosA = binarySearchEx(keyA, srcBKey, lenB, nPowTwoLenB, sortDir,keySize) + threadId;
+    }
+
+    if (threadId < lenB)
+    {
+	for(int i=0;i<keySize;i++)
+		keyB[i] = srcBKey[threadId * keySize + i];
+        valB = srcBVal[threadId];
+        dstPosB = binarySearchIn(keyB, srcAKey, lenA, nPowTwoLenA, sortDir, keySize) + threadId;
+    }
+
+
+    barrier(CLK_LOCAL_MEM_FENCE); 
+
+    if (threadId < lenA)
+    {
+	for(int i=0;i<keySize;i++)
+		dstKey[dstPosA*keySize + i] = keyA[i];
+        dstVal[dstPosA] = valA;
+    }
+
+    if (threadId < lenB)
+    {
+	for(int i=0;i<keySize;i++)
+		dstKey[dstPosB*keySize + i] = keyB[i];
+        dstVal[dstPosB] = valB;
+    }
+}
+
+__global__ void mergeElementaryIntervalsKernel(
+        char *d_DstKey,
+        int *d_DstVal,
+        char *d_SrcKey,
+        int *d_SrcVal,
+        int *d_LimitsA,
+        int *d_LimitsB,
+        int stride,
+        int N,
+        int sortDir,
+        int keySize,
+	__local char *s_key,
+	__local int * s_val
+)
+{
+
+	size_t blockId = get_group_id(0);
+	size_t threadId = get_local_id(0);
+
+    	const int   intervalI = blockId & ((2 * stride) / SAMPLE_STRIDE - 1);
+    	const int segmentBase = (blockId - intervalI) * SAMPLE_STRIDE;
+    	d_SrcKey += segmentBase * keySize;
+    	d_SrcVal += segmentBase;
+    	d_DstKey += segmentBase * keySize;
+    	d_DstVal += segmentBase;
+
+    	__local int startSrcA, startSrcB, lenSrcA, lenSrcB, startDstA, startDstB;
+
+    	if (threadId == 0){
+        	int segmentElementsA = stride;
+        	int segmentElementsB = umin(stride, N - segmentBase - stride);
+        	int  segmentSamplesA = getSampleCount(segmentElementsA);
+        	int  segmentSamplesB = getSampleCount(segmentElementsB);
+        	int   segmentSamples = segmentSamplesA + segmentSamplesB;
+
+        	startSrcA    = d_LimitsA[blockId];
+        	startSrcB    = d_LimitsB[blockId];
+        	int endSrcA = (intervalI + 1 < segmentSamples) ? d_LimitsA[blockId + 1] : segmentElementsA;
+        	int endSrcB = (intervalI + 1 < segmentSamples) ? d_LimitsB[blockId + 1] : segmentElementsB;
+        	lenSrcA      = endSrcA - startSrcA;
+        	lenSrcB      = endSrcB - startSrcB;
+        	startDstA    = startSrcA + startSrcB;
+        	startDstB    = startDstA + lenSrcA;
+    	}
+
+    barrier(CLK_LOCAL_MEM_FENCE); 
+
+    if (threadId < lenSrcA)
+    {
+        memcpy(s_key + threadId * keySize, d_SrcKey + (startSrcA + threadId)*keySize, keySize);
+        s_val[threadId +             0] = d_SrcVal[0 + startSrcA + threadId];
+    }
+
+    if (threadId < lenSrcB)
+    {
+        memcpy(s_key + (threadId + SAMPLE_STRIDE)*keySize, d_SrcKey + (stride + startSrcB+threadId)*keySize,keySize);
+        s_val[threadId + SAMPLE_STRIDE] = d_SrcVal[stride + startSrcB + threadId];
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE); 
+    merge(
+        s_key,
+        s_val,
+        s_key + 0,
+        s_val + 0,
+        s_key + SAMPLE_STRIDE*keySize,
+        s_val + SAMPLE_STRIDE,
+        lenSrcA, SAMPLE_STRIDE,
+        lenSrcB, SAMPLE_STRIDE,
+        sortDir,
+        keySize
+    );
+
+    barrier(CLK_LOCAL_MEM_FENCE); 
+
+    if (threadId < lenSrcA)
+    {
+        memcpy(d_DstKey + (startDstA + threadId)*keySize, s_key + threadId * keySize, keySize);
+        d_DstVal[startDstA + threadId] = s_val[threadId];
+    }
+
+    if (threadId < lenSrcB)
+    {
+        memcpy(d_DstKey + (startDstB + threadId)*keySize, s_key + (lenSrcA + threadId)*keySize, keySize);
+        d_DstVal[startDstB + threadId] = s_val[lenSrcA + threadId];
+    }
+}
+
+__global__ static void sort_key(char * key, int tupleNum, int keySize, char *result, char *pos,int dir, __local *bufKey, __local int* bufVal){
+	size_t lid = get_local_id(0);
+	size_t bid = get_group_id(0);
+
+        int gid = bid * SHARED_SIZE_LIMIT + lid;
+
+	for(int i=0;i<keySize;i++)
+		bufKey[lid*keySize + i] = key[gid+keySize + i];
+        bufVal[lid] = gid;
+
+	for(int i=0;i<keySize;i++)
+		bufKey[i + (lid+blockDim.x)*keySize] = key[i+(gid+blockDim.x)*keySize];
+        bufVal[lid+blockDim.x] = gid+ blockDim.x;
+
+    	barrier(CLK_LOCAL_MEM_FENCE); 
+
+        for (int size = 2; size < tupleNum && size < SHARED_SIZE_LIMIT; size <<= 1){
+                int ddd = dir ^ ((lid & (size / 2)) != 0);
+
+                for (int stride = size / 2; stride > 0; stride >>= 1){
+    			barrier(CLK_LOCAL_MEM_FENCE); 
+                        int pos = 2 * lid - (lid & (stride - 1));
+                        Comparator(
+                                bufKey+pos*keySize, bufVal[pos +      0],
+                                bufKey+(pos+stride)*keySize, bufVal[pos + stride],
+                                keySize,
+                                ddd
+                        );
+                }
+        }
+
+    {
+        for (int stride = blockDim.x ; stride > 0; stride >>= 1)
+        {
+    		barrier(CLK_LOCAL_MEM_FENCE); 
+            int pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
+            Comparator(
+                bufKey+pos*keySize, bufVal[pos +      0],
+                bufKey+(pos+stride)*keySize, bufVal[pos + stride],
+                keySize,
+                dir
+            );
+        }
+    }
+
+    barrier(CLK_LOCAL_MEM_FENCE); 
+
+	for(int i=0;i<keySize;i++)
+		result[i+ gid*keySize] = bufKey[lid*keySize + i];
+
+        ((int *)pos)[gid] = bufVal[lid];
+
+	for(int i=0;i<keySize;i++)
+		result[i + (gid+blockDim.x)*keySize] = bufKey[i+ (lid+blockDim.x)*keySize];
+
+        ((int *)pos)[gid+blockDim.x] = bufVal[lid+blockDim.x];
+
+}
+
+__kernel static void gather_result(char * keyPos, char ** col, int newNum, int tupleNum, int *size, int colNum, char **result){
+        int stride = blockDim.x * gridDim.x;
+        int index = blockIdx.x * blockDim.x + threadIdx.x;
+
+        for(int j=0;j<colNum;j++){
+                for(int i=index;i<newNum;i+=stride){
+                        int pos = ((int *)keyPos)[i];
+                        if(pos<tupleNum)
+                                memcpy(result[j] + i*size[j], col[j] +pos*size[j], size[j]);
+                }
+        }
+}
+
+__kernel void build_orderby_keys(char ** content, int tupleNum, int odNum, int keySize,int *index, int * size, char *key){
+        int stride = blockDim.x * gridDim.x;
+        int offset = blockIdx.x * blockDim.x + threadIdx.x;
+
+        for(int i=offset;i<tupleNum;i+=stride){
+                int pos = i* keySize;
+
+                for(int j=0;j<odNum;j++){
+                        memcpy(key+pos,content[index[j]]+i*size[j],size[j]);
+                        pos += size[j];
+                }
+
+        }
+}
+
+
+
