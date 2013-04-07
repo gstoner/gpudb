@@ -162,7 +162,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		offset += sizeof(struct mathExp);
 		cpuFunc[i] = gb->gbExp[i].func;
 		if(gb->gbExp[i].exp.opNum == 2){
-			struct mathExp * tmpMath = (struct mathExp *) gb->Exp[i].exp.exp;
+			struct mathExp * tmpMath = (struct mathExp *) gb->gbExp[i].exp.exp;
 			tmpExp[0].op = tmpMath[0].op;
 			tmpExp[0].opNum = tmpMath[0].opNum;
 			tmpExp[0].opType = tmpMath[0].opType;
