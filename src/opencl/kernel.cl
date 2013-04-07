@@ -1206,7 +1206,7 @@ inline void AtomicAdd(__global float *source, float operand) {
     } while (atomic_cmpxchg((volatile __global unsigned int *)source, prevVal.intVal, newVal.intVal) != prevVal.intVal);
 }
 
-__kernel void agg_cal_cons(__global char * content, __global int* colOffset, int colNum, __global struct groupByExp* exp, __global struct mathExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset){
+__kernel void agg_cal_cons(__global char * content, __global int* colOffset, int colNum, __global struct mathExp* exp, __global struct mathExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset, int * gbFunc){
 
 	size_t stride = get_global_size(0);
 	size_t index = get_global_id(0);
@@ -1218,7 +1218,7 @@ __kernel void agg_cal_cons(__global char * content, __global int* colOffset, int
         for(size_t i=index;i<tupleNum;i+=stride){
 
                 for(int j=0;j<colNum;j++){
-                        int func = exp[j].func;
+                        int func = gbFunc[j];
                         if (func == SUM){
                                 float tmpRes = calMathExp(content, colOffset,exp[j], mexp, i);
                                 buf[j] += tmpRes;
