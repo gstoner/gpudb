@@ -1834,7 +1834,7 @@ __kernel void mergeElementaryIntervalsKernel(
     }
 }
 
-__kernel void sort_key(__global char * key, int tupleNum, int keySize, __global char *result, int *pos,int dir, __local char * bufKey, __local int* bufVal){
+__kernel void sort_key(__global char * key, int tupleNum, int keySize, __global char *result, __global int *pos,int dir, __local char * bufKey, __local int* bufVal){
 	size_t lid = get_local_id(0);
 	size_t bid = get_group_id(0);
 
@@ -1896,7 +1896,7 @@ __kernel void sort_key(__global char * key, int tupleNum, int keySize, __global 
 
 }
 
-__kernel static void gather_result(__global int * keyPos, __global char * col, int newNum, int tupleNum, __global int *size, int colNum, __global char *result, __global long * offset){
+__kernel void gather_result(__global int * keyPos, __global char * col, int newNum, int tupleNum, __global int *size, int colNum, __global char *result, __global long * offset){
 	size_t stride = get_global_size(0);
 	size_t index = get_global_id(0);
 
@@ -1920,9 +1920,9 @@ __kernel void build_orderby_keys(__global char * content, int tupleNum, int odNu
                 int pos = i* keySize;
 
                 for(int j=0;j<odNum;j++){
-			int index = index[j];
+			int tmp = index[j];
 			for(int k=0;k<size[j];k++)
-				key[pos + k] = content[offset[index] + i*size[j] + k];
+				key[pos + k] = content[offset[tmp] + i*size[j] + k];
                         pos += size[j];
                 }
 
