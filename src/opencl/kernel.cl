@@ -1829,12 +1829,12 @@ __kernel void mergeElementaryIntervalsKernel(
     if (threadId < lenSrcB)
     {
 	for(int i=0;i<keySize;i++)
-		d_DstKey[(startDstB + threadId)*keySize+i] = s_key[(lenSrcA + threadId)*keySize+i]
+		d_DstKey[(startDstB + threadId)*keySize+i] = s_key[(lenSrcA + threadId)*keySize+i];
         d_DstVal[startDstB + threadId] = s_val[lenSrcA + threadId];
     }
 }
 
-__kernel static void sort_key(__global char * key, int tupleNum, int keySize, __global char *result, int *pos,int dir, __local char * bufKey, __local int* bufVal){
+__kernel void sort_key(__global char * key, int tupleNum, int keySize, __global char *result, int *pos,int dir, __local char * bufKey, __local int* bufVal){
 	size_t lid = get_local_id(0);
 	size_t bid = get_group_id(0);
 
@@ -1868,7 +1868,8 @@ __kernel static void sort_key(__global char * key, int tupleNum, int keySize, __
         }
 
     {
-        for (int stride = blockDim.x ; stride > 0; stride >>= 1)
+	size_t lsize = get_local_size(0);
+        for (int stride = lsize ; stride > 0; stride >>= 1)
         {
     		barrier(CLK_LOCAL_MEM_FENCE); 
             	int pos = 2 * lid - (lid & (stride - 1));
@@ -1911,8 +1912,9 @@ __kernel static void gather_result(__global int * keyPos, __global char * col, i
 }
 
 __kernel void build_orderby_keys(__global char * content, int tupleNum, int odNum, int keySize, __global int *index, __global int * size, __global char *key __global long* offset){
-        int stride = blockDim.x * gridDim.x;
-        int offset = blockIdx.x * blockDim.x + threadIdx.x;
+
+	size_t stride = get_global_size(0);
+	size_t offset = get_global_id(0);
 
         for(int i=offset;i<tupleNum;i+=stride){
                 int pos = i* keySize;
