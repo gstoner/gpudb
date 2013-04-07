@@ -356,7 +356,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	for(int i=0; i<res->totalAttr;i++){
 		int size = res->attrSize[i] * gpuTupleNum;
 		memset(res->content[i],0, size);
-		clEnqueueReadBuffer(context->queue,gpuResult, CL_TRUE, offset, size, res->content[i],0,0,0);
+		clEnqueueWriteBuffer(context->queue,gpuResult, CL_TRUE, offset, size, res->content[i],0,0,0);
 		offset += size;
 	}
 
