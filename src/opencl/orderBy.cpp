@@ -52,11 +52,12 @@ static void mergeRanksAndIndices(
 	struct clContext * context
 )
 {
+	int lastSegmentElements = N % (2 * stride);
+    	int threadCount = (lastSegmentElements > stride) ? (N + 2 * stride - lastSegmentElements) / (2 * SAMPLE_STRIDE) : (N - lastSegmentElements) / (2 * SAMPLE_STRIDE);
+
 	size_t globalSize = iDivUp(threadCount,256);
 	size_t localSize = 256;
 
-	int lastSegmentElements = N % (2 * stride);
-    	int threadCount = (lastSegmentElements > stride) ? (N + 2 * stride - lastSegmentElements) / (2 * SAMPLE_STRIDE) : (N - lastSegmentElements) / (2 * SAMPLE_STRIDE);
 
 	context->kernel = clCreateKernel(context->program,"mergeRanksAndIndicesKernel",0); 
 	
@@ -191,7 +192,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	}
 
 	cl_mem gpuOffset = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(long)*res->totalAttr,0);
-	error = clWriteBuffer(context->queue, gpuOffset, CL_TRUE, 0, sizeof(long)*res->totalAttr, cpuOffset,0,0,0);
+	error = clEnqueueWriteBuffer(context->queue, gpuOffset, CL_TRUE, 0, sizeof(long)*res->totalAttr, cpuOffset,0,0,0);
 
 	int keySize = 0;
 	int *cpuSize = (int *)malloc(sizeof(int) * odNode->orderByNum);
@@ -211,8 +212,8 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	gpuSize = clCreateBuffer(context->context,CL_MEM_READ_ONLY, res->totalAttr * sizeof(int), NULL, 0);
 	error = clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int) * odNode->orderByNum, cpuSize,0,0,0);
 
-	gpukey = clCreateBuffer(context->context,CL_MEM_READ_ONLY, keySize * newNum, NULL, 0);
-	gpuSortedkey = clCreateBuffer(context->context,CL_MEM_READ_WRITE, keySize * newNum, NULL, 0);
+	cl_mem gpukey = clCreateBuffer(context->context,CL_MEM_READ_ONLY, keySize * newNum, NULL, 0);
+	cl_mem gpuSortedkey = clCreateBuffer(context->context,CL_MEM_READ_WRITE, keySize * newNum, NULL, 0);
 
 	context->kernel = clCreateKernel(context->program,"set_key",0);
 
@@ -224,9 +225,6 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 
 	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
-
-	dim3 grid(512);
-	dim3 block(NTHREAD);
 
 	gpuIndex =clCreateBuffer(context->queue,CL_MEM_READ_ONLY, res->totalAttr * sizeof(int), NULL,0);
 	error = clEnqueueWriteBuffer(context->queue, gpuIndex, CL_TRUE, 0, odNode->orderByNum * sizeof(int), cpuSize,0,0,0);
@@ -330,7 +328,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	}	
 
 	cl_mem gpuResult = clCreateBuffer(context->queue,CL_MEM_READ_WRITE, res->tupleNum * res->tupleSize, NULL,0);
-	clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int)*res->totalAttr, gb->table->content[i],0,0,0);
+	clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int)*res->totalAttr, odNode->table->content[i],0,0,0);
 
 	context->kernel = clCreateKernel(context->program,"gather_result",0);
 	clSetkernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpuPos);
