@@ -1650,8 +1650,8 @@ __kernel void generateSampleRanksKernel(
 
 
 __kernel void mergeRanksAndIndicesKernel(
-    int *d_Limits,
-    int *d_Ranks,
+    __global int *d_Limits,
+    __global int *d_Ranks,
     int stride,
     int N,
     int threadCount
@@ -1689,12 +1689,12 @@ __kernel void mergeRanksAndIndicesKernel(
 
 
 void merge(
-        char *dstKey,
-        int *dstVal,
-        char *srcAKey,
-        int *srcAVal,
-        char *srcBKey,
-        int *srcBVal,
+        __local char *dstKey,
+        __local int *dstVal,
+        __local char *srcAKey,
+        __local int *srcAVal,
+        __local char *srcBKey,
+        __local int *srcBVal,
         int lenA,
         int nPowTwoLenA,
         int lenB,
@@ -1742,13 +1742,13 @@ void merge(
     }
 }
 
-__global__ void mergeElementaryIntervalsKernel(
-        char *d_DstKey,
-        int *d_DstVal,
-        char *d_SrcKey,
-        int *d_SrcVal,
-        int *d_LimitsA,
-        int *d_LimitsB,
+__kernel void mergeElementaryIntervalsKernel(
+        __global char *d_DstKey,
+        __global int *d_DstVal,
+        __global char *d_SrcKey,
+        __global int *d_SrcVal,
+        __global int *d_LimitsA,
+        __global int *d_LimitsB,
         int stride,
         int N,
         int sortDir,
@@ -1830,9 +1830,11 @@ __global__ void mergeElementaryIntervalsKernel(
     }
 }
 
-__global__ static void sort_key(char * key, int tupleNum, int keySize, char *result, char *pos,int dir, __local *bufKey, __local int* bufVal){
+__global__ static void sort_key(__global char * key, int tupleNum, int keySize, __global char *result, int *pos,int dir, __local char * bufKey, __local int* bufVal){
 	size_t lid = get_local_id(0);
 	size_t bid = get_group_id(0);
+
+	size_t lsize = get_local_size(0);
 
         int gid = bid * SHARED_SIZE_LIMIT + lid;
 
@@ -1841,8 +1843,8 @@ __global__ static void sort_key(char * key, int tupleNum, int keySize, char *res
         bufVal[lid] = gid;
 
 	for(int i=0;i<keySize;i++)
-		bufKey[i + (lid+blockDim.x)*keySize] = key[i+(gid+blockDim.x)*keySize];
-        bufVal[lid+blockDim.x] = gid+ blockDim.x;
+		bufKey[i + (lid+lsize)*keySize] = key[i+(gid+lsize)*keySize];
+        bufVal[lid+lsize] = gid+ lsize;
 
     	barrier(CLK_LOCAL_MEM_FENCE); 
 
@@ -1865,7 +1867,7 @@ __global__ static void sort_key(char * key, int tupleNum, int keySize, char *res
         for (int stride = blockDim.x ; stride > 0; stride >>= 1)
         {
     		barrier(CLK_LOCAL_MEM_FENCE); 
-            int pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
+            	int pos = 2 * lid - (lid & (stride - 1));
             Comparator(
                 bufKey+pos*keySize, bufVal[pos +      0],
                 bufKey+(pos+stride)*keySize, bufVal[pos + stride],
@@ -1880,24 +1882,26 @@ __global__ static void sort_key(char * key, int tupleNum, int keySize, char *res
 	for(int i=0;i<keySize;i++)
 		result[i+ gid*keySize] = bufKey[lid*keySize + i];
 
-        ((int *)pos)[gid] = bufVal[lid];
+        pos[gid] = bufVal[lid];
 
 	for(int i=0;i<keySize;i++)
-		result[i + (gid+blockDim.x)*keySize] = bufKey[i+ (lid+blockDim.x)*keySize];
+		result[i + (gid+lsize)*keySize] = bufKey[i+ (lid+lsize)*keySize];
 
-        ((int *)pos)[gid+blockDim.x] = bufVal[lid+blockDim.x];
+        pos[gid+lsize] = bufVal[lid+lsize];
 
 }
 
-__kernel static void gather_result(char * keyPos, char ** col, int newNum, int tupleNum, int *size, int colNum, char **result){
-        int stride = blockDim.x * gridDim.x;
-        int index = blockIdx.x * blockDim.x + threadIdx.x;
+__kernel static void gather_result(__global int * keyPos, __global char * col, int newNum, int tupleNum, __global int *size, int colNum, __global char *result, __global long * offset){
+	size_t stride = get_global_size(0);
+	size_t index = get_global_id(0);
 
         for(int j=0;j<colNum;j++){
-                for(int i=index;i<newNum;i+=stride){
-                        int pos = ((int *)keyPos)[i];
-                        if(pos<tupleNum)
-                                memcpy(result[j] + i*size[j], col[j] +pos*size[j], size[j]);
+                for(size_t i=index;i<newNum;i+=stride){
+                        int pos = keyPos[i];
+                        if(pos<tupleNum){
+				for(int k=0;k<size[j];k++)
+					result[offset[j]+i*size[j]+k] = col[offset[j]+pos*size[j]+k];
+			}
                 }
         }
 }

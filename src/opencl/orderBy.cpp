@@ -260,6 +260,8 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 		clSetKernelArg(context->kernel,3,sizeof(cl_mem), (void*)&gpuSortedKey);
 		clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&gpuPos);
 		clSetKernelArg(context->kernel,5,sizeof(int), (void*)&sortDir);
+		clSetKernelArg(context->kernel,6,SHARED_SIZE_LIMIT*32, NULL);
+		clSetKernelArg(context->kernel,7,SHARED_SIZE_LIMIT*sizeof(int), NULL);
 
 		localSize = newNum/2;
 		globalSize = localSize;
@@ -338,6 +340,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	clSetkernelArg(context->kernel,4,sizeof(cl_mem),(void*)&gpuSize);
 	clSetkernelArg(context->kernel,5,sizeof(int),(void*)&res->totalAttr);
 	clSetkernelArg(context->kernel,6,sizeof(cl_mem),(void*)&gpuResult);
+	clSetkernelArg(context->kernel,7,sizeof(cl_mem),(void*)&gpuOffset);
 
 	localSize = 128;
 	globalSize = 512 * localSize;
@@ -359,6 +362,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	clReleaseMemObject(gpuIndex);
 	clReleaseMemObject(gpuSize);
 	clReleaseMemObject(gpuPos);
+	clReleaseMemObject(gpuOffset);
 	finishSortMerge();
 
 	return res;
