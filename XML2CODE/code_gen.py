@@ -598,8 +598,8 @@ def printMathFunc(fo,prefix, mathFunc):
         print >>fo, prefix + ".op = " + mathFunc.opName + ";"
         print >>fo, prefix + ".opNum = 2;"
         print >>fo, prefix + ".exp = (long) malloc(sizeof(struct mathExp) * 2);"
-        prefix1 = "(struct mathExp *)" + prefix + ".exp[0]"
-        prefix2 = "(struct mathExp *)"+ prefix + ".exp[1]"
+        prefix1 = "((struct mathExp *)" + prefix + ".exp)[0]"
+        prefix2 = "((struct mathExp *)"+ prefix + ".exp)[1]"
         printMathFunc(fo,prefix1,mathFunc.leftOp)
         printMathFunc(fo,prefix2,mathFunc.rightOp)
 
