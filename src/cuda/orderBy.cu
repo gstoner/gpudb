@@ -439,12 +439,19 @@ static void mergeElementaryIntervals(
 static int *d_RanksA, *d_RanksB, *d_LimitsA, *d_LimitsB;
 static const int MAX_SAMPLE_COUNT = 32768;
 
-extern "C" void initMergeSort(void)
+void initMergeSort(void)
 {
     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&d_RanksA,  MAX_SAMPLE_COUNT * sizeof(int)));
     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&d_RanksB,  MAX_SAMPLE_COUNT * sizeof(int)));
     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&d_LimitsA, MAX_SAMPLE_COUNT * sizeof(int)));
     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&d_LimitsB, MAX_SAMPLE_COUNT * sizeof(int)));
+}
+
+void finishMergeSort(void){
+	CUDA_SAFE_CALL_NO_SYNC(cudaFree(d_RanksA));
+	CUDA_SAFE_CALL_NO_SYNC(cudaFree(d_RanksB));
+	CUDA_SAFE_CALL_NO_SYNC(cudaFree(d_LimitsA));
+	CUDA_SAFE_CALL_NO_SYNC(cudaFree(d_LimitsB));
 }
 
 __device__ static inline void Comparator(
@@ -537,60 +544,6 @@ __global__ static void set_key(char *key, int tupleNum){
 
 }
 
-__global__ static void merge_key(char *key, char *pos,int pSize, int tupleNum, int keySize, char *result, char *resPos){
-
-        int stride = blockDim.x * gridDim.x;
-        int tid = blockIdx.x * blockDim.x + threadIdx.x;
-
-        int pNum = tupleNum/pSize/2;            // how many parallel merge for this kernel launch 
-        int tNum = stride/pNum;                 // the number of threads for each merge 
-
-        int mid = tid / tNum;                   // the merge id
-        int  firstP = mid * pSize*2;            // the start pos for the first partition of the merge
-        int secondP = firstP + pSize;           // the start pos for the second partition of the merge
-
-        int outPos[2], outNum[2];
-        int delta;
-
-        if((tid+1)%tNum !=0){
-                outPos[0] = firstP + pSize *(tid % tNum)/tNum +  pSize/tNum;
-                outPos[1] = secondP + pSize *(tid % tNum)/tNum + pSize/tNum;
-
-                delta = outNum[0] = outNum[1] = pSize/tNum;
-
-                while (1){
-                        if(outNum[0] == 0 || outNum[1] == 0 )
-                                break;
-
-                        int key1 = ((int *)key)[outPos[0]-1];
-                        int key2 = ((int *)key)[outPos[1]-1];
-                        int key3 = ((int *)key)[outPos[0]];
-                        int key4 = ((int *)key)[outPos[1]];
-
-                        if(key1 < key4 && key2<key3)
-                                break;
-
-                        if(key1 >= key4){
-                                delta = (delta+1) / 2;
-                                outPos[0] -= delta;
-                                outNum[0] -= delta;
-
-                                outPos[1] += delta;
-                                outNum[1] += delta;
-
-                        }else {
-                                delta = (delta + 1) / 2;
-                                outPos[1] -= delta;
-                                outNum[1] -= delta;
-
-                                outPos[0] += delta;
-                                outNum[1] += delta;
-
-                        }
-                }
-        }
-}
-
 __global__ static void gather_result(char * keyPos, char ** col, int newNum, int tupleNum, int *size, int colNum, char **result){
         int stride = blockDim.x * gridDim.x;
         int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -638,6 +591,8 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
 	res->dataPos = (int *) malloc(sizeof(int) * res->totalAttr);
 	res->dataFormat = (int *) malloc(sizeof(int) * res->totalAttr);
 	res->content = (char **) malloc(sizeof(char *) * res->totalAttr);
+
+	initMergeSort();
 
 	int gpuTupleNum = odNode->table->tupleNum;
 	char * gpuKey, **column, ** gpuContent;
@@ -793,6 +748,8 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuIndex));
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuSize));
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuPos));
+
+	finishMergeSort();
 
 	return res;
 }
