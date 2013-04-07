@@ -19,7 +19,7 @@ cpu: driver.cpp parseKernel.cpp
 	g++ -c -g -Wall driver.cpp parseKernel.cpp
 
 gpu: tableScan.cpp hashJoin.cpp  materialize.cpp groupby.cpp orderBy.cpp 
-	g++ -c -g -Wall tableScan.cpp hashJoin.cpp  materialize.cpp groupby.cpp
+	g++ -c -g -Wall tableScan.cpp hashJoin.cpp  materialize.cpp groupby.cpp orderBy.cpp
 
 all: loader gpudb
 
