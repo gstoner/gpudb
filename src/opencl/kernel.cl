@@ -1494,11 +1494,45 @@ int gpu_strcmp(__global char *s1, __global char *s2, int len){
 
 }
 
+int gpu_strcmp_local(__local char *s1, __local char *s2, int len){
+        int res = 0;
+
+        for(int i=0;i < len;i++){
+                if(s1[i]<s2[i]){
+                        res = -1;
+                        break;
+                }else if(s1[i]>s2[i]){
+                        res = 1;
+                        break;
+                }
+        }
+        return res;
+
+}
+
+int gpu_strcmp_private(__local char *s1, __private char *s2, int len){
+        int res = 0;
+
+        for(int i=0;i < len;i++){
+                if(s1[i]<s2[i]){
+                        res = -1;
+                        break;
+                }else if(s1[i]>s2[i]){
+                        res = 1;
+                        break;
+                }
+        }
+        return res;
+
+}
+
+
+
 void Comparator(
-    char * keyA,
-    int *valA,
-    char * keyB,
-    int *valB,
+    __local char * keyA,
+    __local int *valA,
+    __local char * keyB,
+    __local int *valB,
     int keySize,
     int dir
 )
@@ -1506,14 +1540,17 @@ void Comparator(
         int t;
         char buf[32];
 
-    if ((gpu_strcmp(keyA,keyB,keySize) == 1) == dir)
+    if ((gpu_strcmp_local(keyA,keyB,keySize) == 1) == dir)
     {
-        memcpy(buf, keyA, keySize);
-        memcpy(keyA, keyB, keySize);
-        memcpy(keyB, buf, keySize);
-        t = valA;
-        valA = valB;
-        valB = t;
+	for(int i=0;i<keySize;i++)
+		buf[i] = keyA[i];
+	for(int i=0;i<keySize;i++)
+		keyA[i] = keyB[i];
+	for(int i=0;i<keySize;i++)
+		keyB[i] = buf[i];
+        t = *valA;
+        *valA = *valB;
+        *valB = t;
     }
 }
 
@@ -1603,6 +1640,28 @@ int binarySearchIn(__global char * val, __global char *data, int L, int stride, 
     return pos;
 }
 
+int binarySearchIn_private(__private char * val, __local char *data, int L, int stride, int sortDir, int keySize){
+    if (L == 0)
+    {
+        return 0;
+    }
+
+    int pos = 0;
+
+    for (; stride > 0; stride >>= 1)
+    {
+        int newPos = min(pos + stride, L);
+
+        if ((sortDir && (gpu_strcmp_private(data+(newPos-1)*keySize,val,keySize) != 1)) || (!sortDir && (gpu_strcmp_private(data + (newPos-1)*keySize,val,keySize)!=-1)))
+        {
+            pos = newPos;
+        }
+    }
+
+    return pos;
+}
+
+
 int binarySearchEx(__global char * val, __global char *data, int L, int stride, int sortDir, int keySize){
     if (L == 0)
     {
@@ -1623,6 +1682,28 @@ int binarySearchEx(__global char * val, __global char *data, int L, int stride, 
 
     return pos;
 }
+
+int binarySearchEx_private(__private char * val, __local char *data, int L, int stride, int sortDir, int keySize){
+    if (L == 0)
+    {
+        return 0;
+    }
+
+    int pos = 0;
+
+    for (; stride > 0; stride >>= 1)
+    {
+        int newPos = min(pos + stride, L);
+
+        if ((sortDir && (gpu_strcmp_private(data+(newPos-1)*keySize,val,keySize) == -1)) || (!sortDir && (gpu_strcmp_private(data + (newPos-1)*keySize,val,keySize)==1)))
+        {
+            pos = newPos;
+        }
+    }
+
+    return pos;
+}
+
 
 __kernel void generateSampleRanksKernel(
         __global int *d_RanksA,
@@ -1737,7 +1818,7 @@ void merge(
 	for(int i=0;i<keySize;i++)
 		keyA[i] = srcAKey[threadId * keySize + i];
         valA = srcAVal[threadId];
-        dstPosA = binarySearchEx(keyA, srcBKey, lenB, nPowTwoLenB, sortDir,keySize) + threadId;
+        dstPosA = binarySearchEx_private(keyA, srcBKey, lenB, nPowTwoLenB, sortDir,keySize) + threadId;
     }
 
     if (threadId < lenB)
@@ -1745,7 +1826,7 @@ void merge(
 	for(int i=0;i<keySize;i++)
 		keyB[i] = srcBKey[threadId * keySize + i];
         valB = srcBVal[threadId];
-        dstPosB = binarySearchIn(keyB, srcAKey, lenA, nPowTwoLenA, sortDir, keySize) + threadId;
+        dstPosB = binarySearchIn_private(keyB, srcAKey, lenA, nPowTwoLenA, sortDir, keySize) + threadId;
     }
 
 
@@ -1883,8 +1964,8 @@ __kernel void sort_key(__global char * key, int tupleNum, int keySize, __global 
     			barrier(CLK_LOCAL_MEM_FENCE); 
                         int pos = 2 * lid - (lid & (stride - 1));
                         Comparator(
-                                bufKey+pos*keySize, bufVal[pos +      0],
-                                bufKey+(pos+stride)*keySize, bufVal[pos + stride],
+                                bufKey+pos*keySize, &bufVal[pos +      0],
+                                bufKey+(pos+stride)*keySize, &bufVal[pos + stride],
                                 keySize,
                                 ddd
                         );
@@ -1898,8 +1979,8 @@ __kernel void sort_key(__global char * key, int tupleNum, int keySize, __global 
     		barrier(CLK_LOCAL_MEM_FENCE); 
             	int pos = 2 * lid - (lid & (stride - 1));
             Comparator(
-                bufKey+pos*keySize, bufVal[pos +      0],
-                bufKey+(pos+stride)*keySize, bufVal[pos + stride],
+                bufKey+pos*keySize, &bufVal[pos +      0],
+                bufKey+(pos+stride)*keySize, &bufVal[pos + stride],
                 keySize,
                 dir
             );
