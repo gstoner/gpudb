@@ -148,12 +148,19 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	gpuGbType = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*res->totalAttr, res->attrType, &error);
 	gpuGbSize = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*res->totalAttr, res->attrSize, &error);
 
-	cl_mem gpuGbExp = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(struct groupByExp)*res->totalAttr, gb->gbExp, &error);
+	cl_mem gpuGbExp = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sizeof(struct mathExp)*res->totalAttr, NULL, &error);
 
 	cl_mem mathexp = clCreateBuffer(context->context, CL_MEM_READ_ONLY, 2*sizeof(struct mathExp)*res->totalAttr,NULL, &error);
 
 	struct mathExp tmpExp[2];
+	int * cpuFunc = (int *) malloc(sizeof(int) * res->totalAttr);
+
+	offset = 0;
 	for(int i=0;i<res->totalAttr;i++){
+
+		error = clEnqueueWriteBuffer(context->queue, gpuGbExp, CL_TRUE, offset, sizeof(struct mathExp), &(gb->gbExp[i].exp),0,0,0);
+		offset += sizeof(struct mathExp);
+		cpuFunc[i] = gb->gbExp[i].func;
 		if(gb->gbExp[i].exp.opNum == 2){
 			struct mathExp * tmpMath = (struct mathExp *) gb->Exp[i].exp.exp;
 			tmpExp[0].op = tmpMath[0].op;
@@ -168,6 +175,8 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 			clEnqueueWriteBuffer(context->queue, mathexp, CL_TRUE, 2*i*sizeof(struct mathExp),2*sizeof(struct mathExp),tmpExp,0,0,0);
 		}
 	}
+
+	cl_mem gpuFunc = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*res->totalAttr, cpuFunc, &error);
 
 	long *resOffset = (long *)malloc(sizeof(long)*res->totalAttr);
 	
@@ -195,6 +204,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		clSetKernelArg(context->kernel,9,sizeof(cl_mem), (void*)&gpu_psum);
 		clSetKernelArg(context->kernel,10,sizeof(cl_mem), (void*)&gpuResult);
 		clSetKernelArg(context->kernel,11,sizeof(cl_mem), (void*)&gpuResOffset);
+		clSetKernelArg(context->kernel,12,sizeof(cl_mem), (void*)&gpuFunc);
 
 		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 		
@@ -214,6 +224,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		clSetKernelArg(context->kernel,9,sizeof(cl_mem), (void*)&gpu_psum);
 		clSetKernelArg(context->kernel,10,sizeof(cl_mem), (void*)&gpuResult);
 		clSetKernelArg(context->kernel,11,sizeof(cl_mem), (void*)&gpuResOffset);
+		clSetKernelArg(context->kernel,12,sizeof(cl_mem), (void*)&gpuFunc);
 
 		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 	}
@@ -233,6 +244,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	clReleaseMemObject(gpuOffset);
 	clReleaseMemObject(gpuResOffset);
 	clReleaseMemObject(gpuGbExp);
+	clReleaseMemObject(gpuFunc);
 
 	return res;
 }
