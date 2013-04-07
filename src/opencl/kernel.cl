@@ -1516,7 +1516,7 @@ int getSampleCount(int dividend){
     return iDivUp(dividend, SAMPLE_STRIDE);
 }
 
-int binarySearchInInt(int val, int *data, int L, int stride, int sortDir){
+int binarySearchInInt(int val, __global int *data, int L, int stride, int sortDir){
     if (L == 0)
     {
         return 0;
@@ -1708,7 +1708,7 @@ void merge(
 
 	size_t threadId = get_local_id(0);
 
-    if ( < lenA)
+    if ( threadId< lenA)
     {
 	for(int i=0;i<keySize;i++)
 		keyA[i] = srcAKey[threadId * keySize + i];
