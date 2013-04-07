@@ -237,6 +237,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	free(resOffset);
 	free(cpuOffset);
 
+	clFinish(context->queue);
 	clReleaseMemObject(gpuContent);
 	clReleaseMemObject(gpuResult);
 	clReleaseMemObject(gpuOffset);
