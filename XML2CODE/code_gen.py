@@ -814,10 +814,12 @@ def generate_code(tree):
             else:
                 print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)malloc(outSize);"
 
-            print >>fo, "\tclock_gettime(CLOCK_REALTIME,&diskStart);"
+            print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
-            print >>fo, "\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
-            print >>fo, "\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
+            print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
+            print >>fo, "\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
+
+            print >>fo, "\t\tmunmap(outTable,outSize);"
 
             print >>fo, "\t\tclose(outFd);"
 
@@ -1058,11 +1060,12 @@ def generate_code(tree):
             else:
                 print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)malloc(outSize);\n"
 
-            print >>fo, "\tclock_gettime(CLOCK_REALTIME,&diskStart);"
+            print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
-            print >>fo, "\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
-            print >>fo, "\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
+            print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
+            print >>fo, "\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
 
+            print >>fo, "\t\tmunmap(outTable,outSize);"
             print >>fo, "\t\tclose(outFd);"
             print >>fo, "\t\t" + factName + "->attrTotalSize[" + str(i) + "] = outSize;"
 
@@ -1507,11 +1510,12 @@ def generate_code(tree):
             else:
                 print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)malloc(outSize);\n"
 
-            print >>fo, "\tclock_gettime(CLOCK_REALTIME,&diskStart);"
+            print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
-            print >>fo, "\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
-            print >>fo, "\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
+            print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
+            print >>fo, "\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
 
+            print >>fo, "\t\tmunmap(outTable,outSize);"
             print >>fo, "\t\tclose(outFd);"
             print >>fo, "\t\t" + factName + "->attrTotalSize[" + str(i) + "] = outSize;"
 
