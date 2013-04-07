@@ -1494,6 +1494,30 @@ int gpu_strcmp(__global char *s1, __global char *s2, int len){
 
 }
 
+void Comparator(
+    char * keyA,
+    int *valA,
+    char * keyB,
+    int *valB,
+    int keySize,
+    int dir
+)
+{
+        int t;
+        char buf[32];
+
+    if ((gpu_strcmp(keyA,keyB,keySize) == 1) == dir)
+    {
+        memcpy(buf, keyA, keySize);
+        memcpy(keyA, keyB, keySize);
+        memcpy(keyB, buf, keySize);
+        t = valA;
+        valA = valB;
+        valB = t;
+    }
+}
+
+
 #define W (sizeof(int) * 8)
 int nextPowerOfTwo(int x){
     /*
@@ -1703,7 +1727,7 @@ void merge(
         int keySize
 )
 {
-        __global char keyA[64], keyB[64];
+        char keyA[64], keyB[64];
         int valA, valB, dstPosA, dstPosB;
 
 	size_t threadId = get_local_id(0);
