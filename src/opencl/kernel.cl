@@ -1505,7 +1505,7 @@ int nextPowerOfTwo(int x){
         x |= x >> 16;
         return ++x;
     */
-    return 1U << (W - __clz(x - 1));
+    return 1U << (W - clz(x - 1));
 }
 
 int iDivUp(int a, int b){
@@ -1526,7 +1526,7 @@ int binarySearchInInt(int val, int *data, int L, int stride, int sortDir){
 
     for (; stride > 0; stride >>= 1)
     {
-        int newPos = umin(pos + stride, L);
+        int newPos = min(pos + stride, L);
 
         if ((sortDir && (data[newPos - 1] <= val)) || (!sortDir && (data[newPos - 1] >= val)))
         {
@@ -1547,7 +1547,7 @@ int binarySearchExInt(int val, int *data, int L, int stride, int sortDir){
 
     for (; stride > 0; stride >>= 1)
     {
-        int newPos = umin(pos + stride, L);
+        int newPos = min(pos + stride, L);
 
         if ((sortDir && (data[newPos - 1] < val)) || (!sortDir && (data[newPos - 1] > val)))
         {
@@ -1601,9 +1601,9 @@ int binarySearchEx(char * val, char *data, int L, int stride, int sortDir, int k
 }
 
 __kernel void generateSampleRanksKernel(
-        int *d_RanksA,
-        int *d_RanksB,
-        char *d_SrcKey,
+        __global int *d_RanksA,
+        __global int *d_RanksB,
+        __global char *d_SrcKey,
         int keySize,
         int stride,
         int N,
@@ -1791,13 +1791,15 @@ __kernel void mergeElementaryIntervalsKernel(
 
     if (threadId < lenSrcA)
     {
-        memcpy(s_key + threadId * keySize, d_SrcKey + (startSrcA + threadId)*keySize, keySize);
+	for(int i=0;i<keySize;i++)
+		s_key[threadId*keySize+i] = d_SrcKey[(startSrcA+threadId)*keySize+i];
         s_val[threadId +             0] = d_SrcVal[0 + startSrcA + threadId];
     }
 
     if (threadId < lenSrcB)
     {
-        memcpy(s_key + (threadId + SAMPLE_STRIDE)*keySize, d_SrcKey + (stride + startSrcB+threadId)*keySize,keySize);
+	for(int i=0;i<keySize;i++)
+		s_key[(threadId+SAMPLE_STRIDE)*keySize+i] = d_SrcKey[(stride+startSrcB+threadId)*keySize+i];
         s_val[threadId + SAMPLE_STRIDE] = d_SrcVal[stride + startSrcB + threadId];
     }
 
@@ -1819,18 +1821,20 @@ __kernel void mergeElementaryIntervalsKernel(
 
     if (threadId < lenSrcA)
     {
-        memcpy(d_DstKey + (startDstA + threadId)*keySize, s_key + threadId * keySize, keySize);
+	for(int i=0;i<keySize;i++)
+		d_DstKey[(startDstA + threadId)*keySize+i] = s_key[threadId * keySize+i];
         d_DstVal[startDstA + threadId] = s_val[threadId];
     }
 
     if (threadId < lenSrcB)
     {
-        memcpy(d_DstKey + (startDstB + threadId)*keySize, s_key + (lenSrcA + threadId)*keySize, keySize);
+	for(int i=0;i<keySize;i++)
+		d_DstKey[(startDstB + threadId)*keySize+i] = s_key[(lenSrcA + threadId)*keySize+i]
         d_DstVal[startDstB + threadId] = s_val[lenSrcA + threadId];
     }
 }
 
-__global__ static void sort_key(__global char * key, int tupleNum, int keySize, __global char *result, int *pos,int dir, __local char * bufKey, __local int* bufVal){
+__kernel static void sort_key(__global char * key, int tupleNum, int keySize, __global char *result, int *pos,int dir, __local char * bufKey, __local int* bufVal){
 	size_t lid = get_local_id(0);
 	size_t bid = get_group_id(0);
 
