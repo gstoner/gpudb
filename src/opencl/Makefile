@@ -13,7 +13,7 @@ dict: dict.c
 	gcc -std=c99 dict.c -o dictCompression
 
 gpudb: gpu cpu
-	 g++ -pg tableScan.o hashJoin.o materialize.o groupby.o  driver.o parseKernel.o $(LDFLAGS) -o GPUDATABASE
+	 g++ -pg tableScan.o hashJoin.o materialize.o groupby.o  orderBy.o driver.o parseKernel.o $(LDFLAGS) -o GPUDATABASE
 
 cpu: driver.cpp parseKernel.cpp
 	g++ -c -g -Wall driver.cpp parseKernel.cpp
