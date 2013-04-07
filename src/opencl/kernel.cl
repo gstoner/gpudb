@@ -1206,7 +1206,7 @@ inline void AtomicAdd(__global float *source, float operand) {
     } while (atomic_cmpxchg((volatile __global unsigned int *)source, prevVal.intVal, newVal.intVal) != prevVal.intVal);
 }
 
-__kernel void agg_cal_cons(__global char * content, __global int* colOffset, int colNum, __global struct mathExp* exp, __global struct mathExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset, int * gbFunc){
+__kernel void agg_cal_cons(__global char * content, __global int* colOffset, int colNum, __global struct mathExp* exp, __global struct mathExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset, __global int * gbFunc){
 
 	size_t stride = get_global_size(0);
 	size_t index = get_global_id(0);
@@ -1230,7 +1230,7 @@ __kernel void agg_cal_cons(__global char * content, __global int* colOffset, int
                 AtomicAdd(&((__global float *)(result+resOffset[i]))[0], buf[i]);
 }
 
-__kernel void agg_cal(__global char * content, __global int *colOffset, int colNum, __global struct mathExp* exp, __global struct mathExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset, int *gbFunc){
+__kernel void agg_cal(__global char * content, __global int *colOffset, int colNum, __global struct mathExp* exp, __global struct mathExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset, __global int *gbFunc){
 
 	size_t stride = get_global_size(0);
 	size_t index = get_global_id(0);
@@ -1241,7 +1241,7 @@ __kernel void agg_cal(__global char * content, __global int *colOffset, int colN
                 int offset = psum[hKey];
 
                 for(int j=0;j<colNum;j++){
-                        int func = gbFunc;
+                        int func = gbFunc[j];
                         if(func ==NOOP){
                                 int type = exp[j].opType;
 
