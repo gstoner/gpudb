@@ -1148,7 +1148,7 @@ __kernel void count_group_num(__global int *num, int tupleNum, __global int *tot
         atomic_add(totalCount,localCount);
 }
 
-float getExp(__global char *content, __global int * colOffset,struct colExp exp,int pos){
+float getExp(__global char *content, __global int * colOffset,struct mathExp exp,int pos){
 	float res = 0;;
         if(exp.op == NOOP){
                 if (exp.opType == CONS)
@@ -1161,7 +1161,7 @@ float getExp(__global char *content, __global int * colOffset,struct colExp exp,
 	return res;
 }
 
-float calMathExp(__global char *content, __global int * colOffset,struct groupByExp exp, __global struct colExp *mexp, int pos){
+float calMathExp(__global char *content, __global int * colOffset,struct groupByExp exp, __global struct mathExp *mexp, int pos){
         float res ;
 
         if(exp.exp.op == NOOP){
@@ -1206,7 +1206,7 @@ inline void AtomicAdd(__global float *source, float operand) {
     } while (atomic_cmpxchg((volatile __global unsigned int *)source, prevVal.intVal, newVal.intVal) != prevVal.intVal);
 }
 
-__kernel void agg_cal_cons(__global char * content, __global int* colOffset, int colNum, __global struct groupByExp* exp, __global struct colExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset){
+__kernel void agg_cal_cons(__global char * content, __global int* colOffset, int colNum, __global struct groupByExp* exp, __global struct mathExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset){
 
 	size_t stride = get_global_size(0);
 	size_t index = get_global_id(0);
@@ -1230,7 +1230,7 @@ __kernel void agg_cal_cons(__global char * content, __global int* colOffset, int
                 AtomicAdd(&((__global float *)(result+resOffset[i]))[0], buf[i]);
 }
 
-__kernel void agg_cal(__global char * content, __global int *colOffset, int colNum, __global struct groupByExp* exp, __global struct colExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset){
+__kernel void agg_cal(__global char * content, __global int *colOffset, int colNum, __global struct groupByExp* exp, __global struct mathExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset){
 
 	size_t stride = get_global_size(0);
 	size_t index = get_global_id(0);
