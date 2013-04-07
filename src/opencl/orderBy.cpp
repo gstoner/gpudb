@@ -128,6 +128,13 @@ void initMergeSort(struct clContext *context){
 	d_LimitsB = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*MAX_SAMPLE,NULL,0);
 }
 
+void finishMergeSort(){
+	clReleaseMemObject(d_RanksA);
+	clReleaseMemObject(d_RanksB);
+	clReleaseMemObject(d_LimitsA);
+	clReleaseMemObject(d_LimitsB);
+}
+
 
 //only handle uncompressed data
 //if the data are compressed, uncompress first
@@ -183,6 +190,9 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 		offset += res->attrSize[i] * res->tupleNum;
 	}
 
+	cl_mem gpuOffset = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(long)*res->totalAttr,0);
+	error = clWriteBuffer(context->queue, gpuOffset, CL_TRUE, 0, sizeof(long)*res->totalAttr, cpuOffset,0,0,0);
+
 	int keySize = 0;
 	int *cpuSize = (int *)malloc(sizeof(int) * odNode->orderByNum);
 
@@ -230,6 +240,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void *)&gpuIndex);
 	clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void *)&gpuSize);
 	clSetKernelArg(context->kernel,6,sizeof(cl_mem), (void *)&gpuKey);
+	clSetKernelArg(context->kernel,7,sizeof(cl_mem), (void *)&gpuOffset);
 
 	localSize = NTHREAD;
 	globalSize = 512 * localSize;
@@ -348,6 +359,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	clReleaseMemObject(gpuIndex);
 	clReleaseMemObject(gpuSize);
 	clReleaseMemObject(gpuPos);
+	finishSortMerge();
 
 	return res;
 }
