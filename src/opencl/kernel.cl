@@ -1911,12 +1911,12 @@ __kernel void gather_result(__global int * keyPos, __global char * col, int newN
         }
 }
 
-__kernel void build_orderby_keys(__global char * content, int tupleNum, int odNum, int keySize, __global int *index, __global int * size, __global char *key __global long* offset){
+__kernel void build_orderby_keys(__global char * content, int tupleNum, int odNum, int keySize, __global int *index, __global int * size, __global char *key, __global long* offset){
 
 	size_t stride = get_global_size(0);
-	size_t offset = get_global_id(0);
+	size_t tid = get_global_id(0);
 
-        for(int i=offset;i<tupleNum;i+=stride){
+        for(int i=tid;i<tupleNum;i+=stride){
                 int pos = i* keySize;
 
                 for(int j=0;j<odNum;j++){
