@@ -123,8 +123,7 @@ static void freeMathExp(struct mathExp exp){
 	if (exp.exp != 0 && exp.opNum == 2){
 		freeMathExp(((struct mathExp *)exp.exp)[0]);
 		freeMathExp(((struct mathExp *)exp.exp)[1]);
-		freeMathExp(((struct mathExp *)exp.exp));
-		free(exp.exp);
+		free(((struct mathExp *)exp.exp));
 		exp.exp = NULL;
 	}	
 }
