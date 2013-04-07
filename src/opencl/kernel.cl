@@ -1478,7 +1478,7 @@ __kernel void materialize(__global char * content, __global long * colOffset, in
 #define SAMPLE_STRIDE 128
 #define SHARED_SIZE_LIMIT 1024 
 
-int gpu_strcmp(const char *s1, const char *s2, int len){
+int gpu_strcmp(__global char *s1, __global char *s2, int len){
         int res = 0;
 
         for(int i=0;i < len;i++){
@@ -1568,7 +1568,7 @@ int binarySearchIn(char * val, char *data, int L, int stride, int sortDir, int k
 
     for (; stride > 0; stride >>= 1)
     {
-        int newPos = umin(pos + stride, L);
+        int newPos = min(pos + stride, L);
 
         if ((sortDir && (gpu_strcmp(data+(newPos-1)*keySize,val,keySize) != 1)) || (!sortDir && (gpu_strcmp(data + (newPos-1)*keySize,val,keySize)!=-1)))
         {
@@ -1579,7 +1579,7 @@ int binarySearchIn(char * val, char *data, int L, int stride, int sortDir, int k
     return pos;
 }
 
-int binarySearchEx(__global __private char * val, char *data, int L, int stride, int sortDir, int keySize){
+int binarySearchEx(__global __private char * val, __global char *data, int L, int stride, int sortDir, int keySize){
     if (L == 0)
     {
         return 0;
