@@ -1161,27 +1161,27 @@ float getExp(__global char *content, __global int * colOffset,struct mathExp exp
 	return res;
 }
 
-float calMathExp(__global char *content, __global int * colOffset,struct groupByExp exp, __global struct mathExp *mexp, int pos){
+float calMathExp(__global char *content, __global int * colOffset,struct mathExp exp, __global struct mathExp *mexp, int pos){
         float res ;
 
-        if(exp.exp.op == NOOP){
-                if (exp.exp.opType == CONS)
-                        res = exp.exp.opValue;
+        if(exp.op == NOOP){
+                if (exp.opType == CONS)
+                        res = exp.opValue;
                 else{
-                        int index = exp.exp.opValue;
+                        int index = exp.opValue;
                         res = ((__global int *)(content+colOffset[index]))[pos];
                 }
 
-        }else if(exp.exp.op == PLUS ){
+        }else if(exp.op == PLUS ){
                 res = getExp(content,colOffset,mexp[2*pos],pos) + getExp(content, colOffset,mexp[2*pos+1],pos);
 
-        }else if (exp.exp.op == MINUS){
+        }else if (exp.op == MINUS){
                 res = getExp(content,colOffset,mexp[2*pos],pos) - getExp(content, colOffset,mexp[2*pos+1],pos);
 
-        }else if (exp.exp.op == MULTIPLY){
+        }else if (exp.op == MULTIPLY){
                 res = getExp(content,colOffset,mexp[2*pos],pos) * getExp(content, colOffset,mexp[2*pos+1], pos);
 
-        }else if (exp.exp.op == DIVIDE){
+        }else if (exp.op == DIVIDE){
                 res = getExp(content,colOffset,mexp[2*pos],pos) / getExp(content, colOffset,mexp[2*pos+1],pos);
         }
 
@@ -1230,7 +1230,7 @@ __kernel void agg_cal_cons(__global char * content, __global int* colOffset, int
                 AtomicAdd(&((__global float *)(result+resOffset[i]))[0], buf[i]);
 }
 
-__kernel void agg_cal(__global char * content, __global int *colOffset, int colNum, __global struct groupByExp* exp, __global struct mathExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset){
+__kernel void agg_cal(__global char * content, __global int *colOffset, int colNum, __global struct mathExp* exp, __global struct mathExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset, int *gbFunc){
 
 	size_t stride = get_global_size(0);
 	size_t index = get_global_id(0);
@@ -1241,15 +1241,15 @@ __kernel void agg_cal(__global char * content, __global int *colOffset, int colN
                 int offset = psum[hKey];
 
                 for(int j=0;j<colNum;j++){
-                        int func = exp[j].func;
+                        int func = gbFunc;
                         if(func ==NOOP){
-                                int type = exp[j].exp.opType;
+                                int type = exp[j].opType;
 
                                 if(type == CONS){
-                                        int value = exp[j].exp.opValue;
+                                        int value = exp[j].opValue;
                                         ((__global int *)(result + resOffset[j]))[offset] = value;
                                 }else{
-                                        int index = exp[j].exp.opValue;
+                                        int index = exp[j].opValue;
                                         int attrSize = gbSize[j];
                                         if(attrSize == sizeof(int))
                                                 ((__global int *)(result+resOffset[j]))[offset] = ((__global int*)(content + colOffset[index]))[i];
