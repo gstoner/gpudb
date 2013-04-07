@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <CL/cl.h>
+#include <string.h>
 #include "../include/common.h"
 #include "../include/gpuOpenclLib.h"
 
@@ -226,7 +227,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 
-	gpuIndex =clCreateBuffer(context->queue,CL_MEM_READ_ONLY, res->totalAttr * sizeof(int), NULL,0);
+	gpuIndex = clCreateBuffer(context->queue,CL_MEM_READ_ONLY, res->totalAttr * sizeof(int), NULL,0);
 	error = clEnqueueWriteBuffer(context->queue, gpuIndex, CL_TRUE, 0, odNode->orderByNum * sizeof(int), cpuSize,0,0,0);
 
 	context->kernel = clCreateKernel(context->program,"build_orderby_keys",0);
@@ -289,7 +290,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 			oval = d_BufVal;
 		}
 
-		glocalSize = newNum/NTHREAD * localSize;
+		globalSize = newNum/NTHREAD * localSize;
 
 		context->kernel = clCreateKernel(context->program,"sort_key",0);
 
@@ -328,28 +329,28 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	}	
 
 	cl_mem gpuResult = clCreateBuffer(context->queue,CL_MEM_READ_WRITE, res->tupleNum * res->tupleSize, NULL,0);
-	clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int)*res->totalAttr, odNode->table->content[i],0,0,0);
+	clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int)*res->totalAttr, cpuSize,0,0,0);
 
 	context->kernel = clCreateKernel(context->program,"gather_result",0);
-	clSetkernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpuPos);
-	clSetkernelArg(context->kernel,1,sizeof(cl_mem),(void*)&gpuContent);
-	clSetkernelArg(context->kernel,2,sizeof(int),(void*)&newNum);
-	clSetkernelArg(context->kernel,3,sizeof(int),(void*)&gpuTupleNum);
-	clSetkernelArg(context->kernel,4,sizeof(cl_mem),(void*)&gpuSize);
-	clSetkernelArg(context->kernel,5,sizeof(int),(void*)&res->totalAttr);
-	clSetkernelArg(context->kernel,6,sizeof(cl_mem),(void*)&gpuResult);
-	clSetkernelArg(context->kernel,7,sizeof(cl_mem),(void*)&gpuOffset);
+	clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpuPos);
+	clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void*)&gpuContent);
+	clSetKernelArg(context->kernel,2,sizeof(int),(void*)&newNum);
+	clSetKernelArg(context->kernel,3,sizeof(int),(void*)&gpuTupleNum);
+	clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void*)&gpuSize);
+	clSetKernelArg(context->kernel,5,sizeof(int),(void*)&res->totalAttr);
+	clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void*)&gpuResult);
+	clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void*)&gpuOffset);
 
 	localSize = 128;
 	globalSize = 512 * localSize;
 	
 	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
-	int offset = 0;
+	offset = 0;
 	for(int i=0; i<res->totalAttr;i++){
 		int size = res->attrSize[i] * gpuTupleNum;
 		memset(res->content[i],0, size);
-		clReadBuffer(context->queue,gpuResult, CL_TRUE, offset, size, res->content[i],0);
+		clEnqueueReadBuffer(context->queue,gpuResult, CL_TRUE, offset, size, res->content[i],0);
 		offset += size;
 	}
 
@@ -361,7 +362,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	clReleaseMemObject(gpuSize);
 	clReleaseMemObject(gpuPos);
 	clReleaseMemObject(gpuOffset);
-	finishSortMerge();
+	finishMergeSort();
 
 	return res;
 }
