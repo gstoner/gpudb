@@ -55,7 +55,7 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 
 	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
-	clEnqueueReadBuffer(context->queue,gpuResult,CL_TRUE,0,size,res,0,0,0);
+	clEnqueueWriteBuffer(context->queue,gpuResult,CL_TRUE,0,size,res,0,0,0);
 
 	free(colOffset);
 
