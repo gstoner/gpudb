@@ -1558,7 +1558,7 @@ int binarySearchExInt(int val, __global int *data, int L, int stride, int sortDi
     return pos;
 }
 
-int binarySearchIn(__global __private char * val, __global char *data, int L, int stride, int sortDir, int keySize){
+int binarySearchIn(__global char * val, __global char *data, int L, int stride, int sortDir, int keySize){
     if (L == 0)
     {
         return 0;
@@ -1579,7 +1579,7 @@ int binarySearchIn(__global __private char * val, __global char *data, int L, in
     return pos;
 }
 
-int binarySearchEx(__global __private char * val, __global char *data, int L, int stride, int sortDir, int keySize){
+int binarySearchEx(__global char * val, __global char *data, int L, int stride, int sortDir, int keySize){
     if (L == 0)
     {
         return 0;
@@ -1703,7 +1703,7 @@ void merge(
         int keySize
 )
 {
-        char keyA[64], keyB[64];
+        __global char keyA[64], keyB[64];
         int valA, valB, dstPosA, dstPosB;
 
 	size_t threadId = get_local_id(0);
