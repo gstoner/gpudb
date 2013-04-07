@@ -1537,7 +1537,7 @@ int binarySearchInInt(int val, int *data, int L, int stride, int sortDir){
     return pos;
 }
 
-int binarySearchExInt(int val, int *data, int L, int stride, int sortDir){
+int binarySearchExInt(int val, __global int *data, int L, int stride, int sortDir){
     if (L == 0)
     {
         return 0;
@@ -1589,7 +1589,7 @@ int binarySearchEx(__global __private char * val, __global char *data, int L, in
 
     for (; stride > 0; stride >>= 1)
     {
-        int newPos = umin(pos + stride, L);
+        int newPos = min(pos + stride, L);
 
         if ((sortDir && (gpu_strcmp(data+(newPos-1)*keySize,val,keySize) == -1)) || (!sortDir && (gpu_strcmp(data + (newPos-1)*keySize,val,keySize)==1)))
         {
@@ -1625,7 +1625,7 @@ __kernel void generateSampleRanksKernel(
     d_RanksB += segmentBase / SAMPLE_STRIDE;
 
     const int segmentElementsA = stride;
-    const int segmentElementsB = umin(stride, N - segmentBase - stride);
+    const int segmentElementsB = min(stride, N - segmentBase - stride);
     const int  segmentSamplesA = getSampleCount(segmentElementsA);
     const int  segmentSamplesB = getSampleCount(segmentElementsB);
 
@@ -1670,7 +1670,7 @@ __kernel void mergeRanksAndIndicesKernel(
     d_Limits += (pos - i) * 2;
 
     const int segmentElementsA = stride;
-    const int segmentElementsB = umin(stride, N - segmentBase - stride);
+    const int segmentElementsB = min(stride, N - segmentBase - stride);
     const int  segmentSamplesA = getSampleCount(segmentElementsA);
     const int  segmentSamplesB = getSampleCount(segmentElementsB);
 
@@ -1772,7 +1772,7 @@ __kernel void mergeElementaryIntervalsKernel(
 
     	if (threadId == 0){
         	int segmentElementsA = stride;
-        	int segmentElementsB = umin(stride, N - segmentBase - stride);
+        	int segmentElementsB = min(stride, N - segmentBase - stride);
         	int  segmentSamplesA = getSampleCount(segmentElementsA);
         	int  segmentSamplesB = getSampleCount(segmentElementsB);
         	int   segmentSamples = segmentSamplesA + segmentSamplesB;
