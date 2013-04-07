@@ -585,21 +585,21 @@ def printMathFunc(fo,prefix, mathFunc):
     if mathFunc.opName == "COLUMN":
         print >>fo, prefix + ".op = NOOP;" 
         print >>fo, prefix + ".opNum = 1;"
-        print >>fo, prefix + ".exp = NULL;"
+        print >>fo, prefix + ".exp = 0;"
         print >>fo, prefix + ".opType = COLUMN;"
         print >>fo, prefix + ".opValue = " + str(mathFunc.value) + ";"
     elif mathFunc.opName == "CONS":
         print >>fo, prefix + ".op = NOOP;" 
         print >>fo, prefix + ".opNum = 1;"
-        print >>fo, prefix + ".exp = NULL;"
+        print >>fo, prefix + ".exp = 0;"
         print >>fo, prefix + ".opType = CONS;"
         print >>fo, prefix + ".opValue = " + str(mathFunc.value) + ";"
     else:
         print >>fo, prefix + ".op = " + mathFunc.opName + ";"
         print >>fo, prefix + ".opNum = 2;"
-        print >>fo, prefix + ".exp = (struct mathExp *) malloc(sizeof(struct mathExp) * 2);"
-        prefix1 = prefix + ".exp[0]"
-        prefix2 = prefix + ".exp[1]"
+        print >>fo, ""prefix + ".exp = (long) malloc(sizeof(struct mathExp) * 2);"
+        prefix1 = "(struct mathExp *) + "prefix + ".exp[0]"
+        prefix2 = "(struct mathExp *) + "prefix + ".exp[1]"
         printMathFunc(fo,prefix1,mathFunc.leftOp)
         printMathFunc(fo,prefix2,mathFunc.rightOp)
 
