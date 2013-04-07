@@ -13,6 +13,12 @@ static inline int iDivUp(int a, int b)
     return ((a % b) == 0) ? (a / b) : (a / b + 1);
 }
 
+static inline int getSampleCount(int dividend)
+{
+    return iDivUp(dividend, SAMPLE_STRIDE);
+}
+
+
 static void generateSampleRanks(
         cl_mem d_RanksA,
         cl_mem d_RanksB,
@@ -126,8 +132,8 @@ void initMergeSort(struct clContext *context){
 
 	d_RanksA = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*MAX_SAMPLE_COUNT,NULL,0);
 	d_RanksB = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*MAX_SAMPLE_COUNT,NULL,0);
-	d_LimitsA = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*MAX_SAMPLE,NULL,0);
-	d_LimitsB = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*MAX_SAMPLE,NULL,0);
+	d_LimitsA = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*MAX_SAMPLE_COUNT,NULL,0);
+	d_LimitsB = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*MAX_SAMPLE_COUNT,NULL,0);
 }
 
 void finishMergeSort(){
