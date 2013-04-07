@@ -1220,7 +1220,7 @@ __kernel void agg_cal_cons(__global char * content, __global int* colOffset, int
                 for(int j=0;j<colNum;j++){
                         int func = gbFunc[j];
                         if (func == SUM){
-                                float tmpRes = calMathExp(content, colOffset,exp[j], mexp, i);
+                                float tmpRes = calMathExp(content, colOffset,exp[j], mexp, j);
                                 buf[j] += tmpRes;
                         }
                 }
@@ -1260,7 +1260,7 @@ __kernel void agg_cal(__global char * content, __global int *colOffset, int colN
                                 }
 
                         }else if (func == SUM){
-                                float tmpRes = calMathExp(content, colOffset, exp[j],mexp, i);
+                                float tmpRes = calMathExp(content, colOffset, exp[j],mexp, j);
                                 AtomicAdd(& ((__global float *)(result+resOffset[j]))[offset], tmpRes);
                         }
                 }
