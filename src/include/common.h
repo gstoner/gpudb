@@ -118,21 +118,12 @@ struct scanNode{
 
 };
 
-
-// this is for opencl use only
-struct colExp{
-	int op;
-	int opNum;
-	int opType;
-	int opValue;
-};
-
 struct mathExp {
 	int op;				// the math operation
 	int opNum;			// the number of operands
 
 // 	when opNum is 2 ,
-	struct mathExp *exp;		// if the opNum is 2, this field stores the two operands
+	long exp;		// if the opNum is 2, this field stores pointer that points to the two operands whose type is mathExp
 
 //	when opNum is 1,
 	int opType;			// whether it is a regular column or a constant
