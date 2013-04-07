@@ -1579,7 +1579,7 @@ int binarySearchIn(char * val, char *data, int L, int stride, int sortDir, int k
     return pos;
 }
 
-int binarySearchEx(char * val, char *data, int L, int stride, int sortDir, int keySize){
+int binarySearchEx(__global __private char * val, char *data, int L, int stride, int sortDir, int keySize){
     if (L == 0)
     {
         return 0;
