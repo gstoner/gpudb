@@ -368,7 +368,6 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	clReleaseMemObject(gpuSize);
 	clReleaseMemObject(gpuPos);
 	clReleaseMemObject(gpuOffset);
-	finishMergeSort();
 
 	return res;
 }
