@@ -1875,7 +1875,7 @@ __global__ static void sort_key(char * key, int tupleNum, int keySize, char *res
         }
     }
 
-    barrier(CLK_LOCAL_MEM_FENCE); 
+    barrier(CLK_LOCAL_MEM_FENCE);
 
 	for(int i=0;i<keySize;i++)
 		result[i+ gid*keySize] = bufKey[lid*keySize + i];
@@ -1902,7 +1902,7 @@ __kernel static void gather_result(char * keyPos, char ** col, int newNum, int t
         }
 }
 
-__kernel void build_orderby_keys(char ** content, int tupleNum, int odNum, int keySize,int *index, int * size, char *key){
+__kernel void build_orderby_keys(__global char * content, int tupleNum, int odNum, int keySize, __global int *index, __global int * size, __global char *key __global long* offset){
         int stride = blockDim.x * gridDim.x;
         int offset = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -1910,12 +1910,22 @@ __kernel void build_orderby_keys(char ** content, int tupleNum, int odNum, int k
                 int pos = i* keySize;
 
                 for(int j=0;j<odNum;j++){
-                        memcpy(key+pos,content[index[j]]+i*size[j],size[j]);
+			int index = index[j];
+			for(int k=0;k<size[j];k++)
+				key[pos + k] = content[offset[index] + i*size[j] + k];
                         pos += size[j];
                 }
 
         }
 }
 
+__kernel void set_key(__global char *key, int tupleNum){
 
+        size_t stride = get_global_size(0);
+	size_t tid = get_global_id(0);
+
+        for(size_t i=tid;i<tupleNum;i+=stride)
+                key[i] = '{';
+
+}
 
