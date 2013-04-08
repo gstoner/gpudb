@@ -654,25 +654,25 @@ __kernel void unpack_rle(__global char * fact, __global char * rle, long tupleNu
 
 //The following kernels are for traditional hash joins
 
-__kernel void count_hash_num(__global int *dim, long  inNum, __global int *num){
+__kernel void count_hash_num(__global int *dim, long  inNum, __global int *num, int hsize){
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
 
         for(size_t i=offset;i<inNum;i+=stride){
                 int joinKey = dim[i];
-                int hKey = joinKey & (HSIZE-1);
+                int hKey = joinKey & (hsize-1);
                 atomic_add(&(num[hKey]),1);
         }
 }
 
-__kernel void build_hash_table(__global int *dim, long inNum, __global int *psum, __global int * bucket){
+__kernel void build_hash_table(__global int *dim, long inNum, __global int *psum, __global int * bucket, int hsize){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
 
         for(size_t i=offset;i<inNum;i+=stride){
                 int joinKey = dim[i];
-                int hKey = joinKey & (HSIZE-1);
+                int hKey = joinKey & (hsize-1);
                 int pos = atomic_add(&psum[hKey],1) * 2;
                 bucket[pos] = joinKey;
                 pos += 1;
@@ -682,7 +682,7 @@ __kernel void build_hash_table(__global int *dim, long inNum, __global int *psum
 
 }
 
-__kernel void count_join_result_dict(__global int *num, __global int* psum, __global int* bucket, __global char* fact, int dNum, __global int* dictFilter){
+__kernel void count_join_result_dict(__global int *num, __global int* psum, __global int* bucket, __global char* fact, int dNum, __global int* dictFilter,int hsize){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
@@ -691,7 +691,7 @@ __kernel void count_join_result_dict(__global int *num, __global int* psum, __gl
 
         for(size_t i=offset;i<dNum;i+=stride){
                 int fkey = dheader->hash[i];
-                int hkey = fkey &(HSIZE-1);
+                int hkey = fkey &(hsize-1);
                 int keyNum = num[hkey];
 		int fvalue = 0;
 
@@ -723,7 +723,7 @@ __kernel void filter_count(long tupleNum, __global int * count, __global int * f
         count[offset] = lcount;
 }
 
-__kernel void count_join_result_rle(__global int* num, __global int* psum, __global int* bucket, __global char* fact, long tupleNum, __global int * factFilter){
+__kernel void count_join_result_rle(__global int* num, __global int* psum, __global int* bucket, __global char* fact, long tupleNum, __global int * factFilter,int hsize){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
@@ -736,7 +736,7 @@ __kernel void count_join_result_rle(__global int* num, __global int* psum, __glo
                 int fcount = ((__global int *)(fact+sizeof(struct rleHeader)))[i + dNum];
                 int fpos = ((__global int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
 
-                int hkey = fkey &(HSIZE-1);
+                int hkey = fkey &(hsize-1);
                 int keyNum = num[hkey];
                 int pSum = psum[hkey];
 
@@ -758,14 +758,14 @@ __kernel void count_join_result_rle(__global int* num, __global int* psum, __glo
 
 }
 
-__kernel  void count_join_result(__global int* num, __global int* psum, __global int* bucket, __global int* fact, long inNum, __global int* count, __global int * factFilter){
+__kernel  void count_join_result(__global int* num, __global int* psum, __global int* bucket, __global int* fact, long inNum, __global int* count, __global int * factFilter,int hsize){
         int lcount = 0;
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
 
         for(size_t i=offset;i<inNum;i+=stride){
                 int fkey = fact[i];
-                int hkey = fkey &(HSIZE-1);
+                int hkey = fkey &(hsize-1);
                 int keyNum = num[hkey];
 		int fvalue = 0;
 
