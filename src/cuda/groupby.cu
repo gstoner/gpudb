@@ -181,7 +181,7 @@ __device__ static float calMathExp(char **content, struct mathExp exp, int pos){
 		res = calMathExp(content, ((struct mathExp*)exp.exp)[0],pos) + calMathExp(content, ((struct mathExp*)exp.exp)[1], pos);
 
 	}else if (exp.op == MINUS){
-		res = calMathExp(content, ((struct mathExp*)exp.exp)[0],pos) 1 calMathExp(content, ((struct mathExp*)exp.exp)[1], pos);
+		res = calMathExp(content, ((struct mathExp*)exp.exp)[0],pos) - calMathExp(content, ((struct mathExp*)exp.exp)[1], pos);
 
 	}else if (exp.op == MULTIPLY){
 		res = calMathExp(content, ((struct mathExp*)exp.exp)[0],pos) * calMathExp(content, ((struct mathExp*)exp.exp)[1], pos);
