@@ -151,8 +151,8 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		gbCount = 1;
 
 		tmp = 0;
-		gpuGbCount = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(int),NULL,&error);
-		clEnqueueWriteBuffer(context->queue,gpuGbType,CL_TRUE,0,sizeof(int),&tmp,0,0,0);
+		gpuGbCount = clCreateBuffer(context->context,CL_MEM_READ_WRITE, sizeof(int),NULL,&error);
+		clEnqueueWriteBuffer(context->queue,gpuGbCount,CL_TRUE,0,sizeof(int),&tmp,0,0,0);
 
 		int hsize = HSIZE;
 		context->kernel = clCreateKernel(context->program, "count_group_num",0);
@@ -163,7 +163,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 
 		clEnqueueReadBuffer(context->queue, gpuGbCount, CL_TRUE, 0, sizeof(int), &gbCount,0,0,0);
 
-		gpu_psum = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(int)*HSIZE,NULL,&error);
+		gpu_psum = clCreateBuffer(context->context,CL_MEM_READ_WRITE, sizeof(int)*HSIZE,NULL,&error);
 
 		scanImpl(gpu_hashNum,HSIZE,gpu_psum,context,pp);
 
