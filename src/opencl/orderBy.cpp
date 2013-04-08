@@ -247,7 +247,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 	gpuIndex = clCreateBuffer(context->context,CL_MEM_READ_ONLY, res->totalAttr * sizeof(int), NULL,0);
-	error = clEnqueueWriteBuffer(context->queue, gpuIndex, CL_TRUE, 0, odNode->orderByNum * sizeof(int), cpuSize,0,0,0);
+	error = clEnqueueWriteBuffer(context->queue, gpuIndex, CL_TRUE, 0, odNode->orderByNum * sizeof(int), odNode->orderByIndex,0,0,0);
 
 	context->kernel = clCreateKernel(context->program,"build_orderby_keys",0);
 
