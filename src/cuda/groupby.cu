@@ -178,16 +178,16 @@ __device__ static float calMathExp(char **content, struct mathExp exp, int pos){
 		}
 	
 	}else if(exp.op == PLUS ){
-		res = calMathExp(content, exp.exp[0],pos) + calMathExp(content, exp.exp[1], pos);
+		res = calMathExp(content, ((struct mathExp*)exp.exp)[0],pos) + calMathExp(content, ((struct mathExp*)exp.exp)[1], pos);
 
 	}else if (exp.op == MINUS){
-		res = calMathExp(content, exp.exp[0],pos) - calMathExp(content, exp.exp[1], pos);
+		res = calMathExp(content, ((struct mathExp*)exp.exp)[0],pos) 1 calMathExp(content, ((struct mathExp*)exp.exp)[1], pos);
 
 	}else if (exp.op == MULTIPLY){
-		res = calMathExp(content, exp.exp[0],pos) * calMathExp(content, exp.exp[1], pos);
+		res = calMathExp(content, ((struct mathExp*)exp.exp)[0],pos) * calMathExp(content, ((struct mathExp*)exp.exp)[1], pos);
 
 	}else if (exp.op == DIVIDE){
-		res = calMathExp(content, exp.exp[0],pos) / calMathExp(content, exp.exp[1], pos);
+		res = calMathExp(content, ((struct mathExp*)exp.exp)[0],pos) / calMathExp(content, ((struct mathExp*)exp.exp)[1], pos);
 	}
 
 	return res;
@@ -407,7 +407,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 		struct mathExp * tmpMath;
 		if(gb->gbExp[i].exp.opNum == 2){
 			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&tmpMath, 2* sizeof(struct mathExp)));
-			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(tmpMath,gb->gbExp[i].exp.exp,2*sizeof(struct mathExp), cudaMemcpyHostToDevice));
+			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(tmpMath,(struct mathExp*)gb->gbExp[i].exp.exp,2*sizeof(struct mathExp), cudaMemcpyHostToDevice));
 			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(&(gpuGbExp[i].exp.exp), &tmpMath, sizeof(struct mathExp *), cudaMemcpyHostToDevice));
 		}
 	}
