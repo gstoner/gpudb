@@ -366,7 +366,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int)*res->totalAttr, res->attrSize,0,0,0);
 	
 	cl_mem gpuResOffset = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(long)*res->totalAttr, NULL,0);
-	clEnqueueWriteBuffer(context->queue, gpuResOffset, CL_TRUE, 0 ,sizeof(int)*res->totalAttr, resOffset, 0,0,0);
+	clEnqueueWriteBuffer(context->queue, gpuResOffset, CL_TRUE, 0 ,sizeof(long)*res->totalAttr, resOffset, 0,0,0);
 
 
 	context->kernel = clCreateKernel(context->program,"gather_result",0);
