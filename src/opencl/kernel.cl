@@ -2007,16 +2007,16 @@ __kernel void sort_key(__global char * key, int tupleNum, int keySize, __global 
 
 }
 
-__kernel void gather_result(__global int * keyPos, __global char * col, int newNum, int tupleNum, __global int *size, int colNum, __global char *result, __global long * offset){
+__kernel void gather_result(__global int * keyPos, __global char * col, int newNum, int tupleNum, __global int *size, int colNum, __global char *result, __global long * offset, __global long * resOffset){
 	size_t stride = get_global_size(0);
-	size_t index = get_global_id(0);
+	size_t tid = get_global_id(0);
 
         for(int j=0;j<colNum;j++){
-                for(size_t i=index;i<newNum;i+=stride){
+                for(size_t i=tid;i<newNum;i+=stride){
                         int pos = keyPos[i];
                         if(pos<tupleNum){
 				for(int k=0;k<size[j];k++)
-					result[offset[j]+i*size[j]+k] = col[offset[j]+pos*size[j]+k];
+					result[resOffset[j]+i*size[j]+k] = col[offset[j]+pos*size[j]+k];
 			}
                 }
         }
@@ -2040,7 +2040,7 @@ __kernel void build_orderby_keys(__global char * content, int tupleNum, int odNu
         }
 }
 
-__kernel void set_key(__global char *key, int tupleNum){
+__kernel void set_key(__global char *key, long tupleNum){
 
         size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
