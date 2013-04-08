@@ -13,7 +13,7 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 	cl_mem gpuResult;
 	cl_mem gpuAttrSize;
 
-	long size = tn->tupleNum * tn->tupleSize;
+	long totalSize = tn->tupleNum * tn->tupleSize;
 
 	cl_int error = 0;
 
@@ -21,22 +21,25 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 
 	clock_gettime(CLOCK_REALTIME,&start);
 
-	cl_mem gpuContent = clCreateBuffer(context->context, CL_MEM_READ_ONLY, size, NULL, &error);
-	gpuResult = clCreateBuffer(context->context, CL_MEM_READ_WRITE, size, NULL, &error);
+	cl_mem gpuContent = clCreateBuffer(context->context, CL_MEM_READ_ONLY, totalSize, NULL, &error);
+	gpuResult = clCreateBuffer(context->context, CL_MEM_READ_WRITE, totalSize, NULL, &error);
 	gpuAttrSize = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*tn->totalAttr,tn->attrSize,&error);
 
-	res = (char *) malloc(size);
+	res = (char *) malloc(totalSize);
 
 	long offset = 0;
 	long *colOffset = (long*)malloc(sizeof(long)*tn->totalAttr);
+
 	for(int i=0;i<tn->totalAttr;i++){
 		colOffset[i] = offset;
+		int size = tn->tupleNum * tn->attrSize[i]; 
+
 		if(tn->dataPos[i] == MEM)
-			clEnqueueWriteBuffer(context->queue,gpuContent,CL_TRUE,offset,tn->tupleNum * tn->attrSize[i],tn->content[i],0,0,0);
+			clEnqueueWriteBuffer(context->queue,gpuContent,CL_TRUE,offset,size,tn->content[i],0,0,0);
 		else
-			clEnqueueCopyBuffer(context->queue,(cl_mem)tn->content[i],gpuContent,0,offset,tn->tupleNum * tn->attrSize[i],0,0,0);
+			clEnqueueCopyBuffer(context->queue,(cl_mem)tn->content[i],gpuContent,0,offset,size,0,0,0);
 			
-		offset += tn->tupleNum * tn->attrSize[i];
+		offset += size;
 	}
 
 	cl_mem gpuColOffset = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(long)*tn->totalAttr,colOffset,&error);
@@ -55,7 +58,7 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 
 	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
-	clEnqueueWriteBuffer(context->queue,gpuResult,CL_TRUE,0,size,res,0,0,0);
+	clEnqueueWriteBuffer(context->queue,gpuResult,CL_TRUE,0,totalSize,res,0,0,0);
 
 	free(colOffset);
 
