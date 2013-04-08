@@ -23,7 +23,8 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 
 	cl_mem gpuContent = clCreateBuffer(context->context, CL_MEM_READ_ONLY, totalSize, NULL, &error);
 	gpuResult = clCreateBuffer(context->context, CL_MEM_READ_WRITE, totalSize, NULL, &error);
-	gpuAttrSize = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*tn->totalAttr,tn->attrSize,&error);
+	gpuAttrSize = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sizeof(int)*tn->totalAttr,NULL,&error);
+	clEnqueueWriteBuffer(context->queue,gpuAttrSize,CL_TRUE,0,sizeof(int)*tn->totalAttr,tn->attrSize,0,0,0);
 
 	res = (char *) malloc(totalSize);
 
@@ -42,7 +43,8 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 		offset += size;
 	}
 
-	cl_mem gpuColOffset = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(long)*tn->totalAttr,colOffset,&error);
+	cl_mem gpuColOffset = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sizeof(long)*tn->totalAttr,NULL,&error);
+	clEnqueueWriteBuffer(context->queue,gpuColOffset,CL_TRUE,0,sizeof(long)*tn->totalAttr,colOffset,0,0,0);
 
 	size_t globalSize = 512;
 	size_t localSize = 128;

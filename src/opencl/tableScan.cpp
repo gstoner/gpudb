@@ -103,7 +103,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 	if(1){
 
-		cl_mem gpuExp = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(struct whereExp), &where->exp[0],&error);
+		cl_mem gpuExp = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sizeof(struct whereExp), NULL,&error);
+		clEnqueueWriteBuffer(context->queue,gpuExp,CL_TRUE,0,sizeof(struct whereExp),&where->exp[0],0,0,0);
 
 		int whereIndex = where->exp[0].index;
 		int index = sn->whereIndex[whereIndex];
@@ -187,7 +188,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			dNum = dheader->dictNum;
 			byteNum = dheader->bitNum/8;
 
-			cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(struct dictHeader), dheader,&error);
+			cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), NULL,&error);
+			clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
 
 			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
 				clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index]-sizeof(struct dictHeader),sn->tn->content[index] + sizeof(struct dictHeader),0,0,0);
@@ -281,7 +283,9 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					dNum = dheader->dictNum;
 					byteNum = dheader->bitNum/8;
 
-					cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(struct dictHeader), dheader,&error);
+					cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), NULL,&error);
+					clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
+
 					gpuDictFilter = clCreateBuffer(context->context,CL_MEM_READ_WRITE,dNum * sizeof(int),NULL,&error);
 
 					context->kernel = clCreateKernel(context->program,"genScanFilter_dict_init",0); 
@@ -415,7 +419,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				dNum = dheader->dictNum;
 				byteNum = dheader->bitNum/8;
 
-				cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(struct dictHeader), dheader,&error);
+				cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), dheader,&error);
+				clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
 
 				if(dictFilter != -1){
 					if(where->andOr == AND)

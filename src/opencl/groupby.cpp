@@ -105,15 +105,21 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 
 	}
 
-	cl_mem gpuOffset = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(long)*gb->table->totalAttr,cpuOffset,&error);
+	cl_mem gpuOffset = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(long)*gb->table->totalAttr,NULL,&error);
+	clEnqueueWriteBuffer(context->queue,gpuOffset,CL_TRUE,0,sizeof(long)*gb->table->totalAttr,cpuOffset,0,0,0);
 
 	if(gbConstant != 1){
 
-		gpuGbType = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(int)*gb->groupByColNum,gb->groupByType,&error);
-		gpuGbSize = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(int)*gb->groupByColNum,gb->groupBySize,&error);
+		gpuGbType = clCreateBuffer(context->context,CL_MEM_READ_ONLY,sizeof(int)*gb->groupByColNum,NULL,&error);
+		clEnqueueWriteBuffer(context->queue,gpuGbType,CL_TRUE,0,sizeof(int)*gb->groupByColNum,gb->groupByType,0,0,0);
+
+		gpuGbSize = clCreateBuffer(context->context,CL_MEM_READ_ONLY,sizeof(int)*gb->groupByColNum,NULL,&error);
+		clEnqueueWriteBuffer(context->queue,gpuGbSize,CL_TRUE,0,sizeof(int)*gb->groupByColNum,gb->groupBySize,0,0,0);
+
 		gpuGbKey = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*gb->table->tupleNum,NULL,&error);
 
-		gpuGbIndex = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*gb->groupByColNum,gb->groupByIndex,&error);
+		gpuGbIndex = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(int)*gb->groupByColNum,NULL,&error);
+		clEnqueueWriteBuffer(context->queue,gpuGbIndex,CL_TRUE,0,sizeof(int)*gb->groupByColNum,gb->groupByIndex,0,0,0);
 
 		gpu_hashNum = clCreateBuffer(context->context,CL_MEM_READ_WRITE, sizeof(int)*HSIZE,NULL,&error);
 
@@ -145,7 +151,8 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		gbCount = 1;
 
 		tmp = 0;
-		gpuGbCount = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int),&tmp,&error);
+		gpuGbCount = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(int),NULL,&error);
+		clEnqueueWriteBuffer(context->queue,gpuGbType,CL_TRUE,0,sizeof(int),&tmp,0,0,0);
 
 		int hsize = HSIZE;
 		context->kernel = clCreateKernel(context->program, "count_group_num",0);
@@ -171,8 +178,11 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 
 	printf("groupBy num %d\n",res->tupleNum);
 
-	gpuGbType = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*res->totalAttr, res->attrType, &error);
-	gpuGbSize = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*res->totalAttr, res->attrSize, &error);
+	gpuGbType = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sizeof(int)*res->totalAttr, NULL, &error);
+	clEnqueueWriteBuffer(context->queue,gpuGbType,CL_TRUE,0,sizeof(int)*res->totalAttr,res->attrType,0,0,0);
+
+	gpuGbSize = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sizeof(int)*res->totalAttr, NULL, &error);
+	clEnqueueWriteBuffer(context->queue,gpuGbSize,CL_TRUE,0,sizeof(int)*res->totalAttr,res->attrSize,0,0,0);
 
 	/*
  	 * @gpuGbExp is the mathExp in each groupBy expression
@@ -210,7 +220,8 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		}
 	}
 
-	cl_mem gpuFunc = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*res->totalAttr, cpuFunc, &error);
+	cl_mem gpuFunc = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sizeof(int)*res->totalAttr, NULL, &error);
+	clEnqueueWriteBuffer(context->queue,gpuFunc,CL_TRUE,0,sizeof(int)*res->totalAttr,cpuFunc,0,0,0);
 
 	long *resOffset = (long *)malloc(sizeof(long)*res->totalAttr);
 	
@@ -233,7 +244,8 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	}
 
 	cl_mem gpuResult = clCreateBuffer(context->context,CL_MEM_READ_WRITE, totalSize, NULL, &error);
-	cl_mem gpuResOffset = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(long)*res->totalAttr, resOffset,&error);
+	cl_mem gpuResOffset = clCreateBuffer(context->context, CL_MEM_READ_ONLY,sizeof(long)*res->totalAttr, NULL,&error);
+	clEnqueueWriteBuffer(context->queue,gpuResOffset,CL_TRUE,0,sizeof(long)*res->totalAttr,resOffset,0,0,0);
 
 	gpuGbColNum = res->totalAttr;
 
