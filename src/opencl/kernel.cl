@@ -1945,7 +1945,7 @@ __kernel void mergeElementaryIntervalsKernel(
     }
 }
 
-__kernel void sort_key(__global char * key, int tupleNum, int keySize, __global char *result, __global int *pos,int dir, __local char * bufKey, __local int* bufVal){
+__kernel void sort_key(__global char * key, int tupleNum, int keySize, __global char *result, __global int * resPos, int dir, __local char * bufKey, __local int* bufVal){
 	size_t lid = get_local_id(0);
 	size_t bid = get_group_id(0);
 
@@ -1978,32 +1978,28 @@ __kernel void sort_key(__global char * key, int tupleNum, int keySize, __global 
                 }
         }
 
-    {
-	size_t lsize = get_local_size(0);
-        for (int stride = lsize ; stride > 0; stride >>= 1)
-        {
+        for (int stride = lsize ; stride > 0; stride >>= 1){
     		barrier(CLK_LOCAL_MEM_FENCE); 
             	int pos = 2 * lid - (lid & (stride - 1));
-            Comparator(
-                bufKey+pos*keySize, &bufVal[pos +      0],
-                bufKey+(pos+stride)*keySize, &bufVal[pos + stride],
-                keySize,
-                dir
+            	Comparator(
+                	bufKey+pos*keySize, &bufVal[pos + 0],
+                	bufKey+(pos+stride)*keySize, &bufVal[pos + stride],
+                	keySize,
+                	dir
             );
         }
-    }
 
-    barrier(CLK_LOCAL_MEM_FENCE);
+   	barrier(CLK_LOCAL_MEM_FENCE);
 
 	for(int i=0;i<keySize;i++)
 		result[i+ gid*keySize] = bufKey[lid*keySize + i];
 
-        pos[gid] = bufVal[lid];
+        resPos[gid] = bufVal[lid];
 
 	for(int i=0;i<keySize;i++)
 		result[i + (gid+lsize)*keySize] = bufKey[i+ (lid+lsize)*keySize];
 
-        pos[gid+lsize] = bufVal[lid+lsize];
+        resPos[gid+lsize] = bufVal[lid+lsize];
 
 }
 
