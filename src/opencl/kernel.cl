@@ -1104,9 +1104,9 @@ unsigned int StringHash(const char* s)
 __kernel void build_groupby_key(__global char * content, __global long * colOffset, int gbColNum, __global int * gbIndex, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *num){
 
 	size_t stride = get_global_size(0);
-	size_t offset = get_global_id(0);
+	size_t tid = get_global_id(0);
 
-        for(size_t i = offset; i< tupleNum; i+= stride){
+        for(size_t i = tid; i< tupleNum; i+= stride){
                 char buf[128] = {0};
                 for (int j=0; j< gbColNum; j++){
                         char tbuf[32]={0};
@@ -1119,7 +1119,7 @@ __kernel void build_groupby_key(__global char * content, __global long * colOffs
 
                         }else if (gbType[j] == STRING){
 				for(int k=0;k<gbSize[j];k++)
-					tbuf[k] = (content+offset+i*gbSize[j])[k];
+					tbuf[k] = content[offset+i*gbSize[j]+k];
                                 gpuStrncat(buf, tbuf, gbSize[j]);
 
                         }else if (gbType[j] == INT){
@@ -1136,10 +1136,10 @@ __kernel void build_groupby_key(__global char * content, __global long * colOffs
 
 __kernel void count_group_num(__global int *num, int tupleNum, __global int *totalCount){
 	size_t stride = get_global_size(0);
-	size_t offset = get_global_id(0);
+	size_t tid = get_global_id(0);
         int localCount = 0;
 
-        for(size_t i=offset; i<tupleNum; i+= stride){
+        for(size_t i = tid; i<tupleNum; i+= stride){
                 if(num[i] == 1){
                         localCount ++;
                 }
