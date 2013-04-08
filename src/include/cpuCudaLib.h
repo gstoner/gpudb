@@ -124,12 +124,12 @@ static void freeScan(struct scanNode * rel){
 }
 
 static void freeMathExp(struct mathExp exp){
-	if (exp.exp != NULL && exp.opNum == 2){
-		freeMathExp(exp.exp[0]);
-		freeMathExp(exp.exp[1]);
-		free(exp.exp);
-		exp.exp = NULL;
-	}	
+	if (exp.exp != 0 && exp.opNum == 2){
+                freeMathExp(((struct mathExp *)exp.exp)[0]);
+                freeMathExp(((struct mathExp *)exp.exp)[1]);
+                free(((struct mathExp *)exp.exp));
+                exp.exp = NULL;
+        }
 }
 
 static void freeGroupByNode(struct groupByNode * tn){
