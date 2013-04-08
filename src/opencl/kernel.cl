@@ -1472,7 +1472,7 @@ __kernel void materialize(__global char * content, __global long * colOffset, in
                 for(int j=0;j<colNum;j++){
                         int aSize = attrSize[j];
 			for(int k=0;k<aSize;k++)
-				(result + i*tupleSize + offset)[k] = (content + colOffset[j] + i*aSize)[k];
+				result[i*tupleSize + offset+k] = content[colOffset[j] + i*aSize+k];
                         offset += aSize;
                 }
         }
