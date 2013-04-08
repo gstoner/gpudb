@@ -1107,9 +1107,13 @@ __kernel void build_groupby_key(__global char * content, __global long * colOffs
 	size_t tid = get_global_id(0);
 
         for(size_t i = tid; i< tupleNum; i+= stride){
+
                 char buf[128] = {0};
+
                 for (int j=0; j< gbColNum; j++){
+
                         char tbuf[32]={0};
+
                         int index = gbIndex[j];
 			long offset = colOffset[index];
 
@@ -1118,11 +1122,14 @@ __kernel void build_groupby_key(__global char * content, __global long * colOffs
                                 gpuStrncat(buf,tbuf,1);
 
                         }else if (gbType[j] == STRING){
+
 				for(int k=0;k<gbSize[j];k++)
 					tbuf[k] = content[offset+i*gbSize[j]+k];
+
                                 gpuStrncat(buf, tbuf, gbSize[j]);
 
                         }else if (gbType[j] == INT){
+
                                 int key = ((__global int *)(content+offset))[i];
                                 gpuItoa(key,tbuf,10);
                                 gpuStrcat(buf,tbuf);
@@ -1132,6 +1139,7 @@ __kernel void build_groupby_key(__global char * content, __global long * colOffs
                 key[i]= hkey;
                 num[hkey] = 1;
         }
+	__syncthreads();
 }
 
 __kernel void count_group_num(__global int *num, int tupleNum, __global int *totalCount){

@@ -4,6 +4,7 @@
 #include <CL/cl.h>
 #include "../include/common.h"
 #include "../include/gpuOpenclLib.h"
+#include "../include/cpuOpenclLib.h"
 #include "scanImpl.cpp"
 
 
@@ -69,20 +70,39 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	cl_mem gpu_psum;
 	cl_mem gpuGbCount;
 
-	gpuContent = clCreateBuffer(context->context,CL_MEM_READ_ONLY, gb->table->tupleSize * gb->table->tupleNum,NULL,&error);
-
 	long * cpuOffset = (long *)malloc(sizeof(long) * gb->table->totalAttr);
 	long offset = 0;
+	long totalSize = 0;
 
 	for(int i=0;i<gb->table->totalAttr;i++){
-		int attrSize = gb->table->attrSize[i];
-		cpuOffset[i] = offset;
-		if(gb->table->dataPos[i]==MEM)
-			error = clEnqueueWriteBuffer(context->queue, gpuContent, CL_TRUE, offset, attrSize * gb->table->tupleNum, gb->table->content[i],0,0,0);
-		else
-			error = clEnqueueCopyBuffer(context->queue,(cl_mem)gb->table->content[i],gpuContent,0,offset,gb->table->tupleNum * attrSize,0,0,0);
 
-		offset += attrSize * gb->table->tupleNum;
+		int attrSize = gb->table->attrSize[i];
+		int size = attrSize * gb->table->tupleNum;
+
+		cpuOffset[i] = offset;
+
+		/*align each column*/
+
+		if(size % 4 !=0){
+			size += 4 - (size%4);
+		}
+
+		offset += size;
+		totalSize += size;
+	}
+
+	gpuContent = clCreateBuffer(context->context,CL_MEM_READ_ONLY, totalSize,NULL,&error);
+
+	for(int i=0;i<gb->table->totalAttr;i++){
+
+		int attrSize = gb->table->attrSize[i];
+		int size = attrSize * gb->table->tupleNum;
+
+		if(gb->table->dataPos[i]==MEM)
+			error = clEnqueueWriteBuffer(context->queue, gpuContent, CL_TRUE, cpuOffset[i], size, gb->table->content[i],0,0,0);
+		else
+			error = clEnqueueCopyBuffer(context->queue,(cl_mem)gb->table->content[i],gpuContent,0, cpuOffset[i],size,0,0,0);
+
 	}
 
 	cl_mem gpuOffset = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(long)*gb->table->totalAttr,cpuOffset,&error);
@@ -95,7 +115,15 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 
 		gpuGbIndex = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*gb->groupByColNum,gb->groupByIndex,&error);
 
-		gpu_hashNum = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(int)*HSIZE,NULL,&error);
+		gpu_hashNum = clCreateBuffer(context->context,CL_MEM_READ_WRITE, sizeof(int)*HSIZE,NULL,&error);
+
+		context->kernel = clCreateKernel(context->program,"cl_memset_int",0);
+
+		int tmp = HSIZE;
+		clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&gpu_hashNum);
+		clSetKernelArg(context->kernel,1,sizeof(int), (void*)&tmp);
+
+		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 		context->kernel = clCreateKernel(context->program, "build_groupby_key",0);
 		clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&gpuContent);
@@ -116,7 +144,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 
 		gbCount = 1;
 
-		int tmp = 0;
+		tmp = 0;
 		gpuGbCount = clCreateBuffer(context->context,CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int),&tmp,&error);
 
 		int hsize = HSIZE;
@@ -143,7 +171,6 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 
 	printf("groupBy num %d\n",res->tupleNum);
 
-	cl_mem gpuResult = clCreateBuffer(context->context,CL_MEM_READ_WRITE, res->tupleSize * res->tupleNum, NULL, &error);
 	
 	gpuGbType = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*res->totalAttr, res->attrType, &error);
 	gpuGbSize = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*res->totalAttr, res->attrSize, &error);
@@ -185,6 +212,8 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		resOffset[i] = offset;
 		offset += res->attrSize[i] * res->tupleNum;
 	}
+
+	cl_mem gpuResult = clCreateBuffer(context->context,CL_MEM_READ_WRITE, res->tupleSize * res->tupleNum, NULL, &error);
 
 	cl_mem gpuResOffset = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(long)*res->totalAttr, resOffset,&error);
 
