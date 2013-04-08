@@ -172,8 +172,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	cl_mem gpuIndex, gpuSize;
 	cl_int error = 0;
 
-	gpuContent = clCreateBuffer(context->context,CL_MEM_READ_ONLY, res->tupleNum * res->tupleSize, NULL, 0);
-
+	long totalSize = 0;
 	long * cpuOffset = (long *)malloc(sizeof(long) * res->totalAttr);
 	long offset = 0;
 
@@ -181,25 +180,39 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 
 		cpuOffset[i] = offset;
 		res->attrType[i] = odNode->table->attrType[i];
+		res->attrSize[i] = odNode->table->attrSize[i];
 		res->attrTotalSize[i] = odNode->table->attrTotalSize[i];
 		res->dataPos[i] = MEM;
 		res->dataFormat[i] = UNCOMPRESSED;
 
-		res->attrSize[i] = odNode->table->attrSize[i];
-		int attrSize = res->attrSize[i];
-		res->content[i] = (char *) malloc( attrSize * res->tupleNum);
+		int size = res->attrSize[i] * res->tupleNum;
 
-		if(odNode->table->dataPos[i] == MEM){
-			error = clEnqueueWriteBuffer(context->queue, gpuContent, CL_TRUE, offset, attrSize * res->tupleNum, odNode->table->content[i],0,0,0);
-		}else if (odNode->table->dataPos[i] == GPU){
-			error = clEnqueueCopyBuffer(context->queue,(cl_mem)odNode->table->content[i],gpuContent,0,offset,res->tupleNum * attrSize,0,0,0);
+		if(size %4 !=0){
+			size += (4 - size %4);
 		}
 
-		offset += res->attrSize[i] * res->tupleNum;
+		offset += size;
+		totalSize += size;
+	}
+
+	gpuContent = clCreateBuffer(context->context,CL_MEM_READ_ONLY, totalSize, NULL, 0);
+
+	for(int i=0;i<res->totalAttr;i++){
+
+		int size = res->attrSize[i] * res->tupleNum;
+
+		if(odNode->table->dataPos[i] == MEM){
+			error = clEnqueueWriteBuffer(context->queue, gpuContent, CL_TRUE, cpuOffset[i], size, odNode->table->content[i],0,0,0);
+		}else if (odNode->table->dataPos[i] == GPU){
+			error = clEnqueueCopyBuffer(context->queue,(cl_mem)odNode->table->content[i],gpuContent,0,cpuOffset[i],size,0,0,0);
+		}
+
 	}
 
 	cl_mem gpuOffset = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(long)*res->totalAttr,NULL,0);
 	error = clEnqueueWriteBuffer(context->queue, gpuOffset, CL_TRUE, 0, sizeof(long)*res->totalAttr, cpuOffset,0,0,0);
+
+	free(cpuOffset);
 
 	int keySize = 0;
 	int *cpuSize = (int *)malloc(sizeof(int) * odNode->orderByNum);
@@ -219,19 +232,19 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	gpuSize = clCreateBuffer(context->context,CL_MEM_READ_ONLY, res->totalAttr * sizeof(int), NULL, 0);
 	error = clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int) * odNode->orderByNum, cpuSize,0,0,0);
 
-	cl_mem gpukey = clCreateBuffer(context->context,CL_MEM_READ_ONLY, keySize * newNum, NULL, 0);
-	cl_mem gpuSortedkey = clCreateBuffer(context->context,CL_MEM_READ_WRITE, keySize * newNum, NULL, 0);
+	gpuKey = clCreateBuffer(context->context,CL_MEM_READ_ONLY, keySize * newNum, NULL, 0);
+	gpuSortedKey = clCreateBuffer(context->context,CL_MEM_READ_WRITE, keySize * newNum, NULL, 0);
 
 	context->kernel = clCreateKernel(context->program,"set_key",0);
 
-	clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void *)&gpuKey);
-	clSetKernelArg(context->kernel,0,sizeof(int), (void *)&keySize);
+	long tmp = keySize * newNum;
+	error = clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void *)&gpuKey);
+	error = clSetKernelArg(context->kernel,1,sizeof(long), (void *)&tmp);
 
 	localSize = 128;
 	globalSize = 512 * localSize;
 
 	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
-
 
 	gpuIndex = clCreateBuffer(context->context,CL_MEM_READ_ONLY, res->totalAttr * sizeof(int), NULL,0);
 	error = clEnqueueWriteBuffer(context->queue, gpuIndex, CL_TRUE, 0, odNode->orderByNum * sizeof(int), cpuSize,0,0,0);
@@ -271,6 +284,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 		localSize = newNum/2;
 		globalSize = localSize;
 		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+
 
 	}else{
 		int stageCount = 0;
@@ -332,10 +346,28 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 			ival = oval;
 			oval = t;
         	}
-	}	
+	}
 
-	cl_mem gpuResult = clCreateBuffer(context->context,CL_MEM_READ_WRITE, res->tupleNum * res->tupleSize, NULL,0);
+	long * resOffset = (long *) malloc(sizeof(long) * res->totalAttr);
+	offset = 0;
+	totalSize = 0;
+	for(int i=0; i<res->totalAttr;i++){
+		int size = res->attrSize[i] * res->tupleNum;
+		if(size %4 != 0){
+			size += 4 - (size % 4);
+		}
+
+		resOffset[i] = offset;
+		offset += size;
+		totalSize += size;
+	}
+
+	cl_mem gpuResult = clCreateBuffer(context->context,CL_MEM_READ_WRITE, totalSize, NULL,0);
 	clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int)*res->totalAttr, cpuSize,0,0,0);
+	
+	cl_mem gpuResOffset = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(long)*res->totalAttr, NULL,0);
+	clEnqueueWriteBuffer(context->queue, gpuResOffset, CL_TRUE, 0 ,sizeof(int)*res->totalAttr, resOffset, 0,0,0);
+
 
 	context->kernel = clCreateKernel(context->program,"gather_result",0);
 	clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpuPos);
@@ -346,21 +378,23 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	clSetKernelArg(context->kernel,5,sizeof(int),(void*)&res->totalAttr);
 	clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void*)&gpuResult);
 	clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void*)&gpuOffset);
+	clSetKernelArg(context->kernel,8,sizeof(cl_mem),(void*)&gpuResOffset);
 
 	localSize = 128;
 	globalSize = 512 * localSize;
 	
 	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
-	offset = 0;
 	for(int i=0; i<res->totalAttr;i++){
 		int size = res->attrSize[i] * gpuTupleNum;
+		res->content[i] = (char *) malloc( size);
 		memset(res->content[i],0, size);
-		clEnqueueWriteBuffer(context->queue,gpuResult, CL_TRUE, offset, size, res->content[i],0,0,0);
+		clEnqueueWriteBuffer(context->queue,gpuResult, CL_TRUE, resOffset[i], size, res->content[i],0,0,0);
 		offset += size;
 	}
 
 
+	free(resOffset);
 	clFinish(context->queue);
 	clReleaseMemObject(gpuKey);
 	clReleaseMemObject(gpuContent);
@@ -369,6 +403,8 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	clReleaseMemObject(gpuSize);
 	clReleaseMemObject(gpuPos);
 	clReleaseMemObject(gpuOffset);
+	clReleaseMemObject(gpuResOffset);
+	finishMergeSort();
 
 	return res;
 }
