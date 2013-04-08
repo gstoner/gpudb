@@ -266,7 +266,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 
 	cl_mem gpuPos = clCreateBuffer(context->context, CL_MEM_READ_WRITE, sizeof(int)*newNum, NULL,0);
 
-	if(newNum < SHARED_SIZE_LIMIT){
+	if(newNum <= SHARED_SIZE_LIMIT){
 
 		context->kernel = clCreateKernel(context->program,"sort_key",0);
 
