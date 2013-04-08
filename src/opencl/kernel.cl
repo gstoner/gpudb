@@ -1139,7 +1139,6 @@ __kernel void build_groupby_key(__global char * content, __global long * colOffs
                 key[i]= hkey;
                 num[hkey] = 1;
         }
-	__syncthreads();
 }
 
 __kernel void count_group_num(__global int *num, int tupleNum, __global int *totalCount){
