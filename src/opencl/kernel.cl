@@ -1244,19 +1244,17 @@ __kernel void agg_cal(__global char * content, __global int *colOffset, int colN
                         int func = gbFunc[j];
                         if(func ==NOOP){
                                 int type = exp[j].opType;
+                                int attrSize = gbSize[j];
 
                                 if(type == CONS){
                                         int value = exp[j].opValue;
-                                        ((__global int *)(result + resOffset[j]))[offset] = value;
+					char * buf = (char *)&value;
+					for(int k=0;k<attrSize;k++)
+						result[resOffset[j] + offset*attrSize +k] = buf[k];
                                 }else{
                                         int index = exp[j].opValue;
-                                        int attrSize = gbSize[j];
-                                        if(attrSize == sizeof(int))
-                                                ((__global int *)(result+resOffset[j]))[offset] = ((__global int*)(content + colOffset[index]))[i];
-                                        else{
-						for(int k=0;k<attrSize;k++)
-							(result+resOffset[j] + offset*attrSize)[k] = (content + colOffset[index] + i*attrSize)[k];
-					}
+					for(int k=0;k<attrSize;k++)
+						result[resOffset[j] + offset*attrSize +k] = content[colOffset[index] + i*attrSize + k];
                                 }
 
                         }else if (func == SUM){
