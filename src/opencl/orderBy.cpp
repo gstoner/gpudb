@@ -363,7 +363,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	}
 
 	cl_mem gpuResult = clCreateBuffer(context->context,CL_MEM_READ_WRITE, totalSize, NULL,0);
-	clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int)*res->totalAttr, cpuSize,0,0,0);
+	clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int)*res->totalAttr, res->attrSize,0,0,0);
 	
 	cl_mem gpuResOffset = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(long)*res->totalAttr, NULL,0);
 	clEnqueueWriteBuffer(context->queue, gpuResOffset, CL_TRUE, 0 ,sizeof(int)*res->totalAttr, resOffset, 0,0,0);
@@ -390,7 +390,6 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 		res->content[i] = (char *) malloc( size);
 		memset(res->content[i],0, size);
 		clEnqueueWriteBuffer(context->queue,gpuResult, CL_TRUE, resOffset[i], size, res->content[i],0,0,0);
-		offset += size;
 	}
 
 
