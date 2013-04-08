@@ -171,13 +171,17 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 
 	printf("groupBy num %d\n",res->tupleNum);
 
-	
 	gpuGbType = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*res->totalAttr, res->attrType, &error);
 	gpuGbSize = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, sizeof(int)*res->totalAttr, res->attrSize, &error);
 
-	cl_mem gpuGbExp = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sizeof(struct mathExp)*res->totalAttr, NULL, &error);
+	/*
+ 	 * @gpuGbExp is the mathExp in each groupBy expression
+ 	 * @mathexp stores the math exp for for the group expression that has two operands
+ 	 * The reason that we need two variables instead of one is that OpenCL doesn't support pointer to pointer
+ 	 * */
 
-	cl_mem mathexp = clCreateBuffer(context->context, CL_MEM_READ_ONLY, 2*sizeof(struct mathExp)*res->totalAttr,NULL, &error);
+	cl_mem gpuGbExp = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sizeof(struct mathExp)*res->totalAttr, NULL, &error);
+	cl_mem mathexp = clCreateBuffer(context->context, CL_MEM_READ_ONLY, 2*sizeof(struct mathExp)*res->totalAttr, NULL, &error);
 
 	struct mathExp tmpExp[2];
 	int * cpuFunc = (int *) malloc(sizeof(int) * res->totalAttr);
@@ -186,10 +190,13 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	for(int i=0;i<res->totalAttr;i++){
 
 		error = clEnqueueWriteBuffer(context->queue, gpuGbExp, CL_TRUE, offset, sizeof(struct mathExp), &(gb->gbExp[i].exp),0,0,0);
+
 		offset += sizeof(struct mathExp);
+
 		cpuFunc[i] = gb->gbExp[i].func;
+
 		if(gb->gbExp[i].exp.opNum == 2){
-			struct mathExp * tmpMath = (struct mathExp *) gb->gbExp[i].exp.exp;
+			struct mathExp * tmpMath = (struct mathExp *) (gb->gbExp[i].exp.exp);
 			tmpExp[0].op = tmpMath[0].op;
 			tmpExp[0].opNum = tmpMath[0].opNum;
 			tmpExp[0].opType = tmpMath[0].opType;
@@ -208,13 +215,24 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	long *resOffset = (long *)malloc(sizeof(long)*res->totalAttr);
 	
 	offset = 0;
+	totalSize = 0;
 	for(int i=0;i<res->totalAttr;i++){
+		
+		/*
+ 		 * align the output of each column on the boundary of 4
+ 		 */
+
+		int size = res->attrSize[i] * res->tupleNum;
+		if(size %4 != 0){
+			size += 4- (size %4);
+		}
+
 		resOffset[i] = offset;
-		offset += res->attrSize[i] * res->tupleNum;
+		offset += size; 
+		totalSize += size;
 	}
 
-	cl_mem gpuResult = clCreateBuffer(context->context,CL_MEM_READ_WRITE, res->tupleSize * res->tupleNum, NULL, &error);
-
+	cl_mem gpuResult = clCreateBuffer(context->context,CL_MEM_READ_WRITE, totalSize, NULL, &error);
 	cl_mem gpuResOffset = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR,sizeof(long)*res->totalAttr, resOffset,&error);
 
 	gpuGbColNum = res->totalAttr;
