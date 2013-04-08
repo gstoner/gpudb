@@ -278,7 +278,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 		clSetKernelArg(context->kernel,3,sizeof(cl_mem), (void*)&gpuSortedKey);
 		clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&gpuPos);
 		clSetKernelArg(context->kernel,5,sizeof(int), (void*)&sortDir);
-		clSetKernelArg(context->kernel,6,SHARED_SIZE_LIMIT*32, NULL);
+		clSetKernelArg(context->kernel,6,SHARED_SIZE_LIMIT*16, NULL);
 		clSetKernelArg(context->kernel,7,SHARED_SIZE_LIMIT*sizeof(int), NULL);
 
 		localSize = newNum/2;
