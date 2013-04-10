@@ -635,6 +635,7 @@ def generate_code(tree):
     print >>fo, "#include <sys/mman.h>"
     print >>fo, "#include <string.h>"
     print >>fo, "#include <unistd.h>"
+    print >>fo, "#include <malloc.h>"
     print >>fo, "#include <time.h>"
     print >>fo, "#include \"../include/common.h\""
 
@@ -687,7 +688,7 @@ def generate_code(tree):
         print >>fo, "\tclGetPlatformIDs(0,NULL,&numP);"
         print >>fo, "\tcl_platform_id * pid = new cl_platform_id[numP];"
         print >>fo, "\tclGetPlatformIDs(numP, pid, NULL);"
-        print >>fo, "\tclGetDeviceIDs(pid[0],CL_DEVICE_TYPE_CPU,1,&device,NULL);"
+        print >>fo, "\tclGetDeviceIDs(pid[0],CL_DEVICE_TYPE_GPU,1,&device,NULL);"
         print >>fo, "\tcontext.context = clCreateContext(0,1,&device,NULL,NULL,&error);"
         print >>fo, "\tcontext.queue = clCreateCommandQueue(context.context, device, 0, &error);"
         print >>fo, "\tcontext.program = clCreateProgramWithSource(context.context, psc, (const char **)&ps, 0, &error);"
@@ -809,10 +810,10 @@ def generate_code(tree):
                 elif POS == 2:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void **)&" + tnName+"->content["+str(i)+"],outSize));"
                 else:
-                    print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)malloc(outSize);"
+                    print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)memalign(256,outSize);"
 
             else:
-                print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)malloc(outSize);"
+                print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)memalign(256,outSize);"
 
             print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
@@ -1055,10 +1056,10 @@ def generate_code(tree):
                 elif POS == 2:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
                 else:
-                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char*)malloc(outSize);\n"
+                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char*)memalign(256,outSize);\n"
 
             else:
-                print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)malloc(outSize);\n"
+                print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)memalign(256,outSize);\n"
 
             print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
@@ -1506,9 +1507,9 @@ def generate_code(tree):
                 elif POS == 2:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
                 else:
-                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)malloc(outSize);\n"
+                    print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)memalign(256,outSize);\n"
             else:
-                print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)malloc(outSize);\n"
+                print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)memalign(256,outSize);\n"
 
             print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
