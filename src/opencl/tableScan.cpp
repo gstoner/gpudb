@@ -541,7 +541,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			}
 		}
 
-		result[i] = clCreateBuffer(context->context, CL_MEM_READ_ONLY, count * sn->tn->attrSize[index], NULL, &error); 
+		result[i] = clCreateBuffer(context->context, CL_MEM_READ_WRITE, count * sn->tn->attrSize[index], NULL, &error); 
 	}
 
 	if(1){
