@@ -76,6 +76,13 @@ __kernel void cl_memset_int(__global int * ar, int num){
                 ar[i] = 0;
 }
 
+__kernel void fuck(__global int * ar, __global int * xx,int num){
+        size_t stride = get_global_size(0);
+        size_t offset = get_global_id(0);
+
+        for(size_t i=offset; i<num; i+= stride)
+                ar[i] = 0;
+}
 __kernel void transform_dict_filter_init(__global int * dictFilter, __global int *fact, long tupleNum, int dNum,  __global int * filter, int byteNum){
 
 	size_t stride = get_global_size(0);
@@ -1417,14 +1424,15 @@ __kernel void prescan(__global int *g_odata,
                         __global int *g_blockSums,
                         int n,
                         int blockIndex,
-                        int baseIndex, int storeSum, int isNP2, __local int * s_data
+                        int baseIndex, int storeSum, int isNP2, int same, __local int * s_data
                                                 )
 {
     int ai, bi, mem_ai, mem_bi, bankOffsetA, bankOffsetB;
     int bid = get_group_id(0);
     int bsize = get_local_size(0);
 
-    loadSharedChunkFromMem(s_data, g_idata, n,
+    loadSharedChunkFromMem(s_data, (same == 0) ? g_idata:g_odata,
+				  n,
                                   (baseIndex == 0) ?
                                   mul24(bid, (bsize << 1)):baseIndex,
                                   &ai, &bi, &mem_ai, &mem_bi,
