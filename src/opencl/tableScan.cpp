@@ -419,7 +419,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				dNum = dheader->dictNum;
 				byteNum = dheader->bitNum/8;
 
-				cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), dheader,&error);
+				cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), NULL,&error);
 				clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
 
 				if(dictFilter != -1){
