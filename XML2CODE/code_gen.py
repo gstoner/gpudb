@@ -802,6 +802,7 @@ def generate_code(tree):
             print >>fo, "\t\toutSize = header.tupleNum * " + colLen + ";"
             print >>fo, "\t\t" + tnName + "->attrTotalSize[" + str(i) + "] = outSize;"
 
+            print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\toutTable =(char *) mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);\n"
 
             if CODETYPE == 0:
@@ -815,7 +816,6 @@ def generate_code(tree):
             else:
                 print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)memalign(256,outSize);"
 
-            print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
             print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
             print >>fo, "\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
@@ -1046,6 +1046,7 @@ def generate_code(tree):
             print >>fo, "\t\toffset += sizeof(struct columnHeader);"
             print >>fo, "\t\t" + factName + "->dataFormat[" + str(i) + "] = header.format;"
             print >>fo, "\t\toutSize = header.blockSize;"
+            print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\toutTable = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
 
             if CODETYPE == 0:
@@ -1061,7 +1062,6 @@ def generate_code(tree):
             else:
                 print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)memalign(256,outSize);\n"
 
-            print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
             print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
             print >>fo, "\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
@@ -1497,6 +1497,7 @@ def generate_code(tree):
             print >>fo, "\t\toffset += sizeof(struct columnHeader);"
             print >>fo, "\t\t" + factName + "->dataFormat[" + str(i) + "] = header.format;"
             print >>fo, "\t\toutSize = header.blockSize;" 
+            print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\toutTable = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
 
             if CODETYPE == 0:
@@ -1511,7 +1512,6 @@ def generate_code(tree):
             else:
                 print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)memalign(256,outSize);\n"
 
-            print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
             print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
             print >>fo, "\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
