@@ -728,8 +728,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 				int byteNum;
 				char * gpuDictHeader;
 
-				assert(dataPos == MEM || dataPos == PINNED);
-
 				dheader = (struct dictHeader *)table;
 				byteNum = dheader->bitNum/8;
 				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuDictHeader,sizeof(struct dictHeader)));
@@ -791,7 +789,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 				struct dictHeader * dheader;
 				int byteNum;
 				char * gpuDictHeader;
-				assert(dataPos == MEM || dataPos == PINNED);
 
 				dheader = (struct dictHeader *)table;
 				byteNum = dheader->bitNum/8;
