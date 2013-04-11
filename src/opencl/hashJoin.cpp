@@ -236,7 +236,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		clSetKernelArg(context->kernel,3,sizeof(cl_mem),(void*)&gpu_fact);
 		clSetKernelArg(context->kernel,4,sizeof(long),(void*)&jNode->leftTable->tupleNum);
 		clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void*)&gpuFactFilter);
-		clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void*)&hsize);
+		clSetKernelArg(context->kernel,6,sizeof(int),(void*)&hsize);
 		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 		context->kernel = clCreateKernel(context->program,"filter_count",0);
