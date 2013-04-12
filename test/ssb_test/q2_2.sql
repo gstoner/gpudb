@@ -1,5 +1,5 @@
 select sum(lo_revenue),d_year,p_brand1 
-from lineorder, supplier, part, ddate 
+from lineorder, part, supplier,ddate 
 where lo_orderdate = d_datekey
 and lo_partkey = p_partkey
 and lo_suppkey = s_suppkey
