@@ -64,6 +64,8 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 
 	free(colOffset);
 
+	clFinish(context->queue);
+
 	clReleaseMemObject(gpuColOffset);
 	clReleaseMemObject(gpuContent);
 	clReleaseMemObject(gpuAttrSize);
