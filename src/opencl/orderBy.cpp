@@ -232,7 +232,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	gpuSize = clCreateBuffer(context->context,CL_MEM_READ_ONLY, res->totalAttr * sizeof(int), NULL, 0);
 	error = clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int) * odNode->orderByNum, cpuSize,0,0,0);
 
-	gpuKey = clCreateBuffer(context->context,CL_MEM_READ_ONLY, keySize * newNum, NULL, 0);
+	gpuKey = clCreateBuffer(context->context,CL_MEM_READ_WRITE, keySize * newNum, NULL, 0);
 	gpuSortedKey = clCreateBuffer(context->context,CL_MEM_READ_WRITE, keySize * newNum, NULL, 0);
 
 	context->kernel = clCreateKernel(context->program,"set_key",0);
@@ -389,7 +389,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 		int size = res->attrSize[i] * gpuTupleNum;
 		res->content[i] = (char *) malloc( size);
 		memset(res->content[i],0, size);
-		clEnqueueWriteBuffer(context->queue,gpuResult, CL_TRUE, resOffset[i], size, res->content[i],0,0,0);
+		clEnqueueReadBuffer(context->queue,gpuResult, CL_TRUE, resOffset[i], size, res->content[i],0,0,0);
 	}
 
 
