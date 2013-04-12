@@ -2019,7 +2019,7 @@ __kernel void gather_result(__global int * keyPos, __global char * col, int newN
                         int pos = keyPos[i];
                         if(pos<tupleNum){
 				for(int k=0;k<size[j];k++)
-					result[resOffset[j]+i*size[j]+k] = col[offset[j]+pos*size[j]+k];
+					result[resOffset[j]+pos*size[j]+k] = col[offset[j]+i*size[j]+k];
 			}
                 }
         }
