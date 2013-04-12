@@ -2015,11 +2015,11 @@ __kernel void gather_result(__global int * keyPos, __global char * col, int newN
 	size_t tid = get_global_id(0);
 
         for(int j=0;j<colNum;j++){
-                for(size_t i=tid;i<newNum;i+=stride){
+                for(size_t i=tid;i<tupleNum;i+=stride){
                         int pos = keyPos[i];
                         if(pos<tupleNum){
 				for(int k=0;k<size[j];k++)
-					result[resOffset[j]+pos*size[j]+k] = col[offset[j]+i*size[j]+k];
+					result[resOffset[j]+i*size[j]+k] = col[offset[j]+pos*size[j]+k];
 			}
                 }
         }
