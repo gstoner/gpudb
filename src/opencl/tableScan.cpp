@@ -533,13 +533,13 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
 					clEnqueueWriteBuffer(context->queue, scanCol[i], CL_TRUE, 0, sn->tn->attrTotalSize[index],sn->tn->content[index] ,0,0,0);
 				else
-					;
+					scanCol[i] = (cl_mem)sn->tn->content[index];
 
 			}else{
 				if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
 					clEnqueueWriteBuffer(context->queue, scanCol[i], CL_TRUE, 0, sn->tn->attrTotalSize[index]-sizeof(struct dictHeader),sn->tn->content[index]+sizeof(struct dictHeader),0,0,0);
 				else
-					;
+					scanCol[i] = (cl_mem) (sn->tn->content[index]+sizeof(struct dictHeader));
 			}
 		}
 
