@@ -525,6 +525,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 
 	}
 
+	clFinish(context->queue);
 	clReleaseMemObject(gpuFactFilter);
 
 	clReleaseMemObject(gpu_count);
