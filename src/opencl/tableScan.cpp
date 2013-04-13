@@ -10,6 +10,7 @@
 #include <CL/cl.h>
 #include "../include/common.h"
 #include "../include/gpuOpenclLib.h"
+#include "../include/cpuOpenclLib.h"
 #include "scanImpl.cpp"
 
 /*
@@ -205,8 +206,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
 				clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index]-sizeof(struct dictHeader),sn->tn->content[index] + sizeof(struct dictHeader),0,0,0);
-			else if (sn->tn->dataPos[index] == UVA)
-				column[whereIndex] = (cl_mem) (sn->tn->content[index]+sizeof(struct dictHeader));
+			else if (sn->tn->dataPos[index] == UVA){
+				cl_buffer_region posRegion;
+				posRegion.origin = sizeof(struct dictHeader);
+				posRegion.size = sn->tn->attrTotalSize[index]-sizeof(struct dictHeader);
+				column[whereIndex] = clCreateSubBuffer((cl_mem)sn->tn->content[index],CL_MEM_READ_ONLY, CL_BUFFER_CREATE_TYPE_REGION,&posRegion,0); 
+			}
 
 			gpuDictFilter = clCreateBuffer(context->context,CL_MEM_READ_WRITE,dNum * sizeof(int),NULL,&error);
 
@@ -288,8 +293,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				if(format == DICT){
 					if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
 						clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index]-sizeof(struct dictHeader),sn->tn->content[index] + sizeof(struct dictHeader),0,0,0);
-					else if (sn->tn->dataPos[index] == UVA)
-						column[whereIndex] = (cl_mem)(sn->tn->content[index]+sizeof(struct dictHeader));
+					else if (sn->tn->dataPos[index] == UVA){
+						cl_buffer_region posRegion;
+						posRegion.origin = sizeof(struct dictHeader);
+						posRegion.size = sn->tn->attrTotalSize[index]-sizeof(struct dictHeader);
+						column[whereIndex] = clCreateSubBuffer((cl_mem)sn->tn->content[index],CL_MEM_READ_ONLY, CL_BUFFER_CREATE_TYPE_REGION,&posRegion,0); 
+					}
 
 					cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), NULL,&error);
 					struct dictHeader *dheader;
@@ -567,8 +576,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			}else{
 				if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
 					clEnqueueWriteBuffer(context->queue, scanCol[i], CL_TRUE, 0, sn->tn->attrTotalSize[index]-sizeof(struct dictHeader),sn->tn->content[index]+sizeof(struct dictHeader),0,0,0);
-				else
-					scanCol[i] = (cl_mem) (sn->tn->content[index]+sizeof(struct dictHeader));
+				else{
+					cl_buffer_region posRegion;
+					posRegion.origin = sizeof(struct dictHeader);
+					posRegion.size = sn->tn->attrTotalSize[index]-sizeof(struct dictHeader);
+					scanCol[i] = clCreateSubBuffer((cl_mem)sn->tn->content[index],CL_MEM_READ_ONLY, CL_BUFFER_CREATE_TYPE_REGION,&posRegion,0); 
+				}
 			}
 		}
 
@@ -596,10 +609,20 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 			}else if(format == DICT){
-				struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[index];
-				int byteNum = dheader->bitNum/8;
+				struct dictHeader * dheader;
+				cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), NULL,&error);
+				int byteNum;
 
-				cl_mem gpuDictHeader = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_COPY_HOST_PTR, count * sn->tn->attrSize[index], dheader, &error); 
+				if(sn->tn->dataPos[index] == MEM){
+					dheader = (struct dictHeader *)sn->tn->content[index];
+					byteNum = dheader->bitNum/8;
+					clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
+				}else{
+					dheader = (struct dictHeader*)clEnqueueMapBuffer(context->queue,(cl_mem)sn->tn->content[index],CL_TRUE,CL_MAP_READ,0,sizeof(struct dictHeader),0,0,0,0);
+					byteNum = dheader->bitNum/8;
+					clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
+					clEnqueueUnmapMemObject(context->queue,(cl_mem)sn->tn->content[index],(void*)dheader,0,0,0);
+				}
 
 				if (sn->tn->attrSize[i] == sizeof(int))
 					context->kernel = clCreateKernel(context->program,"scan_dict_int",0);
