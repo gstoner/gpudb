@@ -25,6 +25,8 @@
 
 struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, struct statistic * pp){
 
+	struct timespec start,end;
+        clock_gettime(CLOCK_REALTIME,&start);
 	struct tableNode * res = NULL;
 	long gpuTupleNum;
 	int gpuGbColNum;
@@ -303,6 +305,10 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	clReleaseMemObject(gpuResOffset);
 	clReleaseMemObject(gpuGbExp);
 	clReleaseMemObject(gpuFunc);
+
+	clock_gettime(CLOCK_REALTIME,&end);
+        double timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;
+        printf("GroupBy Time: %lf\n", timeE/(1000*1000));
 
 	return res;
 }

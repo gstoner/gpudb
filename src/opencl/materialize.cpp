@@ -8,6 +8,8 @@
 
 void * materializeCol(struct materializeNode * mn, struct clContext * context, struct statistic * pp){
 
+	struct timespec start,end;
+        clock_gettime(CLOCK_REALTIME,&start);
 	struct tableNode *tn = mn->table;
 	char * res;
 	cl_mem gpuResult;
@@ -71,8 +73,9 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 	clReleaseMemObject(gpuAttrSize);
 	clReleaseMemObject(gpuResult);
 
+
 	clock_gettime(CLOCK_REALTIME,&end);
-	double timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;
-	pp->total += timeE/(1000*1000) ;
+        double timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;
+        printf("Materialization Time: %lf\n", timeE/(1000*1000));
 	return res;
 }

@@ -149,6 +149,8 @@ void finishMergeSort(){
 
 struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *context, struct statistic *pp){
 	
+	struct timespec start,end;
+        clock_gettime(CLOCK_REALTIME,&start);
 	struct tableNode * res = NULL;
 	size_t globalSize, localSize;
 
@@ -404,6 +406,10 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	clReleaseMemObject(gpuOffset);
 	clReleaseMemObject(gpuResOffset);
 	finishMergeSort();
+
+	clock_gettime(CLOCK_REALTIME,&end);
+        double timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;
+        printf("OrderBy Time: %lf\n", timeE/(1000*1000));
 
 	return res;
 }
