@@ -190,16 +190,21 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		int dNum;
 		struct dictHeader * dheader;
 
-		if(dataPos == MEM || dataPos == UVA || dataPos == PINNED){
+		if(dataPos == MEM ){
 			dheader = (struct dictHeader *) jNode->leftTable->content[jNode->leftKeyIndex];
 			dNum = dheader->dictNum;
 
 		}else if (dataPos == GPU){
 			dheader = (struct dictHeader *) malloc(sizeof(struct dictHeader));
 			memset(dheader,0,sizeof(struct dictHeader));
-			clEnqueueReadBuffer(context->queue, gpu_fact, CL_TRUE, 0, sizeof(struct dictHeader), dheader,0,0,0);
+			clEnqueueReadBuffer(context->queue, (cl_mem)jNode->leftTable->content[jNode->leftKeyIndex], CL_TRUE, 0, sizeof(struct dictHeader), dheader,0,0,0);
 			dNum = dheader->dictNum;
+		}else if(dataPos == UVA || dataPos == PINNED){
+			dheader = (struct dictHeader*)clEnqueueMapBuffer(context->queue,(cl_mem)jNode->leftTable->content[jNode->leftKeyIndex],CL_TRUE,CL_MAP_READ,0,sizeof(struct dictHeader),0,0,0,0);
+                        dNum = dheader->dictNum;
+                        clEnqueueUnmapMemObject(context->queue,(cl_mem)jNode->leftTable->content[jNode->leftKeyIndex],(void*)dheader,0,0,0);
 		}
+
 		free(dheader);
 
 		cl_mem gpuDictFilter = clCreateBuffer(context->context,CL_MEM_READ_WRITE,dNum*sizeof(int),NULL,&error);
@@ -363,20 +368,24 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 			}else if (format == DICT){
 				struct dictHeader * dheader;
 				int byteNum;
-
-				assert(dataPos == MEM || dataPos == PINNED);
-
-				dheader = (struct dictHeader *)table;
-				byteNum = dheader->bitNum/8;
-				
 				cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY,sizeof(struct dictHeader), NULL,&error);
-				clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
+
+				if(dataPos == MEM){
+					dheader = (struct dictHeader *)table;
+					byteNum = dheader->bitNum/8;
+					clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
+				}else if(dataPos == PINNED or dataPos == UVA){
+					dheader = (struct dictHeader*)clEnqueueMapBuffer(context->queue,(cl_mem)table,CL_TRUE,CL_MAP_READ,0,sizeof(struct dictHeader),0,0,0,0);
+                                	byteNum = dheader->bitNum/8;
+                                	clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
+                                	clEnqueueUnmapMemObject(context->queue,(cl_mem)table,(void*)dheader,0,0,0);
+				}
 
 				if(dataPos == MEM || dataPos == PINNED){
-					gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY,colSize-sizeof(struct dictHeader), NULL, &error);
-					clEnqueueWriteBuffer(context->queue,gpu_fact,CL_TRUE,0,colSize-sizeof(struct dictHeader),table+sizeof(struct dictHeader),0,0,0);
+					gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY,colSize, NULL, &error);
+					clEnqueueWriteBuffer(context->queue,gpu_fact,CL_TRUE,0,colSize,table,0,0,0);
 				}else{
-					gpu_fact = (cl_mem)(table + sizeof(struct dictHeader));
+					gpu_fact = (cl_mem)table;
 				}
 
 				if (attrSize == sizeof(int))
@@ -456,19 +465,26 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 			}else if (format == DICT){
 				struct dictHeader * dheader;
 				int byteNum;
-				assert(dataPos == MEM || dataPos == PINNED);
-
-				dheader = (struct dictHeader *)table;
-				byteNum = dheader->bitNum/8;
-
 				cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), NULL, &error);
-				clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
+
+				if(dataPos == MEM){
+					dheader = (struct dictHeader *)table;
+					byteNum = dheader->bitNum/8;
+					clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
+				}else if (dataPos == PINNED || dataPos == UVA){
+
+					dheader = (struct dictHeader*)clEnqueueMapBuffer(context->queue,(cl_mem)table,CL_TRUE,CL_MAP_READ,0,sizeof(struct dictHeader),0,0,0,0);
+                                	byteNum = dheader->bitNum/8;
+                                	clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
+                                	clEnqueueUnmapMemObject(context->queue,(cl_mem)table,(void*)dheader,0,0,0);
+				}
+
 
 				if(dataPos == MEM || dataPos == PINNED){
-					gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY,colSize-sizeof(struct dictHeader),NULL,&error);
-					clEnqueueWriteBuffer(context->queue,gpu_fact,CL_TRUE,0,colSize-sizeof(struct dictHeader),table + sizeof(struct dictHeader),0,0,0);
+					gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY,colSize,NULL,&error);
+					clEnqueueWriteBuffer(context->queue,gpu_fact,CL_TRUE,0,colSize,table,0,0,0);
 				}else{
-					gpu_fact = (cl_mem)(table + sizeof(struct dictHeader));
+					gpu_fact = (cl_mem)table;
 				}
 
 				if(attrType == sizeof(int))

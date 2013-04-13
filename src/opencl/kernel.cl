@@ -83,10 +83,11 @@ __kernel void fuck(__global int * ar, __global int * xx,int num){
         for(size_t i=offset; i<num; i+= stride)
                 ar[i] = 0;
 }
-__kernel void transform_dict_filter_init(__global int * dictFilter, __global int *fact, long tupleNum, int dNum,  __global int * filter, int byteNum){
+__kernel void transform_dict_filter_init(__global int * dictFilter, __global int *dictFact, long tupleNum, int dNum,  __global int * filter, int byteNum){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
+	__global int * fact = dictFact + sizeof(struct dictHeader)/sizeof(int);
 
         int numInt = (tupleNum * byteNum +sizeof(int) - 1) / sizeof(int) ;
 
@@ -103,10 +104,11 @@ __kernel void transform_dict_filter_init(__global int * dictFilter, __global int
 }
 
 
-__kernel void transform_dict_filter_and(__global int * dictFilter, __global int *fact, long tupleNum, int dNum,  __global int * filter, int byteNum){
+__kernel void transform_dict_filter_and(__global int * dictFilter, __global int *dictFact, long tupleNum, int dNum,  __global int * filter, int byteNum){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
+	__global int * fact = dictFact + sizeof(struct dictHeader)/sizeof(int);
 
         int numInt = (tupleNum * byteNum +sizeof(int) - 1) / sizeof(int) ;
 
@@ -122,10 +124,11 @@ __kernel void transform_dict_filter_and(__global int * dictFilter, __global int 
         }
 }
 
-__kernel void transform_dict_filter_or(__global int * dictFilter, __global int *fact, long tupleNum, int dNum,  __global int * filter,int byteNum){
+__kernel void transform_dict_filter_or(__global int * dictFilter, __global int *dictFact, long tupleNum, int dNum,  __global int * filter,int byteNum){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
+	__global int * fact = dictFact + sizeof(struct dictHeader)/sizeof(int);
 
         int numInt = (tupleNum * byteNum +sizeof(int) - 1) / sizeof(int) ;
 
@@ -570,12 +573,13 @@ __kernel void countScanNum(__global int *filter, long tupleNum, __global int * c
 
 }
 
-__kernel void scan_dict_other(__global char *col, __global char * dict, int byteNum,int colSize, long tupleNum, __global int *psum, long resultNum, __global int * filter, __global char * result){
+__kernel void scan_dict_other(__global char *dictCol, __global struct dictHeader * dheader, int byteNum,int colSize, long tupleNum, __global int *psum, long resultNum, __global int * filter, __global char * result){
 
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
-        __global struct dictHeader *dheader = (__global struct dictHeader*)dict;
         int pos = psum[tid] * colSize;
+
+	__global char * col = dictCol + sizeof(struct dictHeader);
 
         for(size_t i = tid; i<tupleNum; i+= stride){
                 if(filter[i] == 1){
@@ -594,12 +598,13 @@ __kernel void scan_dict_other(__global char *col, __global char * dict, int byte
         }
 }
 
-__kernel void scan_dict_int(__global char *col, __global char * dict,int byteNum,int colSize, long tupleNum, __global int *psum, long resultNum, __global int * filter, __global int * result){
+__kernel void scan_dict_int(__global char *dictCol, __global struct dictHeader* dheader,int byteNum,int colSize, long tupleNum, __global int *psum, long resultNum, __global int * filter, __global int * result){
 
 	size_t stride = get_global_size(0);
 	size_t tid = get_global_id(0);
         int localCount = psum[tid];
-        __global struct dictHeader *dheader = (__global struct dictHeader*)dict;
+
+	__global char * col = dictCol + sizeof(struct dictHeader);
 
         for(size_t i = tid; i<tupleNum; i+= stride){
                 if(filter[i] == 1){
@@ -839,13 +844,12 @@ __kernel void joinFact_rle(__global int *resPsum, __global char * fact,  int att
 
 }
 
-__kernel void joinFact_dict_other(__global int *resPsum, __global char * fact,  __global char *dict, int byteNum,int attrSize, long  num, __global int * filter, __global char * result){
+__kernel void joinFact_dict_other(__global int *resPsum, __global char * dictFact,  __global struct dictHeader *dheader, int byteNum,int attrSize, long  num, __global int * filter, __global char * result){
 
 	size_t startIndex = get_global_id(0);
 	size_t stride = get_global_size(0);
         long localOffset = resPsum[startIndex] * attrSize;
-
-        __global struct dictHeader *dheader = (__global struct dictHeader*)dict;
+	__global char * fact = dictFact + sizeof(struct dictHeader);
 
         for(size_t i=startIndex;i<num;i+=stride){
                 if(filter[i] != 0){
@@ -862,13 +866,13 @@ __kernel void joinFact_dict_other(__global int *resPsum, __global char * fact,  
         }
 }
 
-__kernel void joinFact_dict_int(__global int *resPsum, __global char * fact, __global char *dict, int byteNum, int attrSize, long  num, __global int * filter, __global int * result){
+__kernel void joinFact_dict_int(__global int *resPsum, __global int * dictFact, __global struct dictHeader *dheader, int byteNum, int attrSize, long  num, __global int * filter, __global int * result){
 
 	size_t startIndex = get_global_id(0);
 	size_t stride = get_global_size(0);
         long localCount = resPsum[startIndex];
 
-        __global struct dictHeader *dheader = (__global struct dictHeader*)dict;
+	__global int * fact = dictFact + sizeof(struct dictHeader)/sizeof(int);
 
         for(size_t i=startIndex;i<num;i+=stride){
                 if(filter[i] != 0){
@@ -939,13 +943,13 @@ __kernel void joinDim_rle(__global int *resPsum, __global char * dim, int attrSi
         }
 }
 
-__kernel void joinDim_dict_other(__global int *resPsum, __global char * dim, __global char *dict, int byteNum, int attrSize, long num, __global int * filter, __global char * result){
+__kernel void joinDim_dict_other(__global int *resPsum, __global char * dictDim, __global struct dictHeader *dheader, int byteNum, int attrSize, long num, __global int * filter, __global char * result){
 
 	size_t startIndex = get_global_id(0);
 	size_t stride = get_global_size(0);
         long localOffset = resPsum[startIndex] * attrSize;
 
-        __global struct dictHeader *dheader = (__global struct dictHeader*)dict;
+	__global char * dim = dictDim + sizeof(struct dictHeader);
 
         for(size_t i=startIndex;i<num;i+=stride){
                 int dimId = filter[i];
@@ -963,13 +967,13 @@ __kernel void joinDim_dict_other(__global int *resPsum, __global char * dim, __g
         }
 }
 
-__kernel void joinDim_dict_int(__global int *resPsum, __global char * dim, __global char *dict, int byteNum, int attrSize, long num, __global int * filter, __global int * result){
+__kernel void joinDim_dict_int(__global int *resPsum, __global int * dictDim, __global struct dictHeader *dheader, int byteNum, int attrSize, long num, __global int * filter, __global int * result){
 
 	size_t startIndex = get_global_id(0);
 	size_t stride = get_global_size(0);
         long localCount = resPsum[startIndex];
 
-        __global struct dictHeader *dheader = (__global struct dictHeader*)dict;
+	__global int* dim = dictDim + sizeof(struct dictHeader)/sizeof(int);
 
         for(size_t i=startIndex;i<num;i+=stride){
                 int dimId = filter[i];
