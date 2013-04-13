@@ -205,12 +205,9 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			}
 
 			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
-				clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index]-sizeof(struct dictHeader),sn->tn->content[index] + sizeof(struct dictHeader),0,0,0);
+				clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,0);
 			else if (sn->tn->dataPos[index] == UVA){
-				cl_buffer_region posRegion;
-				posRegion.origin = sizeof(struct dictHeader);
-				posRegion.size = sn->tn->attrTotalSize[index]-sizeof(struct dictHeader);
-				column[whereIndex] = clCreateSubBuffer((cl_mem)sn->tn->content[index],CL_MEM_READ_ONLY, CL_BUFFER_CREATE_TYPE_REGION,&posRegion,0); 
+				column[whereIndex] = (cl_mem)sn->tn->content[index];
 			}
 
 			gpuDictFilter = clCreateBuffer(context->context,CL_MEM_READ_WRITE,dNum * sizeof(int),NULL,&error);
@@ -292,12 +289,9 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 				if(format == DICT){
 					if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
-						clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index]-sizeof(struct dictHeader),sn->tn->content[index] + sizeof(struct dictHeader),0,0,0);
+						clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,0);
 					else if (sn->tn->dataPos[index] == UVA){
-						cl_buffer_region posRegion;
-						posRegion.origin = sizeof(struct dictHeader);
-						posRegion.size = sn->tn->attrTotalSize[index]-sizeof(struct dictHeader);
-						column[whereIndex] = clCreateSubBuffer((cl_mem)sn->tn->content[index],CL_MEM_READ_ONLY, CL_BUFFER_CREATE_TYPE_REGION,&posRegion,0); 
+						column[whereIndex] = (cl_mem)sn->tn->content[index];
 					}
 
 					cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), NULL,&error);
@@ -484,7 +478,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 			}else if (format == RLE){
 				//CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index], sn->whereSize[index], cudaMemcpyHostToDevice));
-				context->kernel = clCreateKernel(context->program,"genScanFilter_rle",0); 
+				context->kernel = clCreateKernel(context->program,"genScanFilter_rle",0);
 
 				long offset = 0;
 				clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void *)&column[whereIndex]);
@@ -575,12 +569,9 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 			}else{
 				if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
-					clEnqueueWriteBuffer(context->queue, scanCol[i], CL_TRUE, 0, sn->tn->attrTotalSize[index]-sizeof(struct dictHeader),sn->tn->content[index]+sizeof(struct dictHeader),0,0,0);
+					clEnqueueWriteBuffer(context->queue, scanCol[i], CL_TRUE, 0, sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,0);
 				else{
-					cl_buffer_region posRegion;
-					posRegion.origin = sizeof(struct dictHeader);
-					posRegion.size = sn->tn->attrTotalSize[index]-sizeof(struct dictHeader);
-					scanCol[i] = clCreateSubBuffer((cl_mem)sn->tn->content[index],CL_MEM_READ_ONLY, CL_BUFFER_CREATE_TYPE_REGION,&posRegion,0); 
+					scanCol[i] = (cl_mem)sn->tn->content[index];
 				}
 			}
 		}
@@ -627,7 +618,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				if (sn->tn->attrSize[i] == sizeof(int))
 					context->kernel = clCreateKernel(context->program,"scan_dict_int",0);
 				else
-					context->kernel = clCreateKernel(context->program,"scan_dict_int",0);
+					context->kernel = clCreateKernel(context->program,"scan_dict_other",0);
 
 				clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&scanCol[i]);
 				clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpuDictHeader);
