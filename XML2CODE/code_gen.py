@@ -680,6 +680,7 @@ def generate_code(tree):
     
     if CODETYPE == 1:
         print >>fo, "\tint psc = 0;"
+        print >>fo, "\tvoid * clTmp;"
         print >>fo, "\tconst char * ps = createProgram(\"kernel.cl\",&psc);"
         print >>fo, "\tstruct clContext context;"
         print >>fo, "\tcl_uint numP;"
