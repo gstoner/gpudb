@@ -130,7 +130,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
 				clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,0);
 			else if (sn->tn->dataPos[index] == UVA)
-				;
+				column[whereIndex] = (cl_mem) sn->tn->content[index];
 
 			if(sn->tn->attrType[index] == INT){
 				int rel = where->exp[0].relation;
@@ -196,7 +196,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
 				clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index]-sizeof(struct dictHeader),sn->tn->content[index] + sizeof(struct dictHeader),0,0,0);
 			else if (sn->tn->dataPos[index] == UVA)
-				;
+				column[whereIndex] = (cl_mem) (sn->tn->content[index]+sizeof(struct dictHeader));
 
 			gpuDictFilter = clCreateBuffer(context->context,CL_MEM_READ_WRITE,dNum * sizeof(int),NULL,&error);
 
@@ -218,7 +218,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,0);
 				
 			else if (sn->tn->dataPos[index] == UVA)
-				;
+				column[whereIndex] = (cl_mem)sn->tn->content[index];
 
 			long offset = 0;
 			context->kernel = clCreateKernel(context->program,"genScanFilter_rle",0); 
@@ -279,7 +279,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
 						clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index]-sizeof(struct dictHeader),sn->tn->content[index] + sizeof(struct dictHeader),0,0,0);
 					else if (sn->tn->dataPos[index] == UVA)
-						;
+						column[whereIndex] = (cl_mem)(sn->tn->content[index]+sizeof(struct dictHeader));
 
 					struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[index];
 					dNum = dheader->dictNum;
@@ -306,7 +306,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
 						clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,0);
 					else if (sn->tn->dataPos[index] == UVA)
-						;
+						column[whereIndex] = (cl_mem)sn->tn->content[index];
 				}
 
 				prevIndex = index;
