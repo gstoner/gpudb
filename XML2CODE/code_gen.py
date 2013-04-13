@@ -820,8 +820,8 @@ def generate_code(tree):
                     print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)memalign(256,outSize);"
                     print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
                 else:
-                    print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)clCreateBuffer(context.context,CL_MEM_READ_ONLY|CL_MEM_ALLOC_HOST_PTR,outSize,NULL,0)"
-                    print >>fo, "\t\t clTmp = clEnqueueMapBuffer(context.queue,(cl_mem)"+tnName+"->content["+str(i)+"],CL_TRUE,CL_MAP_WRITE,0,outSize,0,0,0,0);"
+                    print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)clCreateBuffer(context.context,CL_MEM_READ_ONLY|CL_MEM_ALLOC_HOST_PTR,outSize,NULL,0);"
+                    print >>fo, "\t\tclTmp = clEnqueueMapBuffer(context.queue,(cl_mem)"+tnName+"->content["+str(i)+"],CL_TRUE,CL_MAP_WRITE,0,outSize,0,0,0,0);"
                     print >>fo, "\t\tmemcpy(clTmp,outTable,outSize);"
                     print >>fo, "\t\tclEnqueueUnmapMemObject(context.queue,(cl_mem)"+tnName+"->content["+str(i)+"],clTmp,0,0,0);"
 
