@@ -437,12 +437,21 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 			}else if(format == DICT){
 
-				struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[index];
-				dNum = dheader->dictNum;
-				byteNum = dheader->bitNum/8;
-
+				struct dictHeader *dheader;
 				cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), NULL,&error);
-				clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
+		
+				if(sn->tn->dataPos[index] == MEM){
+                                	dheader = (struct dictHeader *)sn->tn->content[index];
+                                	dNum = dheader->dictNum;
+                                	byteNum = dheader->bitNum/8;
+                                	clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
+                        	}else{
+                                	dheader = (struct dictHeader*)clEnqueueMapBuffer(context->queue,(cl_mem)sn->tn->content[index],CL_TRUE,CL_MAP_READ,0,sizeof(struct dictHeader),0,0,0,0);
+                                	dNum = dheader->dictNum;
+                                	byteNum = dheader->bitNum/8;
+                                	clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,0);
+                                	clEnqueueUnmapMemObject(context->queue,(cl_mem)sn->tn->content[index],(void*)dheader,0,0,0);
+                        	}
 
 				if(dictFilter != -1){
 					if(where->andOr == AND)
