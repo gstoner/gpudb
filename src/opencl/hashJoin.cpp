@@ -29,6 +29,10 @@
  */
 
 struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,struct statistic *pp){
+
+	struct timespec start,end;
+        clock_gettime(CLOCK_REALTIME,&start);
+
 	struct tableNode * res = NULL;
 
 	int *cpu_count, *resPsum;
@@ -526,6 +530,10 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	clReleaseMemObject(gpu_count);
 	clReleaseMemObject(gpu_hashNum);
 	clReleaseMemObject(gpu_psum);
+
+	clock_gettime(CLOCK_REALTIME,&end);
+        double timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;
+        printf("HashJoin Time: %lf\n", timeE/(1000*1000));
 
 	return res;
 

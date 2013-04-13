@@ -27,6 +27,8 @@
 
 struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, struct statistic *pp){
 
+	struct timespec start,end;
+        clock_gettime(CLOCK_REALTIME,&start);
 	struct tableNode *res = NULL;
 	int tupleSize = 0;
 
@@ -649,6 +651,10 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 	free(column);
 	free(scanCol);
 	free(result);
+
+	clock_gettime(CLOCK_REALTIME,&end);
+        double timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;
+        printf("TableScan Time: %lf\n", timeE/(1000*1000));
 
 	return res;
 
