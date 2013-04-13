@@ -19,10 +19,6 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 
 	cl_int error = 0;
 
-	struct timespec start,end;
-
-	clock_gettime(CLOCK_REALTIME,&start);
-
 	cl_mem gpuContent = clCreateBuffer(context->context, CL_MEM_READ_ONLY, totalSize, NULL, &error);
 	gpuResult = clCreateBuffer(context->context, CL_MEM_READ_WRITE, totalSize, NULL, &error);
 	gpuAttrSize = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sizeof(int)*tn->totalAttr,NULL,&error);

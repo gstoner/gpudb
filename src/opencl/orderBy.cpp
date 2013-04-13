@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <CL/cl.h>
 #include <string.h>
+#include <time.h>
 #include "../include/common.h"
 #include "../include/gpuOpenclLib.h"
 
