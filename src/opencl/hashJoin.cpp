@@ -468,7 +468,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 					gpu_fact = (cl_mem)table;
 				}
 
-				if(attrType == sizeof(int))
+				if(attrSize == sizeof(int))
 					context->kernel = clCreateKernel(context->program,"joinDim_int",0);
 				else
 					context->kernel = clCreateKernel(context->program,"joinDim_other",0);
