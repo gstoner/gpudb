@@ -799,7 +799,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 					gpu_fact = table;
 				}
 
-				if(attrType == sizeof(int))
+				if(attrSize == sizeof(int))
 					joinDim_dict_int<<<grid,block>>>(gpu_resPsum,gpu_fact, gpuDictHeader,byteNum,attrSize, jNode->leftTable->tupleNum, gpuFactFilter,gpu_result);
 				else
 					joinDim_dict_other<<<grid,block>>>(gpu_resPsum,gpu_fact, gpuDictHeader, byteNum, attrSize, jNode->leftTable->tupleNum, gpuFactFilter,gpu_result);
