@@ -76,13 +76,6 @@ __kernel void cl_memset_int(__global int * ar, int num){
                 ar[i] = 0;
 }
 
-__kernel void fuck(__global int * ar, __global int * xx,int num){
-        size_t stride = get_global_size(0);
-        size_t offset = get_global_id(0);
-
-        for(size_t i=offset; i<num; i+= stride)
-                ar[i] = 0;
-}
 __kernel void transform_dict_filter_init(__global int * dictFilter, __global int *dictFact, long tupleNum, int dNum,  __global int * filter, int byteNum){
 
 	size_t stride = get_global_size(0);
@@ -647,19 +640,21 @@ __kernel void scan_int(__global int *col, int colSize, long tupleNum, __global i
         }
 }
 
-__kernel void unpack_rle(__global char * fact, __global char * rle, long tupleNum, int dNum){
+__kernel void unpack_rle(__global char * rleFact, __global int * rle, long tupleNum, int dNum){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
 
+	__global int * fact = (__global int*) (rleFact + sizeof(struct rleHeader));
+
         for(size_t i=offset; i<dNum; i+=stride){
 
-                int fvalue = ((__global int *)(fact+sizeof(struct rleHeader)))[i];
-                int fcount = ((__global int *)(fact+sizeof(struct rleHeader)))[i + dNum];
-                int fpos = ((__global int *)(fact+sizeof(struct rleHeader)))[i + 2*dNum];
+                int fvalue = fact[i];
+                int fcount = fact[i + dNum];
+                int fpos = fact[i + 2*dNum];
 
 		for(int k=0;k<fcount;k++){
-			((__global int*)rle)[fpos+ k] = fvalue;
+			rle[fpos+ k] = fvalue;
 		}
         }
 }
@@ -694,12 +689,10 @@ __kernel void build_hash_table(__global int *dim, long inNum, __global int *psum
 
 }
 
-__kernel void count_join_result_dict(__global int *num, __global int* psum, __global int* bucket, __global char* fact, int dNum, __global int* dictFilter,int hsize){
+__kernel void count_join_result_dict(__global int *num, __global int* psum, __global int* bucket, __global struct dictHeader* dheader, int dNum, __global int* dictFilter,int hsize){
 
 	size_t stride = get_global_size(0);
 	size_t offset = get_global_id(0);
-
-        __global struct dictHeader *dheader = (__global struct dictHeader *) fact;
 
         for(size_t i=offset;i<dNum;i+=stride){
                 int fkey = dheader->hash[i];
