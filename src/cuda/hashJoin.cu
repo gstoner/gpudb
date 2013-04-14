@@ -43,14 +43,11 @@ __global__ static void build_hash_table(char *dim, long inNum, int *psum, char *
 }
 
 // if the foreign key is compressed using dict-encoding, call this method to generate dict filter first
-__global__ static void count_join_result_dict(int *num, int* psum, char* bucket, char* fact, int dNum, int* dictFilter,int hsize){
+__global__ static void count_join_result_dict(int *num, int* psum, char* bucket, struct dictHeader *dheader, int dNum, int* dictFilter,int hsize){
 
 	int stride = blockDim.x * gridDim.x;
 	int offset = blockIdx.x*blockDim.x + threadIdx.x;
 
-	struct dictHeader *dheader;
-	dheader = (struct dictHeader *) fact;
-	
 	for(int i=offset;i<dNum;i+=stride){
 		int fkey = dheader->hash[i];
 		int hkey = fkey &(hsize-1);
@@ -249,36 +246,32 @@ __global__ void static joinFact_rle(int *resPsum, char * fact,  int attrSize, lo
 }
 
 // filter the column in the fact table that is compressed using dictionary encoding
-__global__ void static joinFact_dict_other(int *resPsum, char * fact,  char *dict, int byteNum,int attrSize, long  num, int * filter, char * result){
+__global__ void static joinFact_dict_other(int *resPsum, char * fact,  struct dictHeader *dheader, int byteNum,int attrSize, long  num, int * filter, char * result){
 
 	int startIndex = blockIdx.x*blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
 	long localOffset = resPsum[startIndex] * attrSize;
 
-	struct dictHeader *dheader = (struct dictHeader*)dict;
-
 	for(long i=startIndex;i<num;i+=stride){
 		if(filter[i] != 0){
 			int key = 0;
-			memcpy(&key, fact + i* byteNum, byteNum);
+			memcpy(&key, fact + sizeof(struct dictHeader) + i* byteNum, byteNum);
 			memcpy(result + localOffset, &dheader->hash[key], attrSize);
 			localOffset += attrSize;
 		}
 	}
 }
 
-__global__ void static joinFact_dict_int(int *resPsum, char * fact, char *dict, int byteNum, int attrSize, long  num, int * filter, char * result){
+__global__ void static joinFact_dict_int(int *resPsum, char * fact, struct dictHeader *dheader, int byteNum, int attrSize, long  num, int * filter, char * result){
 
 	int startIndex = blockIdx.x*blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
 	long localCount = resPsum[startIndex];
 
-	struct dictHeader *dheader = (struct dictHeader*)dict;
-
 	for(long i=startIndex;i<num;i+=stride){
 		if(filter[i] != 0){
 			int key = 0;
-			memcpy(&key, fact + i* byteNum, byteNum);
+			memcpy(&key, fact + sizeof(struct dictHeader) + i* byteNum, byteNum);
 			((int*)result)[localCount] = dheader->hash[key];
 			localCount ++;
 		}
@@ -358,38 +351,34 @@ __global__ void static joinDim_rle(int *resPsum, char * dim, int attrSize, long 
 	}
 }
 
-__global__ void static joinDim_dict_other(int *resPsum, char * dim, char *dict, int byteNum, int attrSize, long num,int * filter, char * result){
+__global__ void static joinDim_dict_other(int *resPsum, char * dim, struct dictHeader *dheader, int byteNum, int attrSize, long num,int * filter, char * result){
 
 	int startIndex = blockIdx.x*blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
 	long localOffset = resPsum[startIndex] * attrSize;
 
-	struct dictHeader *dheader = (struct dictHeader*)dict;
-
 	for(long i=startIndex;i<num;i+=stride){
 		int dimId = filter[i];
 		if( dimId != 0){
 			int key = 0;
-			memcpy(&key, dim + (dimId-1) * byteNum, byteNum);
+			memcpy(&key, dim + sizeof(struct dictHeader)+(dimId-1) * byteNum, byteNum);
 			memcpy(result + localOffset, &dheader->hash[key], attrSize);
 			localOffset += attrSize;
 		}
 	}
 }
 
-__global__ void static joinDim_dict_int(int *resPsum, char * dim, char *dict, int byteNum, int attrSize, long num,int * filter, char * result){
+__global__ void static joinDim_dict_int(int *resPsum, char * dim, struct dictHeader *dheader, int byteNum, int attrSize, long num,int * filter, char * result){
 
 	int startIndex = blockIdx.x*blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
 	long localCount = resPsum[startIndex];
 
-	struct dictHeader *dheader = (struct dictHeader*)dict;
-
 	for(long i=startIndex;i<num;i+=stride){
 		int dimId = filter[i];
 		if( dimId != 0){
 			int key = 0;
-			memcpy(&key, dim + (dimId-1) * byteNum, byteNum);
+			memcpy(&key, dim + sizeof(struct dictHeader)+(dimId-1) * byteNum, byteNum);
 			((int*)result)[localCount] = dheader->hash[key];
 			localCount ++;
 		}
@@ -593,27 +582,33 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	else if(format == DICT){
 		int dNum;
 		struct dictHeader * dheader;
+		struct dictHeader * gpuDictHeader;
+
+		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuDictHeader, sizeof(struct dictHeader)));
 
 		if(dataPos == MEM || dataPos == UVA || dataPos == PINNED){
 			dheader = (struct dictHeader *) jNode->leftTable->content[jNode->leftKeyIndex];
 			dNum = dheader->dictNum;
+			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader),cudaMemcpyHostToDevice));
 
 		}else if (dataPos == GPU){
 			dheader = (struct dictHeader *) malloc(sizeof(struct dictHeader));
 			memset(dheader,0,sizeof(struct dictHeader));
 			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(dheader,gpu_fact,sizeof(struct dictHeader), cudaMemcpyDeviceToHost));
 			dNum = dheader->dictNum;
+			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader),cudaMemcpyHostToDevice));
+			free(dheader);
 		}
-		free(dheader);
 
 		int * gpuDictFilter;
 		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
 
-		count_join_result_dict<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpu_fact, dNum, gpuDictFilter,hsize);
+		count_join_result_dict<<<grid,block>>>(gpu_hashNum, gpu_psum, gpu_bucket, gpuDictHeader, dNum, gpuDictFilter,hsize);
 
 		transform_dict_filter<<<grid,block>>>(gpuDictFilter, gpu_fact, jNode->leftTable->tupleNum, dNum, gpuFactFilter);
 
 		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictFilter));
+		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictHeader));
 
 		filter_count<<<grid,block>>>(jNode->leftTable->tupleNum, gpu_count, gpuFactFilter);
 
@@ -726,7 +721,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 			}else if (format == DICT){
 				struct dictHeader * dheader;
 				int byteNum;
-				char * gpuDictHeader;
+				struct dictHeader * gpuDictHeader;
 
 				dheader = (struct dictHeader *)table;
 				byteNum = dheader->bitNum/8;
@@ -735,9 +730,9 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
 				if(dataPos == MEM || dataPos == PINNED){
 					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table + sizeof(struct dictHeader), colSize-sizeof(struct dictHeader),cudaMemcpyHostToDevice));
+					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
 				}else{
-					gpu_fact = table + sizeof(struct dictHeader);
+					gpu_fact = table;
 				}
 
 				if (attrSize == sizeof(int))
@@ -749,6 +744,8 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
 			}else if (format == RLE){
 
+				struct rleHeader* rheader;
+
 				if(dataPos == MEM || dataPos == PINNED){
 					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
 					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
@@ -756,13 +753,14 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 					gpu_fact = table;
 				}
 
-				int dNum = (colSize - sizeof(struct rleHeader))/(3*sizeof(int));
+				rheader = (struct rleHeader*)table;
+
+				int dNum = rheader->dictNum;
 
 				char * gpuRle;
 				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuRle, jNode->leftTable->tupleNum * sizeof(int)));
 
 				unpack_rle<<<grid,block>>>(gpu_fact, gpuRle,jNode->leftTable->tupleNum, dNum);
-
 
 				joinFact_int<<<grid,block>>>(gpu_resPsum,gpuRle, attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
 
@@ -788,7 +786,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 			}else if (format == DICT){
 				struct dictHeader * dheader;
 				int byteNum;
-				char * gpuDictHeader;
+				struct dictHeader * gpuDictHeader;
 
 				dheader = (struct dictHeader *)table;
 				byteNum = dheader->bitNum/8;
@@ -796,9 +794,9 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader),cudaMemcpyHostToDevice));
 				if(dataPos == MEM || dataPos == PINNED){
 					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table + sizeof(struct dictHeader), colSize-sizeof(struct dictHeader),cudaMemcpyHostToDevice));
+					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
 				}else{
-					gpu_fact = table + sizeof(struct dictHeader);
+					gpu_fact = table;
 				}
 
 				if(attrType == sizeof(int))
