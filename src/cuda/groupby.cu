@@ -271,6 +271,8 @@ __global__ void agg_cal(char ** content, int colNum, struct groupByExp* exp, int
 
 struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 
+	struct timespec start,end;
+        clock_gettime(CLOCK_REALTIME,&start);
 	struct tableNode * res = NULL;
 	int *gpuGbIndex, gpuTupleNum, gpuGbColNum;
 	int * gpuGbType, * gpuGbSize;
@@ -430,6 +432,10 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuGbExp));
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuResult));
+
+	clock_gettime(CLOCK_REALTIME,&end);
+        double timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;
+        printf("GroupBy Time: %lf\n", timeE/(1000*1000));
 
 	return res;
 }

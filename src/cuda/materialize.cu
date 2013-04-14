@@ -22,19 +22,15 @@ __global__ static void materialize(char ** content,  int colNum, int *attrSize, 
 }
 
 void * materializeCol(struct materializeNode * mn, struct statistic * pp){
+
+	struct timespec start,end;
+        clock_gettime(CLOCK_REALTIME,&start);
+
 	struct tableNode *tn = mn->table;
 	char * res, * gpuResult;
 	char **gpuContent, **column;
 	long size = tn->tupleNum * tn->tupleSize;
 	int * gpuAttrSize;
-
-	struct timespec start,end;
-	float gpuTime;
-	cudaEvent_t startGPU, stopGPU;
-	cudaEventCreate(&startGPU);
-	cudaEventCreate(&stopGPU);
-
-	clock_gettime(CLOCK_REALTIME,&start);
 
 	column = (char **) malloc(sizeof(char *) * tn->totalAttr);
 	if(!column){
@@ -63,15 +59,7 @@ void * materializeCol(struct materializeNode * mn, struct statistic * pp){
 	dim3 grid(512);
 	dim3 block(128);
 
-	cudaEventRecord(startGPU,0);
 	materialize<<<grid,block>>> (gpuContent, tn->totalAttr, gpuAttrSize, tn->tupleNum, tn->tupleSize, gpuResult);
-	cudaDeviceSynchronize();
-
-	CUDA_SAFE_CALL_NO_SYNC(cudaEventRecord(stopGPU,0));
-	cudaEventSynchronize(stopGPU);
-	cudaEventElapsedTime(&gpuTime,startGPU,stopGPU);
-
-	pp->kernel += gpuTime;
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(res, gpuResult, size, cudaMemcpyDeviceToHost));
 
@@ -88,7 +76,8 @@ void * materializeCol(struct materializeNode * mn, struct statistic * pp){
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuResult));
 
 	clock_gettime(CLOCK_REALTIME,&end);
-	double timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;
-	pp->total += timeE/(1000*1000) ;
+        double timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;
+        printf("Materialization Time: %lf\n", timeE/(1000*1000));
+
 	return res;
 }
