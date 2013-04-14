@@ -74,15 +74,17 @@ __device__ static inline int testCon(char *buf1, char* buf2, int size, int type,
 }
 
 
-__global__ static void transform_dict_filter_and(int * dictFilter, char *fact, long tupleNum, int dNum,  int * filter, int byteNum){
+__global__ static void transform_dict_filter_and(int * dictFilter, char *dictFact, long tupleNum, int dNum,  int * filter, int byteNum){
 
 	int stride = blockDim.x * gridDim.x;
 	int offset = blockIdx.x*blockDim.x + threadIdx.x;
 
+	int * fact = (int*)(dictFact + sizeof(struct dictHeader));
+
 	int numInt = (tupleNum * byteNum +sizeof(int) - 1) / sizeof(int) ; 
 
 	for(long i=offset; i<numInt; i += stride){
-		int tmp = ((int *)fact)[i];
+		int tmp = fact[i];
 		unsigned long bit = 1;
 
 		for(int j=0; j< sizeof(int)/byteNum; j++){
@@ -93,15 +95,16 @@ __global__ static void transform_dict_filter_and(int * dictFilter, char *fact, l
 	}
 }
 
-__global__ static void transform_dict_filter_init(int * dictFilter, char *fact, long tupleNum, int dNum,  int * filter,int byteNum){
+__global__ static void transform_dict_filter_init(int * dictFilter, char *dictFact, long tupleNum, int dNum,  int * filter,int byteNum){
 
 	int stride = blockDim.x * gridDim.x;
 	int offset = blockIdx.x*blockDim.x + threadIdx.x;
 
+	int * fact = (int*)(dictFact + sizeof(struct dictHeader));
 	int numInt = (tupleNum * byteNum +sizeof(int) - 1) / sizeof(int) ;
 
 	for(long i=offset; i<numInt; i += stride){
-		int tmp = ((int *)fact)[i];
+		int tmp = fact[i];
 		unsigned long bit = 1;
 
 		for(int j=0; j< sizeof(int)/byteNum; j++){
@@ -131,12 +134,10 @@ __global__ static void transform_dict_filter_or(int * dictFilter, char *fact, lo
 	}
 }
 
-__global__ static void genScanFilter_dict_init(char *col, int colSize, int colType, int dNum, struct whereExp *where, int *dfilter){
+__global__ static void genScanFilter_dict_init(struct dictHeader *dheader, int colSize, int colType, int dNum, struct whereExp *where, int *dfilter){
         int stride = blockDim.x * gridDim.x;
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	int con;
-
-	struct dictHeader *dheader = (struct dictHeader *) col;
 
 	for(int i=tid;i<dNum;i+=stride){
 		int fkey = dheader->hash[i];
@@ -145,12 +146,10 @@ __global__ static void genScanFilter_dict_init(char *col, int colSize, int colTy
 	}
 }
 
-__global__ static void genScanFilter_dict_or(char *col, int colSize, int colType, int dNum, struct whereExp *where, int *dfilter){
+__global__ static void genScanFilter_dict_or(struct dictHeader *dheader, int colSize, int colType, int dNum, struct whereExp *where, int *dfilter){
         int stride = blockDim.x * gridDim.x;
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	int con;
-
-	struct dictHeader *dheader = (struct dictHeader *) col;
 
 	for(int i=tid;i<dNum;i+=stride){
 		int fkey = dheader->hash[i];
@@ -159,12 +158,10 @@ __global__ static void genScanFilter_dict_or(char *col, int colSize, int colType
 	}
 }
 
-__global__ static void genScanFilter_dict_and(char *col, int colSize, int colType, int dNum, struct whereExp *where, int *dfilter){
+__global__ static void genScanFilter_dict_and(struct dictHeader *dheader, int colSize, int colType, int dNum, struct whereExp *where, int *dfilter){
         int stride = blockDim.x * gridDim.x;
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	int con;
-
-	struct dictHeader *dheader = (struct dictHeader *) col;
 
 	for(int i=tid;i<dNum;i+=stride){
 		int fkey = dheader->hash[i];
@@ -638,11 +635,10 @@ __global__ static void countScanNum(int *filter, long tupleNum, int * count){
 }
 
 
-__global__ static void scan_dict_other(char *col, char * dict, int byteNum,int colSize, long tupleNum, int *psum, long resultNum, int * filter, char * result){
+__global__ static void scan_dict_other(char *col, struct dictHeader * dheader, int byteNum,int colSize, long tupleNum, int *psum, long resultNum, int * filter, char * result){
 
         int stride = blockDim.x * gridDim.x;
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
-	struct dictHeader *dheader = (struct dictHeader*)dict;
 	int pos = psum[tid] * colSize;
 
 	for(long i = tid; i<tupleNum; i+= stride){
@@ -655,17 +651,16 @@ __global__ static void scan_dict_other(char *col, char * dict, int byteNum,int c
 	}
 }
 
-__global__ static void scan_dict_int(char *col, char * dict,int byteNum,int colSize, long tupleNum, int *psum, long resultNum, int * filter, char * result){
+__global__ static void scan_dict_int(char *col, struct dictHeader * dheader,int byteNum,int colSize, long tupleNum, int *psum, long resultNum, int * filter, char * result){
 
         int stride = blockDim.x * gridDim.x;
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
 	int localCount = psum[tid]; 
-	struct dictHeader *dheader = (struct dictHeader*)dict;
 
 	for(long i = tid; i<tupleNum; i+= stride){
 		if(filter[i] == 1){
 			int key = 0;
-			memcpy(&key, col + i*byteNum, byteNum);
+			memcpy(&key, col + sizeof(struct dictHeader) + i*byteNum, byteNum);
 			((int *)result)[localCount] = dheader->hash[key];
 			localCount ++;
 		}
@@ -889,19 +884,18 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 			dNum = dheader->dictNum;
 			byteNum = dheader->bitNum/8;
 
-			char * gpuDictHeader;
+			struct dictHeader* gpuDictHeader;
 			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictHeader,sizeof(struct dictHeader)));
 			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader), cudaMemcpyHostToDevice));
 
 			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
-				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index]+sizeof(struct dictHeader), sn->tn->attrTotalSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
+				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index], sn->tn->attrTotalSize[index], cudaMemcpyHostToDevice));
 			else if (sn->tn->dataPos[index] == UVA)
-				column[whereIndex] = sn->tn->content[index] + sizeof(struct dictHeader);
+				column[whereIndex] = sn->tn->content[index];
 
 			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
 
 			genScanFilter_dict_init<<<grid,block>>>(gpuDictHeader,sn->tn->attrSize[index],sn->tn->attrType[index],dNum, gpuExp,gpuDictFilter);
-			CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
 			CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictHeader));
 
@@ -915,7 +909,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 			genScanFilter_rle<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, gpuExp, where->andOr, gpuFilter);
 		}
 
-		CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
 		int dictFilter = 0;
 		int dictFinal = OR;
@@ -938,7 +931,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 					else
 						transform_dict_filter_and<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter,byteNum);
 
-					CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 					CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictFilter));
 					dictFinal = where->andOr;
 				}
@@ -951,15 +943,15 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 				if(format == DICT){
 					if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
-						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index]+sizeof(struct dictHeader), sn->tn->attrTotalSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
+						CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index], sn->tn->attrTotalSize[index], cudaMemcpyHostToDevice));
 					else if (sn->tn->dataPos[index] == UVA)
-						column[whereIndex] = sn->tn->content[index] + sizeof(struct dictHeader);
+						column[whereIndex] = sn->tn->content[index];
 
 					struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[index];
 					dNum = dheader->dictNum;
 					byteNum = dheader->bitNum/8;
 
-					char * gpuDictHeader;
+					struct dictHeader * gpuDictHeader;
 					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictHeader,sizeof(struct dictHeader)));
 					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader), cudaMemcpyHostToDevice));
 					CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
@@ -1052,7 +1044,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 				dNum = dheader->dictNum;
 				byteNum = dheader->bitNum/8;
 
-				char * gpuDictHeader;
+				struct dictHeader * gpuDictHeader;
 				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictHeader,sizeof(struct dictHeader)));
 				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader), cudaMemcpyHostToDevice));
 
@@ -1072,7 +1064,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 			}
 
-			CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 		}
 
 		if(prevFormat == DICT){
@@ -1094,7 +1085,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 	}
 
 	countScanNum<<<grid,block>>>(gpuFilter,totalTupleNum,gpuCount);
-	CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
 	scanImpl(gpuCount,threadNum,gpuPsum, pp);
 
@@ -1136,9 +1126,9 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 			}else{
 				if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
-					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(scanCol[i], sn->tn->content[index]+sizeof(struct dictHeader), sn->tn->attrTotalSize[index]-sizeof(struct dictHeader), cudaMemcpyHostToDevice));
+					CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(scanCol[i], sn->tn->content[index], sn->tn->attrTotalSize[index], cudaMemcpyHostToDevice));
 				else
-					scanCol[i] = sn->tn->content[index] + sizeof(struct dictHeader);
+					scanCol[i] = sn->tn->content[index];
 			}
 		}
 
@@ -1160,7 +1150,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 				struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[index];
 				int byteNum = dheader->bitNum/8;
 
-				char * gpuDictHeader;
+				struct dictHeader * gpuDictHeader;
 				CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictHeader,sizeof(struct dictHeader)));
 				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader), cudaMemcpyHostToDevice));
 
@@ -1179,7 +1169,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 				unpack_rle<<<grid,block>>>(scanCol[i], gpuRle,totalTupleNum, dNum);
 
-				CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
 				scan_int<<<grid,block>>>(gpuRle, sn->tn->attrSize[index], totalTupleNum,gpuPsum,count, gpuFilter,result[i]);
 
@@ -1189,7 +1178,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 		}
 	}
 
-	CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
 	res->tupleSize = tupleSize;
 
