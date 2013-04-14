@@ -117,10 +117,6 @@ static void freeScan(struct scanNode * rel){
 	rel->filter = NULL;
 	freeTable(rel->tn);
 
-#ifdef GPUOPENCL
-	free(rel->clContext);
-	rel->clContext = NULL;
-#endif
 }
 
 static void freeMathExp(struct mathExp exp){
@@ -141,10 +137,6 @@ static void freeGroupByNode(struct groupByNode * tn){
 	free(tn->gbExp);
 	tn->gbExp = NULL;
 	freeTable(tn->table);
-#ifdef GPUOPENCL
-	free(tn->clContext);
-	tn->clContext = NULL;
-#endif
 }
 
 static void freeOrderByNode(struct orderByNode * tn){
@@ -153,10 +145,6 @@ static void freeOrderByNode(struct orderByNode * tn){
 	free(tn->orderByIndex);
 	tn->orderByIndex = NULL;
 	freeTable(tn->table);
-#ifdef GPUOPENCL
-	free(tn->clContext);
-	tn->clContext = NULL;
-#endif
 }
 
 static void printCol(char *col, int size, int type,int tupleNum,int pos){
