@@ -1652,7 +1652,7 @@ def generate_code(tree):
 
         print >>fo, "\t\tfreeTable(" + resName + ");"
 
-        print >>fo, "\t\tif(pass !=1){"
+        print >>fo, "\t\tif(blockTotal !=1){"
 
         if CODETYPE == 0:
             print >>fo, "\t\t\tmergeIntoTable(" + resultNode + ",join1,&pp);"
