@@ -65,8 +65,14 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		gbConstant = 1;
 	}
 
-	size_t globalSize = 1024;
 	size_t localSize = 128;
+	size_t globalSize = 1024*128;
+
+	int blockNum = gb->table->tupleNum / localSize + 1; 
+
+	if(blockNum < 1024)
+		globalSize = blockNum * 128;
+
 
 	cl_mem gpu_hashNum;
 	cl_mem gpu_psum;
