@@ -57,8 +57,8 @@ __global__ static void count_join_result_dict(int *num, int* psum, char* bucket,
 		for(int j=0;j<keyNum;j++){
 			int pSum = psum[hkey];
 			int dimKey = ((int *)(bucket))[2*j + 2*pSum];
-			int dimId = ((int *)(bucket))[2*j + 2*pSum + 1];
 			if( dimKey == fkey){
+				int dimId = ((int *)(bucket))[2*j + 2*pSum + 1];
 				fvalue = dimId;
 				break;
 			}
@@ -131,10 +131,10 @@ __global__ static void count_join_result_rle(int* num, int* psum, char* bucket, 
 		for(int j=0;j<keyNum;j++){
 
 			int dimKey = ((int *)(bucket))[2*j + 2*pSum];
-			int dimId = ((int *)(bucket))[2*j + 2*pSum + 1];
 
 			if( dimKey == fkey){
 
+				int dimId = ((int *)(bucket))[2*j + 2*pSum + 1];
 				for(int k=0;k<fcount;k++)
 					factFilter[fpos+k] = dimId;
 
@@ -160,8 +160,8 @@ __global__ static void count_join_result(int* num, int* psum, char* bucket, char
 		for(int j=0;j<keyNum;j++){
 			int pSum = psum[hkey];
 			int dimKey = ((int *)(bucket))[2*j + 2*pSum];
-			int dimId = ((int *)(bucket))[2*j + 2*pSum + 1];
 			if( dimKey == fkey){
+				int dimId = ((int *)(bucket))[2*j + 2*pSum + 1];
 				lcount ++;
 				fvalue = dimId;
 				break;
