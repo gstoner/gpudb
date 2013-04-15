@@ -291,6 +291,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		clSetKernelArg(context->kernel,9,sizeof(cl_mem), (void*)&gpuResOffset);
 		clSetKernelArg(context->kernel,10,sizeof(cl_mem), (void*)&gpuFunc);
 
+		globalSize = localSize * 4;
 		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 	}
 
