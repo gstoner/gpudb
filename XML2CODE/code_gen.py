@@ -935,6 +935,7 @@ def generate_code(tree):
 
             print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\tfreeScan(&" + relName + ");\n"
+            print >>fo, "\t\tclFinish(context.queue);"
             print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
             print >>fo, "\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
 
@@ -950,6 +951,7 @@ def generate_code(tree):
                 
             print >>fo, "\t\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\t\tfreeTable(" + tnName + ");"
+            print >>fo, "\t\t\tclFinish(context.queue);"
             print >>fo, "\t\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
             print >>fo, "\t\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
             print >>fo, "\t\t}else{"
@@ -1194,6 +1196,7 @@ def generate_code(tree):
             if selectOnly == 0:
                 print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
                 print >>fo, "\t\tfreeScan(&" + relName + ");\n"
+                print >>fo, "\t\tclFinish(context.queue);"
                 print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
                 print >>fo, "\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
 
@@ -1277,6 +1280,7 @@ def generate_code(tree):
                 jName = "join" + str(i)
                 print >>fo, "\t\t\tfreeTable(" + jName + ");"
 
+            print >>fo, "\t\t\tclFinish(context.queue);"
             print >>fo, "\t\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
             print >>fo, "\t\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
 
@@ -1287,6 +1291,8 @@ def generate_code(tree):
             for i in range(0,len(joinAttr.dimTables)-1):
                 jName = "join" + str(i)
                 print >>fo, "\t\t\tfreeTable(" + jName + ");"
+
+            print >>fo, "\t\t\tclFinish(context.queue);"
             print >>fo, "\t\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
             print >>fo, "\t\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
             print >>fo, "\t\t}"
@@ -1303,6 +1309,8 @@ def generate_code(tree):
             print >>fo, "\t\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
             print >>fo, "\t\t\tfreeTable(" +resultNode + ");"
             print >>fo, "\t\t\t"+resultNode+" = " + resName + ";"
+
+            print >>fo, "\t\t\tclFinish(context.queue);"
             print >>fo, "\t\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
             print >>fo, "\t\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
             print >>fo, "\t\t}"
@@ -1310,6 +1318,8 @@ def generate_code(tree):
             if hasWhere != 0:
                 print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
                 print >>fo, "\t\tfreeScan(&" + relName + ");\n"
+
+                print >>fo, "\t\tclFinish(context.queue);"
                 print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
                 print >>fo, "\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
 
@@ -1664,6 +1674,8 @@ def generate_code(tree):
             if selectOnly == 0:
                 print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
                 print >>fo, "\t\tfreeScan(&" + relName + ");\n"
+
+                print >>fo, "\t\tclFinish(context.queue);"
                 print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
                 print >>fo, "\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
 
@@ -1681,6 +1693,8 @@ def generate_code(tree):
 
         print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
         print >>fo, "\t\tfreeTable(" + resName + ");"
+
+        print >>fo, "\t\tclFinish(context.queue);"
         print >>fo, "\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
         print >>fo, "\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
 
@@ -1693,6 +1707,7 @@ def generate_code(tree):
 
         print >>fo, "\t\t\tclock_gettime(CLOCK_REALTIME,&diskStart);"
         print >>fo, "\t\t\tfreeTable(join1);"
+        print >>fo, "\t\t\tclFinish(context.queue);"
         print >>fo, "\t\t\tclock_gettime(CLOCK_REALTIME,&diskEnd);"
         print >>fo, "\t\t\tdiskTotal += (diskEnd.tv_sec -  diskStart.tv_sec)* BILLION + diskEnd.tv_nsec - diskStart.tv_nsec;"
         print >>fo, "\t\t}else"
