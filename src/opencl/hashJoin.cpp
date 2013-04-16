@@ -444,12 +444,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 				context->kernel = clCreateKernel(context->program,"joinFact_int",0);
-				clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)gpu_resPsum);
-				clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)gpuRle);
+				clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&gpu_resPsum);
+				clSetKernelArg(context->kernel,1,sizeof(cl_mem), (void*)&gpuRle);
 				clSetKernelArg(context->kernel,2,sizeof(int), (void*)&attrSize);
 				clSetKernelArg(context->kernel,3,sizeof(long),(void*)&jNode->leftTable->tupleNum);
-				clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)gpuFactFilter);
-				clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)gpu_result);
+				clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&gpuFactFilter);
+				clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)&gpu_result);
 
 				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
