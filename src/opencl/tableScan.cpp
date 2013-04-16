@@ -536,7 +536,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 	count = tmp1+tmp2;
 	res->tupleNum = count;
-	printf("scanNum %d\n",count);
+	printf("scanNum %ld\n",count);
 
 	clReleaseMemObject(gpuCount);
 

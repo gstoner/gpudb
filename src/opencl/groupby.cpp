@@ -184,7 +184,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 	else
 		res->tupleNum = gbCount;
 
-	printf("groupBy num %d\n",res->tupleNum);
+	printf("groupBy num %ld\n",res->tupleNum);
 
 	gpuGbType = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sizeof(int)*res->totalAttr, NULL, &error);
 	clEnqueueWriteBuffer(context->queue,gpuGbType,CL_TRUE,0,sizeof(int)*res->totalAttr,res->attrType,0,0,0);

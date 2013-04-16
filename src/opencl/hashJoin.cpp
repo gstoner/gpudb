@@ -273,7 +273,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 
 	count = resPsum[threadNum-1] + cpu_count[threadNum-1];
 	res->tupleNum = count;
-	printf("joinNum %d\n",count);
+	printf("joinNum %ld\n",count);
 
 	if(dataPos == MEM || dataPos == PINNED){
 		clReleaseMemObject(gpu_fact);
