@@ -128,8 +128,10 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			column[whereIndex] = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_ALLOC_HOST_PTR, sn->tn->attrTotalSize[index], NULL, &error);
 
 		if(format == UNCOMPRESSED){
-			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+			if(sn->tn->dataPos[index] == MEM)
 				clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,0);
+			else if(sn->tn->dataPos[index] == PINNED)
+				clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],column[whereIndex],0,0,sn->tn->attrTotalSize[index],0,0,0);
 			else if (sn->tn->dataPos[index] == UVA)
 				column[whereIndex] = (cl_mem) sn->tn->content[index];
 
@@ -204,8 +206,10 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clEnqueueUnmapMemObject(context->queue,(cl_mem)sn->tn->content[index],(void*)dheader,0,0,0);
 			}
 
-			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+			if(sn->tn->dataPos[index] == MEM)
 				clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,0);
+			else if(sn->tn->dataPos[index] == PINNED)
+				clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],column[whereIndex],0,0,sn->tn->attrTotalSize[index],0,0,0);
 			else if (sn->tn->dataPos[index] == UVA){
 				column[whereIndex] = (cl_mem)sn->tn->content[index];
 			}
@@ -226,8 +230,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 		}else if(format == RLE){
 
-			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+			if(sn->tn->dataPos[index] == MEM)
 				clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,0);
+
+			else if(sn->tn->dataPos[index] == PINNED)
+				clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],column[whereIndex],0,0,sn->tn->attrTotalSize[index],0,0,0);
 				
 			else if (sn->tn->dataPos[index] == UVA)
 				column[whereIndex] = (cl_mem)sn->tn->content[index];
@@ -288,8 +295,10 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					column[whereIndex] = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_ALLOC_HOST_PTR, sn->tn->attrTotalSize[index], NULL, &error);
 
 				if(format == DICT){
-					if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+					if(sn->tn->dataPos[index] == MEM)
 						clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,0);
+					else if(sn->tn->dataPos[index] == PINNED)
+						clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],column[whereIndex],0,0,sn->tn->attrTotalSize[index],0,0,0);
 					else if (sn->tn->dataPos[index] == UVA){
 						column[whereIndex] = (cl_mem)sn->tn->content[index];
 					}
@@ -326,8 +335,10 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					clReleaseMemObject(gpuDictHeader);
 
 				}else{
-					if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+					if(sn->tn->dataPos[index] == MEM)
 						clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,0);
+					else if(sn->tn->dataPos[index] == PINNED)
+						clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],column[whereIndex],0,0,sn->tn->attrTotalSize[index],0,0,0);
 					else if (sn->tn->dataPos[index] == UVA)
 						column[whereIndex] = (cl_mem)sn->tn->content[index];
 				}
@@ -562,14 +573,18 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				scanCol[i] = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_ALLOC_HOST_PTR, sn->tn->attrTotalSize[index], NULL, &error);
 
 			if(sn->tn->dataFormat[index] != DICT){
-				if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+				if(sn->tn->dataPos[index] == MEM)
 					clEnqueueWriteBuffer(context->queue, scanCol[i], CL_TRUE, 0, sn->tn->attrTotalSize[index],sn->tn->content[index] ,0,0,0);
+				else if (sn->tn->dataPos[index] == PINNED)
+					clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],scanCol[i],0,0,sn->tn->attrTotalSize[index],0,0,0);
 				else
 					scanCol[i] = (cl_mem)sn->tn->content[index];
 
 			}else{
-				if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+				if(sn->tn->dataPos[index] == MEM)
 					clEnqueueWriteBuffer(context->queue, scanCol[i], CL_TRUE, 0, sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,0);
+				else if(sn->tn->dataPos[index] == PINNED)
+					clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],scanCol[i],0,0,sn->tn->attrTotalSize[index],0,0,0);
 				else{
 					scanCol[i] = (cl_mem)sn->tn->content[index];
 				}
