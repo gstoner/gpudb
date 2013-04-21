@@ -131,10 +131,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 		cl_mem gpuDictFilter;
 
-		if(sn->tn->dataPos[index] == MEM)
+		if(sn->tn->dataPos[index] == MEM||sn->tn->dataPos[index] == PINNED)
 			column[whereIndex] = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sn->tn->attrTotalSize[index], NULL, &error);
-		else if(sn->tn->dataPos[index] == PINNED)
-			column[whereIndex] = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_ALLOC_HOST_PTR, sn->tn->attrTotalSize[index], NULL, &error);
 
 		if(format == UNCOMPRESSED){
 			if(sn->tn->dataPos[index] == MEM)
@@ -331,10 +329,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				if(whereFree[prevWhere] == 1 && (sn->tn->dataPos[prevIndex] == MEM || sn->tn->dataPos[prevIndex] == PINNED))
 					clReleaseMemObject(column[prevWhere]);
 
-				if(sn->tn->dataPos[index] == MEM)
+				if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
 					column[whereIndex] = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sn->tn->attrTotalSize[index], NULL, &error);
-				else if (sn->tn->dataPos[index] == PINNED)
-					column[whereIndex] = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_ALLOC_HOST_PTR, sn->tn->attrTotalSize[index], NULL, &error);
 
 				if(format == DICT){
 					if(sn->tn->dataPos[index] == MEM)
@@ -644,10 +640,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 		if(pos != -1){
 			scanCol[i] = column[pos];
 		}else{
-			if(sn->tn->dataPos[index] == MEM)
+			if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
 				scanCol[i] = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sn->tn->attrTotalSize[index], NULL, &error);
-			else if (sn->tn->dataPos[index] == PINNED)
-				scanCol[i] = clCreateBuffer(context->context, CL_MEM_READ_ONLY|CL_MEM_ALLOC_HOST_PTR, sn->tn->attrTotalSize[index], NULL, &error);
 
 			if(sn->tn->dataPos[index] == MEM)
 				clEnqueueWriteBuffer(context->queue, scanCol[i], CL_TRUE, 0, sn->tn->attrTotalSize[index],sn->tn->content[index] ,0,0,&ndrEvt);
