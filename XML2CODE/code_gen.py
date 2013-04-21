@@ -692,6 +692,7 @@ def generate_code(tree):
         print >>fo, "\tclGetDeviceIDs(pid[0],CL_DEVICE_TYPE_GPU,1,&device,NULL);"
         print >>fo, "\tcontext.context = clCreateContext(0,1,&device,NULL,NULL,&error);"
         print >>fo, "\tcl_command_queue_properties prop = 0;"
+        print >>fo, "\tprop |= CL_QUEUE_PROFILING_ENABLE;"
         print >>fo, "\tcontext.queue = clCreateCommandQueue(context.context, device, prop, &error);"
         print >>fo, "\tcontext.program = clCreateProgramWithSource(context.context, psc, (const char **)&ps, 0, &error);"
         print >>fo, "\terror = clBuildProgram(context.program, 0, 0 , \"-I .\" , 0, 0);\n"
@@ -1854,7 +1855,7 @@ def generate_code(tree):
     print >>fo, "\tclock_gettime(CLOCK_REALTIME,&end);"
     print >>fo, "\tdouble timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;"
     print >>fo, "\tprintf(\"Disk Load Time: %lf\\n\", diskTotal/(1000*1000));"
-    print >>fo, "\tprintf(\"PCIe Time: %lf\\n\",pp.pcie*1000);"
+    print >>fo, "\tprintf(\"PCIe Time: %lf\\n\",pp.pcie);"
     print >>fo, "\tprintf(\"Total Time: %lf\\n\", timeE/(1000*1000));"
     print >>fo, "}\n"
 
