@@ -691,7 +691,8 @@ def generate_code(tree):
         print >>fo, "\tclGetPlatformIDs(numP, pid, NULL);"
         print >>fo, "\tclGetDeviceIDs(pid[0],CL_DEVICE_TYPE_GPU,1,&device,NULL);"
         print >>fo, "\tcontext.context = clCreateContext(0,1,&device,NULL,NULL,&error);"
-        print >>fo, "\tcontext.queue = clCreateCommandQueue(context.context, device, 0, &error);"
+        print >>fo, "\tcl_command_queue_properties prop = 0;"
+        print >>fo, "\tcontext.queue = clCreateCommandQueue(context.context, device, prop, &error);"
         print >>fo, "\tcontext.program = clCreateProgramWithSource(context.context, psc, (const char **)&ps, 0, &error);"
         print >>fo, "\terror = clBuildProgram(context.program, 0, 0 , \"-I .\" , 0, 0);\n"
 
@@ -705,7 +706,7 @@ def generate_code(tree):
     print >>fo, "\tdouble diskTotal = 0;"
     print >>fo, "\tclock_gettime(CLOCK_REALTIME,&start);"
     print >>fo, "\tstruct statistic pp;"
-    print >>fo, "\tpp.total = pp.kernel = 0;"
+    print >>fo, "\tpp.total = pp.kernel = pp.pcie = 0;"
 
     resultNode = "result"
     joinAttr = JoinTranslation()
