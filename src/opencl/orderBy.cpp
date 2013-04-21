@@ -152,6 +152,10 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	
 	struct timespec start,end;
         clock_gettime(CLOCK_REALTIME,&start);
+
+	cl_event ndrEvt;
+	cl_ulong startTime,endTime;
+
 	struct tableNode * res = NULL;
 	size_t globalSize, localSize;
 
@@ -205,7 +209,12 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 		int size = res->attrSize[i] * res->tupleNum;
 
 		if(odNode->table->dataPos[i] == MEM){
-			error = clEnqueueWriteBuffer(context->queue, gpuContent, CL_TRUE, cpuOffset[i], size, odNode->table->content[i],0,0,0);
+			error = clEnqueueWriteBuffer(context->queue, gpuContent, CL_TRUE, cpuOffset[i], size, odNode->table->content[i],0,0,&ndrEvt);
+
+			clWaitForEvents(1, &ndrEvt);
+			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+			pp->pcie += 1e-6 * (endTime - startTime);
 		}else if (odNode->table->dataPos[i] == GPU){
 			error = clEnqueueCopyBuffer(context->queue,(cl_mem)odNode->table->content[i],gpuContent,0,cpuOffset[i],size,0,0,0);
 		}
@@ -213,7 +222,12 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	}
 
 	cl_mem gpuOffset = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(long)*res->totalAttr,NULL,0);
-	error = clEnqueueWriteBuffer(context->queue, gpuOffset, CL_TRUE, 0, sizeof(long)*res->totalAttr, cpuOffset,0,0,0);
+	error = clEnqueueWriteBuffer(context->queue, gpuOffset, CL_TRUE, 0, sizeof(long)*res->totalAttr, cpuOffset,0,0,&ndrEvt);
+
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->pcie += 1e-6 * (endTime - startTime);
 
 	free(cpuOffset);
 
@@ -233,7 +247,12 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	}
 
 	gpuSize = clCreateBuffer(context->context,CL_MEM_READ_ONLY, res->totalAttr * sizeof(int), NULL, 0);
-	error = clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int) * odNode->orderByNum, cpuSize,0,0,0);
+	error = clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int) * odNode->orderByNum, cpuSize,0,0,&ndrEvt);
+
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->pcie += 1e-6 * (endTime - startTime);
 
 	gpuKey = clCreateBuffer(context->context,CL_MEM_READ_WRITE, keySize * newNum, NULL, 0);
 	gpuSortedKey = clCreateBuffer(context->context,CL_MEM_READ_WRITE, keySize * newNum, NULL, 0);
@@ -250,7 +269,12 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
 	gpuIndex = clCreateBuffer(context->context,CL_MEM_READ_ONLY, res->totalAttr * sizeof(int), NULL,0);
-	error = clEnqueueWriteBuffer(context->queue, gpuIndex, CL_TRUE, 0, odNode->orderByNum * sizeof(int), odNode->orderByIndex,0,0,0);
+	error = clEnqueueWriteBuffer(context->queue, gpuIndex, CL_TRUE, 0, odNode->orderByNum * sizeof(int), odNode->orderByIndex,0,0,&ndrEvt);
+
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->pcie += 1e-6 * (endTime - startTime);
 
 	context->kernel = clCreateKernel(context->program,"build_orderby_keys",0);
 
@@ -366,10 +390,20 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	}
 
 	cl_mem gpuResult = clCreateBuffer(context->context,CL_MEM_READ_WRITE, totalSize, NULL,0);
-	clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int)*res->totalAttr, res->attrSize,0,0,0);
+	clEnqueueWriteBuffer(context->queue, gpuSize, CL_TRUE, 0, sizeof(int)*res->totalAttr, res->attrSize,0,0,&ndrEvt);
+
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->pcie += 1e-6 * (endTime - startTime);
 	
 	cl_mem gpuResOffset = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(long)*res->totalAttr, NULL,0);
-	clEnqueueWriteBuffer(context->queue, gpuResOffset, CL_TRUE, 0 ,sizeof(long)*res->totalAttr, resOffset, 0,0,0);
+	clEnqueueWriteBuffer(context->queue, gpuResOffset, CL_TRUE, 0 ,sizeof(long)*res->totalAttr, resOffset, 0,0,&ndrEvt);
+
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->pcie += 1e-6 * (endTime - startTime);
 
 
 	context->kernel = clCreateKernel(context->program,"gather_result",0);
@@ -392,7 +426,12 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 		int size = res->attrSize[i] * gpuTupleNum;
 		res->content[i] = (char *) malloc( size);
 		memset(res->content[i],0, size);
-		clEnqueueReadBuffer(context->queue,gpuResult, CL_TRUE, resOffset[i], size, res->content[i],0,0,0);
+		clEnqueueReadBuffer(context->queue,gpuResult, CL_TRUE, resOffset[i], size, res->content[i],0,0,&ndrEvt);
+
+		clWaitForEvents(1, &ndrEvt);
+		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+		pp->pcie += 1e-6 * (endTime - startTime);
 	}
 
 

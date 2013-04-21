@@ -285,14 +285,24 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	cpu_count = (int *) malloc(sizeof(int)*threadNum);
 	memset(cpu_count,0,sizeof(int)*threadNum);
 
-	clEnqueueReadBuffer(context->queue, gpu_count, CL_TRUE, 0, sizeof(int)*threadNum, cpu_count,0,0,0);
+	clEnqueueReadBuffer(context->queue, gpu_count, CL_TRUE, 0, sizeof(int)*threadNum, cpu_count,0,0,&ndrEvt);
+
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->pcie += 1e-6 * (endTime - startTime);
 
 	resPsum = (int *) malloc(sizeof(int)*threadNum);
 	memset(resPsum,0,sizeof(int)*threadNum);
 
 	scanImpl(gpu_count,threadNum,gpu_resPsum, context,pp);
 
-	clEnqueueReadBuffer(context->queue, gpu_resPsum, CL_TRUE, 0, sizeof(int)*threadNum, resPsum,0,0,0);
+	clEnqueueReadBuffer(context->queue, gpu_resPsum, CL_TRUE, 0, sizeof(int)*threadNum, resPsum,0,0,&ndrEvt);
+
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->pcie += 1e-6 * (endTime - startTime);
 
 	count = resPsum[threadNum-1] + cpu_count[threadNum-1];
 	res->tupleNum = count;
@@ -632,7 +642,13 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		if(res->dataPos[i] == MEM){
 			res->content[i] = (char *) malloc(resSize);
 			memset(res->content[i],0,resSize);
-			clEnqueueReadBuffer(context->queue,gpu_result,CL_TRUE,0,resSize,res->content[i],0,0,0);
+			clEnqueueReadBuffer(context->queue,gpu_result,CL_TRUE,0,resSize,res->content[i],0,0,&ndrEvt);
+
+			clWaitForEvents(1, &ndrEvt);
+			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+			pp->pcie += 1e-6 * (endTime - startTime);
+
 			clReleaseMemObject(gpu_result);
 
 		}else if(res->dataPos[i] == GPU){

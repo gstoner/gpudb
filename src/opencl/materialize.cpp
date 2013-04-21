@@ -10,6 +10,10 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 
 	struct timespec start,end;
         clock_gettime(CLOCK_REALTIME,&start);
+
+	cl_event ndrEvt;
+	cl_ulong startTime, endTime;
+
 	struct tableNode *tn = mn->table;
 	char * res;
 	cl_mem gpuResult;
@@ -22,7 +26,12 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 	cl_mem gpuContent = clCreateBuffer(context->context, CL_MEM_READ_ONLY, totalSize, NULL, &error);
 	gpuResult = clCreateBuffer(context->context, CL_MEM_READ_WRITE, totalSize, NULL, &error);
 	gpuAttrSize = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sizeof(int)*tn->totalAttr,NULL,&error);
-	clEnqueueWriteBuffer(context->queue,gpuAttrSize,CL_TRUE,0,sizeof(int)*tn->totalAttr,tn->attrSize,0,0,0);
+	clEnqueueWriteBuffer(context->queue,gpuAttrSize,CL_TRUE,0,sizeof(int)*tn->totalAttr,tn->attrSize,0,0,&ndrEvt);
+
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->pcie += 1e-6 * (endTime - startTime);
 
 	res = (char *) malloc(totalSize);
 
@@ -33,16 +42,26 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 		colOffset[i] = offset;
 		int size = tn->tupleNum * tn->attrSize[i]; 
 
-		if(tn->dataPos[i] == MEM)
-			clEnqueueWriteBuffer(context->queue,gpuContent,CL_TRUE,offset,size,tn->content[i],0,0,0);
-		else
+		if(tn->dataPos[i] == MEM){
+			clEnqueueWriteBuffer(context->queue,gpuContent,CL_TRUE,offset,size,tn->content[i],0,0,&ndrEvt);
+
+			clWaitForEvents(1, &ndrEvt);
+			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+			pp->pcie += 1e-6 * (endTime - startTime);
+		}else
 			clEnqueueCopyBuffer(context->queue,(cl_mem)tn->content[i],gpuContent,0,offset,size,0,0,0);
 			
 		offset += size;
 	}
 
 	cl_mem gpuColOffset = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sizeof(long)*tn->totalAttr,NULL,&error);
-	clEnqueueWriteBuffer(context->queue,gpuColOffset,CL_TRUE,0,sizeof(long)*tn->totalAttr,colOffset,0,0,0);
+	clEnqueueWriteBuffer(context->queue,gpuColOffset,CL_TRUE,0,sizeof(long)*tn->totalAttr,colOffset,0,0,&ndrEvt);
+
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->pcie += 1e-6 * (endTime - startTime);
 
 	size_t globalSize = 512;
 	size_t localSize = 128;
@@ -58,7 +77,11 @@ void * materializeCol(struct materializeNode * mn, struct clContext * context, s
 
 	clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
-	clEnqueueWriteBuffer(context->queue,gpuResult,CL_TRUE,0,totalSize,res,0,0,0);
+	clEnqueueReadBuffer(context->queue,gpuResult,CL_TRUE,0,totalSize,res,0,0,&ndrEvt);
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->pcie += 1e-6 * (endTime - startTime);
 
 	free(colOffset);
 

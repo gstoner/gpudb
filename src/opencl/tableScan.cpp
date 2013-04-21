@@ -609,8 +609,18 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 	int tmp1, tmp2;
 
-	clEnqueueReadBuffer(context->queue, gpuCount, CL_TRUE, sizeof(int)*(threadNum-1), sizeof(int), &tmp1,0,0,0);
-	clEnqueueReadBuffer(context->queue, gpuPsum, CL_TRUE, sizeof(int)*(threadNum-1), sizeof(int), &tmp2,0,0,0);
+	clEnqueueReadBuffer(context->queue, gpuCount, CL_TRUE, sizeof(int)*(threadNum-1), sizeof(int), &tmp1,0,0,&ndrEvt);
+
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->pcie += 1e-6 * (endTime - startTime);
+
+	clEnqueueReadBuffer(context->queue, gpuPsum, CL_TRUE, sizeof(int)*(threadNum-1), sizeof(int), &tmp2,0,0,&ndrEvt);
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->pcie += 1e-6 * (endTime - startTime);
 
 	count = tmp1+tmp2;
 	res->tupleNum = count;
@@ -768,7 +778,13 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			res->dataPos[i] = MEM;
 			res->content[i] = (char *)malloc(colSize);
 			memset(res->content[i],0,colSize);
-			clEnqueueReadBuffer(context->queue, result[i], CL_TRUE, 0, colSize,res->content[i],0,0,0);
+			clEnqueueReadBuffer(context->queue, result[i], CL_TRUE, 0, colSize,res->content[i],0,0,&ndrEvt);
+
+			clWaitForEvents(1, &ndrEvt);
+			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+			pp->pcie += 1e-6 * (endTime - startTime);
+
 			clReleaseMemObject(result[i]);
 		}
 	}
