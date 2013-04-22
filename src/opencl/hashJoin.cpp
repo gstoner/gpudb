@@ -666,6 +666,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				
 				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
 
+#ifdef OPENCL_PROFILE
+				clWaitForEvents(1, &ndrEvt);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+				pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 			}else if (format == DICT){
 				struct dictHeader * dheader;
 				int byteNum;
