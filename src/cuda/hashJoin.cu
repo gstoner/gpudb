@@ -467,17 +467,15 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	int defaultBlock = 4096;
 
 	dim3 grid(defaultBlock);
-	dim3 block(512);
+	dim3 block(256);
 	int blockNum;
 	int threadNum;
 
-	blockNum = jNode->leftTable->tupleNum / block.x + 1;
+	blockNum = jNode->rightTable->tupleNum / block.x + 1;
 	if(blockNum < defaultBlock)
 		grid = blockNum;
 	else
 		grid = defaultBlock;
-
-	threadNum = grid.x * block.x;
 
 	res = (struct tableNode*) malloc(sizeof(struct tableNode));
 	res->totalAttr = jNode->totalAttr;
@@ -522,8 +520,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_hashNum,sizeof(int)*hsize));
 	CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpu_hashNum,0,sizeof(int)*hsize));
 
-	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_count,sizeof(int)*threadNum));
-	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_resPsum,sizeof(int)*threadNum));
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_psum,hsize*sizeof(int)));
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_bucket, 2*primaryKeySize));
@@ -556,6 +552,17 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 /*
  *	join on GPU
  */
+
+	blockNum = jNode->leftTable->tupleNum / block.x + 1;
+	if(blockNum < defaultBlock)
+		grid = blockNum;
+	else
+		grid = defaultBlock;
+
+	threadNum = grid.x * block.x;
+
+	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_count,sizeof(int)*threadNum));
+	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_resPsum,sizeof(int)*threadNum));
 
 	int *gpuFactFilter;
 
