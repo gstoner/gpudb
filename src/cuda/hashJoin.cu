@@ -467,11 +467,11 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	int defaultBlock = 4096;
 
 	dim3 grid(defaultBlock);
-	dim3 block(256);
+	dim3 block(512);
 	int blockNum;
 	int threadNum;
 
-	blockNum = jNode->rightTable->tupleNum / block.x + 1;
+	blockNum = jNode->leftTable->tupleNum / block.x + 1;
 	if(blockNum < defaultBlock)
 		grid = blockNum;
 	else
@@ -553,11 +553,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
  *	join on GPU
  */
 
-	blockNum = jNode->leftTable->tupleNum / block.x + 1;
-	if(blockNum < defaultBlock)
-		grid = blockNum;
-	else
-		grid = defaultBlock;
 
 	threadNum = grid.x * block.x;
 
