@@ -168,7 +168,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
 				clSetKernelArg(context->kernel, 2, sizeof(int), (void *)&whereValue);
 				clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+
+				clWaitForEvents(1, &ndrEvt);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+				pp->kernel += 1e-6 * (endTime - startTime);
 
 			}else if (sn->tn->attrType[index] == FLOAT){
 				int rel = where->exp[0].relation;
@@ -189,8 +194,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
 				clSetKernelArg(context->kernel, 2, sizeof(float), (void *)&whereValue);
 				clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
 
+				clWaitForEvents(1, &ndrEvt);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+				pp->kernel += 1e-6 * (endTime - startTime);
 			}else{
 				context->kernel = clCreateKernel(context->program, "genScanFilter_init", 0);
 				clSetKernelArg(context->kernel, 0, sizeof(cl_mem), (void *)&column[whereIndex]);
@@ -199,7 +208,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel, 3, sizeof(long), (void *)&totalTupleNum);
 				clSetKernelArg(context->kernel, 4, sizeof(cl_mem), (void *)&gpuExp);
 				clSetKernelArg(context->kernel, 5, sizeof(cl_mem), (void *)&gpuFilter);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+
+				clWaitForEvents(1, &ndrEvt);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+				pp->kernel += 1e-6 * (endTime - startTime);
 			}
 
 		}else if(format == DICT){
@@ -251,7 +265,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&gpuExp);
 			clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)&gpuDictFilter);
 
-			error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+			error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+
+			clWaitForEvents(1, &ndrEvt);
+			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+			pp->kernel += 1e-6 * (endTime - startTime);
 
 			clReleaseMemObject(gpuDictHeader);
 
@@ -284,7 +303,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void *)&gpuExp);
 			clSetKernelArg(context->kernel,6,sizeof(int), (void *)&where->andOr);
 			clSetKernelArg(context->kernel,7,sizeof(cl_mem), (void *)&gpuFilter);
-			clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+			clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+
+			clWaitForEvents(1, &ndrEvt);
+			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+			pp->kernel += 1e-6 * (endTime - startTime);
 
 		}
 
@@ -320,7 +344,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					clSetKernelArg(context->kernel,3, sizeof(int), (void*)&dNum);
 					clSetKernelArg(context->kernel,4, sizeof(cl_mem), (void*)&gpuFilter);
 					clSetKernelArg(context->kernel,5, sizeof(int), (void*)&byteNum);
-					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+
+					clWaitForEvents(1, &ndrEvt);
+					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+					pp->kernel += 1e-6 * (endTime - startTime);
 
 					clReleaseMemObject(gpuDictFilter);
 					dictFinal = where->andOr;
@@ -381,7 +410,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&gpuExp);
 					clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)&gpuDictFilter);
 
-					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+					clWaitForEvents(1, &ndrEvt);
+					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+					pp->kernel += 1e-6 * (endTime - startTime);
+
 					dictFilter= -1;
 					clReleaseMemObject(gpuDictHeader);
 
@@ -428,7 +462,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 						clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
 						clSetKernelArg(context->kernel, 2, sizeof(int), (void *)&whereValue);
 						clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+
+						clWaitForEvents(1, &ndrEvt);
+						clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+						clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+						pp->kernel += 1e-6 * (endTime - startTime);
 
 					}else{
 						int rel = where->exp[i].relation;
@@ -448,8 +487,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 						clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
 						clSetKernelArg(context->kernel, 2, sizeof(int), (void *)&whereValue);
 						clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
 
+						clWaitForEvents(1, &ndrEvt);
+						clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+						clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+						pp->kernel += 1e-6 * (endTime - startTime);
 					}
 
 				} else if (sn->tn->attrType[index] == FLOAT){
@@ -471,8 +514,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 						clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
 						clSetKernelArg(context->kernel, 2, sizeof(float), (void *)&whereValue);
 						clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
 
+						clWaitForEvents(1, &ndrEvt);
+						clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+						clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+						pp->kernel += 1e-6 * (endTime - startTime);
 					}else{
 						int rel = where->exp[i].relation;
 						float whereValue = *((int*) where->exp[i].content);
@@ -491,7 +538,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 						clSetKernelArg(context->kernel, 1, sizeof(long), (void *)&totalTupleNum);
 						clSetKernelArg(context->kernel, 2, sizeof(float), (void *)&whereValue);
 						clSetKernelArg(context->kernel, 3, sizeof(cl_mem), (void *)&gpuFilter);
-						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+						clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+						clWaitForEvents(1, &ndrEvt);
+						clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+						clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+						pp->kernel += 1e-6 * (endTime - startTime);
 					}
 				}else{
 					if(where->andOr == AND)
@@ -505,7 +556,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					clSetKernelArg(context->kernel,3,sizeof(long),(void *)&totalTupleNum);
 					clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void *)&gpuExp);
 					clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void *)&gpuFilter);
-					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+					clWaitForEvents(1, &ndrEvt);
+					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+					pp->kernel += 1e-6 * (endTime - startTime);
 				}
 
 			}else if(format == DICT){
@@ -543,7 +598,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 					clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void*)&gpuExp);
 					clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)&gpuDictFilter);
 
-					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+					clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+					clWaitForEvents(1, &ndrEvt);
+					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+					pp->kernel += 1e-6 * (endTime - startTime);
 				}
 
 				dictFilter = 0;
@@ -563,7 +622,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void *)&gpuExp);
 				clSetKernelArg(context->kernel,6,sizeof(int), (void *)&where->andOr);
 				clSetKernelArg(context->kernel,7,sizeof(cl_mem), (void *)&gpuFilter);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+				clWaitForEvents(1, &ndrEvt);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+				pp->kernel += 1e-6 * (endTime - startTime);
 			}
 
 		}
@@ -583,7 +646,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 			clSetKernelArg(context->kernel,3,sizeof(int), (void *) &dNum);
 			clSetKernelArg(context->kernel,4,sizeof(cl_mem), (void *) &gpuFilter);
 			clSetKernelArg(context->kernel,5,sizeof(int), (void *) &byteNum);
-			error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+			error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+			clWaitForEvents(1, &ndrEvt);
+			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+			pp->kernel += 1e-6 * (endTime - startTime);
 
 			clReleaseMemObject(gpuDictFilter);
 		}
@@ -599,7 +666,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 	clSetKernelArg(context->kernel, 0, sizeof(cl_mem), (void *) &gpuFilter);
 	clSetKernelArg(context->kernel, 1, sizeof(long), (void *) &totalTupleNum);
 	clSetKernelArg(context->kernel, 2, sizeof(cl_mem), (void *) &gpuCount);
-	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->kernel += 1e-6 * (endTime - startTime);
 
 	scanImpl(gpuCount,threadNum,gpuPsum,context, pp);
 
@@ -681,8 +752,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel,4,sizeof(long),(void *)&count);
 				clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void *)&gpuFilter);
 				clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void *)&result[i]);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
 
+				clWaitForEvents(1, &ndrEvt);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+				pp->kernel += 1e-6 * (endTime - startTime);
 			}else if(format == DICT){
 				struct dictHeader * dheader;
 				cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), NULL,&error);
@@ -718,7 +793,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel,6,sizeof(long),(void *)&count);
 				clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void *)&gpuFilter);
 				clSetKernelArg(context->kernel,8,sizeof(cl_mem),(void *)&result[i]);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+				clWaitForEvents(1, &ndrEvt);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+				pp->kernel += 1e-6 * (endTime - startTime);
 
 				clReleaseMemObject(gpuDictHeader);
 
@@ -733,7 +812,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel,2,sizeof(long),(void*)&totalTupleNum);
 				clSetKernelArg(context->kernel,3,sizeof(long),(void*)&offset);
 				clSetKernelArg(context->kernel,4,sizeof(int), (void*)&dNum);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+				clWaitForEvents(1, &ndrEvt);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+				pp->kernel += 1e-6 * (endTime - startTime);
 
 				clCreateKernel(context->program,"scan_int",0);
 				clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void*)&gpuRle);
@@ -743,7 +826,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 				clSetKernelArg(context->kernel,4,sizeof(long),(void*)&count);
 				clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void*)&gpuFilter);
 				clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void*)&result[i]);
-				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+				clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+				clWaitForEvents(1, &ndrEvt);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+				pp->kernel += 1e-6 * (endTime - startTime);
 
 				clReleaseMemObject(gpuRle);
 			}

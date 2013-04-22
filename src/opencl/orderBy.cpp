@@ -266,7 +266,11 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	localSize = 128;
 	globalSize = 512 * localSize;
 
-	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->kernel += 1e-6 * (endTime - startTime);
 
 	gpuIndex = clCreateBuffer(context->context,CL_MEM_READ_ONLY, res->totalAttr * sizeof(int), NULL,0);
 	error = clEnqueueWriteBuffer(context->queue, gpuIndex, CL_TRUE, 0, odNode->orderByNum * sizeof(int), odNode->orderByIndex,0,0,&ndrEvt);
@@ -289,7 +293,11 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 
 	localSize = NTHREAD;
 	globalSize = 512 * localSize;
-	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+	clWaitForEvents(1, &ndrEvt);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+	pp->kernel += 1e-6 * (endTime - startTime);
 
 	cl_mem gpuPos = clCreateBuffer(context->context, CL_MEM_READ_WRITE, sizeof(int)*newNum, NULL,0);
 
@@ -310,7 +318,11 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 
 		localSize = newNum/2;
 		globalSize = localSize;
-		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+		clWaitForEvents(1, &ndrEvt);
+		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+		pp->kernel += 1e-6 * (endTime - startTime);
 
 
 	}else{

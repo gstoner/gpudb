@@ -166,7 +166,11 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&gpu_hashNum);
 		clSetKernelArg(context->kernel,1,sizeof(int), (void*)&tmp);
 
-		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+		clWaitForEvents(1, &ndrEvt);
+		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+		pp->kernel += 1e-6 * (endTime - startTime);
 
 		context->kernel = clCreateKernel(context->program, "build_groupby_key",0);
 		clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&gpuContent);
@@ -179,7 +183,11 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void *)&gpuGbKey);
 		clSetKernelArg(context->kernel,8,sizeof(cl_mem),(void *)&gpu_hashNum);
 
-		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+		clWaitForEvents(1, &ndrEvt);
+		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+		pp->kernel += 1e-6 * (endTime - startTime);
 
 		clReleaseMemObject(gpuGbType);
 		clReleaseMemObject(gpuGbSize);
@@ -201,7 +209,11 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&gpu_hashNum);
 		clSetKernelArg(context->kernel,1,sizeof(int),(void *)&hsize);
 		clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void *)&gpuGbCount);
-		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+		clWaitForEvents(1, &ndrEvt);
+		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+		pp->kernel += 1e-6 * (endTime - startTime);
 
 		clEnqueueReadBuffer(context->queue, gpuGbCount, CL_TRUE, 0, sizeof(int), &gbCount,0,0,&ndrEvt);
 
@@ -342,7 +354,11 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		clSetKernelArg(context->kernel,11,sizeof(cl_mem), (void*)&gpuResOffset);
 		clSetKernelArg(context->kernel,12,sizeof(cl_mem), (void*)&gpuFunc);
 
-		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+		clWaitForEvents(1, &ndrEvt);
+		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+		pp->kernel += 1e-6 * (endTime - startTime);
 		
 		clReleaseMemObject(gpuGbKey);
 		clReleaseMemObject(gpu_psum);
@@ -361,7 +377,11 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 		clSetKernelArg(context->kernel,10,sizeof(cl_mem), (void*)&gpuFunc);
 
 		globalSize = localSize * 4;
-		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
+		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+		clWaitForEvents(1, &ndrEvt);
+		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+		pp->kernel += 1e-6 * (endTime - startTime);
 	}
 
 	for(int i=0; i<res->totalAttr;i++){
