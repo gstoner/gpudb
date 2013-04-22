@@ -106,10 +106,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	int tmp = hsize;
 	clSetKernelArg(context->kernel,1,sizeof(int), (void*)&tmp);
 	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 	clWaitForEvents(1, &ndrEvt);
 	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 	pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 
 	gpu_count = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*threadNum,NULL,&error);
 	gpu_resPsum = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*threadNum,NULL,&error);
@@ -128,10 +130,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		else
 			clEnqueueCopyBuffer(context->queue,(cl_mem)jNode->rightTable->content[jNode->rightKeyIndex],gpu_dim,0,0,primaryKeySize,0,0,&ndrEvt);
 
+#ifdef OPENCL_PROFILE
 		clWaitForEvents(1, &ndrEvt);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 		pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 
 	}else if (dataPos == GPU || dataPos == UVA){
 		gpu_dim = (cl_mem)jNode->rightTable->content[jNode->rightKeyIndex];
@@ -143,10 +147,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void*)&gpu_hashNum);
 	clSetKernelArg(context->kernel,3,sizeof(int),(void*)&hsize);
 	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 	clWaitForEvents(1, &ndrEvt);
 	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 	pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 
 	scanImpl(gpu_hashNum,hsize,gpu_psum, context,pp);
 
@@ -159,10 +165,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	clSetKernelArg(context->kernel,3,sizeof(cl_mem),(void*)&gpu_bucket);
 	clSetKernelArg(context->kernel,4,sizeof(int),(void*)&hsize);
 	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 	clWaitForEvents(1, &ndrEvt);
 	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 	pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 
 	if (dataPos == MEM || dataPos == PINNED)
 		clReleaseMemObject(gpu_dim);
@@ -188,10 +196,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		else
 			clEnqueueCopyBuffer(context->queue,(cl_mem)jNode->leftTable->content[jNode->leftKeyIndex],gpu_fact,0,0,foreignKeySize,0,0,&ndrEvt);
 
+#ifdef OPENCL_PROFILE
 		clWaitForEvents(1, &ndrEvt);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 		pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 
 	}else if (dataPos == GPU || dataPos == UVA){
 		gpu_fact = (cl_mem)jNode->leftTable->content[jNode->leftKeyIndex];
@@ -204,10 +214,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	tmp = jNode->leftTable->tupleNum;
 	clSetKernelArg(context->kernel,1,sizeof(int), (void*)&tmp);
 	error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 	clWaitForEvents(1, &ndrEvt);
 	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 	pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 
 	if(format == UNCOMPRESSED){
 		context->kernel = clCreateKernel(context->program,"count_join_result",0);
@@ -220,10 +232,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void *)&gpuFactFilter);
 		clSetKernelArg(context->kernel,7,sizeof(int),(void *)&hsize);
 		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 		clWaitForEvents(1, &ndrEvt);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 		pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 
 	}else if(format == DICT){
 
@@ -246,10 +260,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
                         clEnqueueUnmapMemObject(context->queue,(cl_mem)jNode->leftTable->content[jNode->leftKeyIndex],(void*)dheader,0,0,0);
 		}
 
+#ifdef OPENCL_PROFILE
 		clWaitForEvents(1, &ndrEvt);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 		pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 
 		cl_mem gpuDictFilter = clCreateBuffer(context->context,CL_MEM_READ_WRITE,dNum*sizeof(int),NULL,&error);
 
@@ -262,10 +278,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void *)&gpuDictFilter);
 		clSetKernelArg(context->kernel,6,sizeof(int),(void *)&hsize);
 		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 		clWaitForEvents(1, &ndrEvt);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 		pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 
 		context->kernel = clCreateKernel(context->program,"transform_dict_filter_init",0);
 		clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&gpuDictFilter);
@@ -276,10 +294,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		clSetKernelArg(context->kernel,5,sizeof(int),(void *)&byteNum);
 
 		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 		clWaitForEvents(1, &ndrEvt);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 		pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 
 		clReleaseMemObject(gpuDictFilter);
 		clReleaseMemObject(gpuDictHeader);
@@ -289,10 +309,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpu_count);
 		clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void *)&gpuFactFilter);
 		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 		clWaitForEvents(1, &ndrEvt);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 		pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 
 	}else if (format == RLE){
 
@@ -305,20 +327,24 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 		clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void*)&gpuFactFilter);
 		clSetKernelArg(context->kernel,6,sizeof(int),(void*)&hsize);
 		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 		clWaitForEvents(1, &ndrEvt);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 		pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 
 		context->kernel = clCreateKernel(context->program,"filter_count",0);
 		clSetKernelArg(context->kernel,0,sizeof(long),(void *)&jNode->leftTable->tupleNum);
 		clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpu_count);
 		clSetKernelArg(context->kernel,2,sizeof(cl_mem),(void *)&gpuFactFilter);
 		error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 		clWaitForEvents(1, &ndrEvt);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 		clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 		pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 	}
 
 
@@ -327,10 +353,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 
 	clEnqueueReadBuffer(context->queue, gpu_count, CL_TRUE, 0, sizeof(int)*threadNum, cpu_count,0,0,&ndrEvt);
 
+#ifdef OPENCL_PROFILE
 	clWaitForEvents(1, &ndrEvt);
 	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 	pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 
 	resPsum = (int *) malloc(sizeof(int)*threadNum);
 	memset(resPsum,0,sizeof(int)*threadNum);
@@ -339,10 +367,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 
 	clEnqueueReadBuffer(context->queue, gpu_resPsum, CL_TRUE, 0, sizeof(int)*threadNum, resPsum,0,0,&ndrEvt);
 
+#ifdef OPENCL_PROFILE
 	clWaitForEvents(1, &ndrEvt);
 	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 	clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 	pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 
 	count = resPsum[threadNum-1] + cpu_count[threadNum-1];
 	res->tupleNum = count;
@@ -428,10 +458,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 					else  
 						clEnqueueCopyBuffer(context->queue,(cl_mem)table,gpu_fact,0,0,colSize,0,0,&ndrEvt);
 
+#ifdef OPENCL_PROFILE
 					clWaitForEvents(1, &ndrEvt);
 					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 					pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 				}else{
 					gpu_fact = (cl_mem)table;
 				}
@@ -448,10 +480,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				clSetKernelArg(context->kernel,4,sizeof(cl_mem),(void*)&gpuFactFilter);
 				clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void*)&gpu_result);
 				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 				clWaitForEvents(1, &ndrEvt);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 				pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 
 			}else if (format == DICT){
 				struct dictHeader * dheader;
@@ -469,10 +503,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
                                 	clEnqueueUnmapMemObject(context->queue,(cl_mem)table,(void*)dheader,0,0,0);
 				}
 
+#ifdef OPENCL_PROFILE
 				clWaitForEvents(1, &ndrEvt);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 				pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 
 				if(dataPos == MEM || dataPos == PINNED){
 					gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY,colSize, NULL, &error);
@@ -481,10 +517,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 					else
 						clEnqueueCopyBuffer(context->queue,(cl_mem)table,gpu_fact,0,0,colSize,0,0,&ndrEvt);
 
+#ifdef OPENCL_PROFILE
 					clWaitForEvents(1, &ndrEvt);
 					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 					pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 				}else{
 					gpu_fact = (cl_mem)table;
 				}
@@ -503,10 +541,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				clSetKernelArg(context->kernel,6,sizeof(cl_mem),(void*)&gpuFactFilter);
 				clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void*)&gpu_result);
 				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 				clWaitForEvents(1, &ndrEvt);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 				pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 
 				clReleaseMemObject(gpuDictHeader);
 
@@ -520,10 +560,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 					gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY,colSize,NULL,&error);
 					clEnqueueWriteBuffer(context->queue,gpu_fact,CL_TRUE,0,colSize,table,0,0,&ndrEvt);
 
+#ifdef OPENCL_PROFILE
 					clWaitForEvents(1, &ndrEvt);
 					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 					pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 				}else if (dataPos == PINNED){
 
 					rheader = (struct rleHeader*)clEnqueueMapBuffer(context->queue,(cl_mem)table,CL_TRUE,CL_MAP_READ,0,sizeof(struct rleHeader),0,0,0,0);
@@ -533,10 +575,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 					gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY,colSize,NULL,&error);
 					clEnqueueWriteBuffer(context->queue,gpu_fact,CL_TRUE,0,colSize,table,0,0,&ndrEvt);
 
+#ifdef OPENCL_PROFILE
 					clWaitForEvents(1, &ndrEvt);
 					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 					pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 
 				}else if (dataPos == UVA){
 					gpu_fact = (cl_mem)table;
@@ -554,10 +598,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				clSetKernelArg(context->kernel,2,sizeof(long),(void*)&jNode->leftTable->tupleNum);
 				clSetKernelArg(context->kernel,3,sizeof(int),(void*)&dNum);
 				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 				clWaitForEvents(1, &ndrEvt);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 				pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 
 				context->kernel = clCreateKernel(context->program,"joinFact_int",0);
 				clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&gpu_resPsum);
@@ -568,10 +614,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				clSetKernelArg(context->kernel,5,sizeof(cl_mem), (void*)&gpu_result);
 
 				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 				clWaitForEvents(1, &ndrEvt);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 				pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 
 
 				clReleaseMemObject(gpuRle);
@@ -588,10 +636,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 					else
 						clEnqueueCopyBuffer(context->queue,(cl_mem)table,gpu_fact,0,0,colSize,0,0,&ndrEvt);
 
+#ifdef OPENCL_PROFILE
 					clWaitForEvents(1, &ndrEvt);
 					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 					pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 				}else{
 					gpu_fact = (cl_mem)table;
 				}
@@ -627,10 +677,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
                                 	clEnqueueUnmapMemObject(context->queue,(cl_mem)table,(void*)dheader,0,0,0);
 				}
 
+#ifdef OPENCL_PROFILE
 				clWaitForEvents(1, &ndrEvt);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 				pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 
 				if(dataPos == MEM || dataPos == PINNED){
 					gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY,colSize,NULL,&error);
@@ -639,10 +691,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 					else
 						clEnqueueCopyBuffer(context->queue,(cl_mem)table,gpu_fact,0,0,colSize,0,0,&ndrEvt);
 
+#ifdef OPENCL_PROFILE
 					clWaitForEvents(1, &ndrEvt);
 					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 					pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 				}else{
 					gpu_fact = (cl_mem)table;
 				}
@@ -662,10 +716,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void*)&gpu_result);
 
 				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 				clWaitForEvents(1, &ndrEvt);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 				pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 				clReleaseMemObject(gpuDictHeader);
 
 			}else if (format == RLE){
@@ -677,10 +733,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 					else
 						clEnqueueCopyBuffer(context->queue,(cl_mem)table,gpu_fact,0,0,colSize,0,0,&ndrEvt);
 
+#ifdef OPENCL_PROFILE
 					clWaitForEvents(1, &ndrEvt);
 					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 					clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 					pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 				}else{
 					gpu_fact = (cl_mem)table;
 				}
@@ -694,10 +752,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 				clSetKernelArg(context->kernel,5,sizeof(cl_mem),(void*)&gpu_result);
 
 				error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
 				clWaitForEvents(1, &ndrEvt);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 				clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 				pp->kernel += 1e-6 * (endTime - startTime);
+#endif
 			}
 		}
 		
@@ -708,10 +768,12 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 			memset(res->content[i],0,resSize);
 			clEnqueueReadBuffer(context->queue,gpu_result,CL_TRUE,0,resSize,res->content[i],0,0,&ndrEvt);
 
+#ifdef OPENCL_PROFILE
 			clWaitForEvents(1, &ndrEvt);
 			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
 			clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
 			pp->pcie += 1e-6 * (endTime - startTime);
+#endif
 
 			clReleaseMemObject(gpu_result);
 
