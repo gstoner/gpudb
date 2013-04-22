@@ -50,7 +50,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	cl_mem  gpu_bucket, gpu_fact, gpu_dim;
 	cl_mem gpu_count,  gpu_psum, gpu_resPsum;
 
-	size_t localSize = 256;
+	size_t localSize = 512;
 	int blockNum = jNode->rightTable->tupleNum / localSize +1; 
 	if(blockNum > 4096)
 		blockNum = 4096;
