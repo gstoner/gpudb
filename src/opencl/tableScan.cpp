@@ -61,11 +61,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
 	long totalTupleNum = sn->tn->tupleNum;
 
-	size_t localSize = 256;
+	size_t localSize = 512;
 	int blockNum = totalTupleNum / localSize + 1;
 
-	if(blockNum >1024)
-		blockNum = 1024;
+	if(blockNum >2048)
+		blockNum = 2048;
 
 	size_t globalSize = blockNum * localSize; 
 
