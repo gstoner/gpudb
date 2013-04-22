@@ -50,13 +50,11 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	cl_mem  gpu_bucket, gpu_fact, gpu_dim;
 	cl_mem gpu_count,  gpu_psum, gpu_resPsum;
 
-	size_t localSize = 512;
-	int blockNum = jNode->leftTable->tupleNum / localSize +1; 
+	size_t localSize = 256;
+	int blockNum = jNode->rightTable->tupleNum / localSize +1; 
 	if(blockNum > 4096)
 		blockNum = 4096;
 	size_t globalSize = blockNum * localSize;
-
-	size_t threadNum = globalSize;
 
 	res = (struct tableNode*) malloc(sizeof(struct tableNode));
 	res->totalAttr = jNode->totalAttr;
@@ -113,8 +111,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	pp->kernel += 1e-6 * (endTime - startTime);
 #endif
 
-	gpu_count = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*threadNum,NULL,&error);
-	gpu_resPsum = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*threadNum,NULL,&error);
 
 	gpu_psum = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*hsize,NULL,&error);
 	gpu_bucket = clCreateBuffer(context->context,CL_MEM_READ_WRITE,2*primaryKeySize,NULL,&error);
@@ -180,6 +176,16 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 /*
  *	join on GPU
  */
+
+	blockNum = jNode->leftTable->tupleNum / localSize +1; 
+	if(blockNum > 4096)
+		blockNum = 4096;
+	globalSize = blockNum * localSize;
+
+	size_t threadNum = globalSize;
+
+	gpu_count = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*threadNum,NULL,&error);
+	gpu_resPsum = clCreateBuffer(context->context,CL_MEM_READ_WRITE,sizeof(int)*threadNum,NULL,&error);
 
 	cl_mem gpuFactFilter;
 
