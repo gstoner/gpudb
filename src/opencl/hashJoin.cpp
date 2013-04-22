@@ -51,7 +51,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	cl_mem gpu_count,  gpu_psum, gpu_resPsum;
 
 	size_t localSize = 512;
-	int blockNum = jNode->rightTable->tupleNum / localSize +1; 
+	int blockNum = jNode->leftTable->tupleNum / localSize +1; 
 	if(blockNum > 4096)
 		blockNum = 4096;
 	size_t globalSize = blockNum * localSize;
@@ -176,11 +176,6 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 /*
  *	join on GPU
  */
-
-	blockNum = jNode->leftTable->tupleNum / localSize +1; 
-	if(blockNum > 4096)
-		blockNum = 4096;
-	globalSize = blockNum * localSize;
 
 	size_t threadNum = globalSize;
 
