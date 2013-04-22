@@ -773,12 +773,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 	int * gpuFilter;
 	int * gpuPsum;
 
-	dim3 grid(1024);
-	dim3 block(256);
+	dim3 grid(2048);
+	dim3 block(512);
 
 	int blockNum = sn->tn->tupleNum / block.x + 1;
 
-	if(blockNum<1024)
+	if(blockNum<2048)
 		grid = blockNum;
 
 	int threadNum = grid.x * block.x;

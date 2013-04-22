@@ -464,10 +464,10 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 	char  *gpu_bucket, *gpu_fact, * gpu_dim;
 	int * gpu_count,  *gpu_psum, *gpu_resPsum;
 
-	int defaultBlock = 2048;
+	int defaultBlock = 4096;
 
 	dim3 grid(defaultBlock);
-	dim3 block(256);
+	dim3 block(512);
 	int blockNum;
 	int threadNum;
 
