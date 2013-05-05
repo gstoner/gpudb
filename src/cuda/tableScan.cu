@@ -776,13 +776,13 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 	dim3 grid(2048);
 	dim3 block(512);
 
-	int blockNum = sn->tn->tupleNum / block.x + 1;
+	long totalTupleNum = sn->tn->tupleNum;
+	int blockNum = totalTupleNum / block.x + 1;
 
 	if(blockNum<2048)
 		grid = blockNum;
 
 	int threadNum = grid.x * block.x;
-	long totalTupleNum = sn->tn->tupleNum;
 	int attrNum;
 
 	attrNum = sn->whereAttrNum;
