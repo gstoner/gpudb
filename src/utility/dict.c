@@ -8,7 +8,7 @@
 #include <string.h>
 #include "../include/common.h"
 
-#define	HSIZE	(1024*1024)
+#define	HHSIZE	(1024*1024)
 
 // assume the type of the column to be encoded is int
 
@@ -68,13 +68,13 @@ int main(int argc, char ** argv){
 		munmap(table,size);
 		close(inFd);
 
-		int hashTable[HSIZE] ;
-		memset(hashTable,-1,sizeof(int) * HSIZE);
+		int hashTable[HHSIZE] ;
+		memset(hashTable,-1,sizeof(int) * HHSIZE);
 
 		for(int i=0;i<tupleNum;i++){
 
 			int key = ((int *)content)[i];
-			int hKey = key % HSIZE;
+			int hKey = key % HHSIZE;
 
 			if(hashTable[hKey] == -1){
 				numOfDistinct ++;
@@ -85,7 +85,7 @@ int main(int argc, char ** argv){
 
 				int j = 1;
 				while(hashTable[hKey] != -1 && hashTable[hKey] != key){
-					hKey = key % (HSIZE + j*111) % HSIZE; 
+					hKey = key % (HHSIZE + j*111) % HHSIZE; 
 					j = j+1;
 				}
 
@@ -127,7 +127,7 @@ int main(int argc, char ** argv){
 
 		memset(result, -1, sizeof(int) * numOfDistinct);
 
-		for(int i=0; i<HSIZE;i++){
+		for(int i=0; i<HHSIZE;i++){
 			if(hashTable[i] == -1)
 				continue;
 
