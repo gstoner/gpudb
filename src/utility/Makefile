@@ -10,4 +10,4 @@ dict: dict.c
 	gcc -std=c99 dict.c -o dictCompression
 
 clean:
-	rm -rf *.o columnSort rleCompression dictCompression 
+	rm -rf *.o gpuDBLoader columnSort rleCompression dictCompression 
