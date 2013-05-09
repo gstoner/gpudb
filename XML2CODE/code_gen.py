@@ -1913,6 +1913,10 @@ def ysmart_code_gen(argv):
     if len(sys.argv) == 3:
         generate_code(tree_node)
 
+    os.chdir(pwd)
+    os.chdir(resultDir)
+    os.chdir(utilityDir)
+
     if schemaFile is not None:
         metaFile = open(".metadata",'wb')
         pickle.dump(schemaFile, metaFile)

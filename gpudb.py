@@ -97,19 +97,19 @@ def dbCreate(dbName, schemaFile):
     if ret !=0 :
         return -1
 
-    cmd = 'make -C src/GPUCODE/ loader &> /dev/null'
+    cmd = 'make -C src/utility/ loader &> /dev/null'
     ret = os.system(cmd)
 
     if ret != 0:
         return -1
 
-    cmd = 'mv src/GPUCODE/gpuDBLoader ' + dbPath
+    cmd = 'mv src/utility/gpuDBLoader ' + dbPath
     ret = os.system(cmd)
 
     if ret != 0:
         return -1
 
-    cmd = 'mv src/GPUCODE/.metadata ' + dbPath
+    cmd = 'mv src/utility/.metadata ' + dbPath
     ret = os.system(cmd)
 
     if ret != 0:
