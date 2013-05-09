@@ -1865,6 +1865,7 @@ def generate_code(tree):
 def ysmart_code_gen(argv):
     pwd = os.getcwd()
     resultDir = "./src"
+    utilityDir = "./utility"
 
     if CODETYPE == 0:
         codeDir = "./cuda"
@@ -1899,7 +1900,7 @@ def ysmart_code_gen(argv):
 
     os.chdir(pwd)
     os.chdir(resultDir)
-    os.chdir(codeDir)
+    os.chdir(utilityDir)
 
     generate_loader()
     if SOA == 1:
