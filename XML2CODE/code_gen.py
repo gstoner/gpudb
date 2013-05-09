@@ -1906,6 +1906,10 @@ def ysmart_code_gen(argv):
     if SOA == 1:
         generate_soa()
 
+    os.chdir(pwd)
+    os.chdir(resultDir)
+    os.chdir(codeDir)
+
     if len(sys.argv) == 3:
         generate_code(tree_node)
 
