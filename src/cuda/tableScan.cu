@@ -11,6 +11,12 @@
 #include "../include/common.h"
 #include "../include/gpuCudaLib.h"
 
+#define CHECK_POINTER(p)   do {                     \
+    if(p == NULL){                                  \
+        perror("Failed to allocate host memory");   \
+        exit(-1);                                   \
+    }} while(0)
+
 /*
  * stringCmp: Compare two strings on GPU.
  */
@@ -150,8 +156,8 @@ __global__ static void transform_dict_filter_or(int * dictFilter, char *fact, lo
  */
 
 __global__ static void genScanFilter_dict_init(struct dictHeader *dheader, int colSize, int colType, int dNum, struct whereExp *where, int *dfilter){
-        int stride = blockDim.x * gridDim.x;
-        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int con;
 
     for(int i=tid;i<dNum;i+=stride){
@@ -162,8 +168,8 @@ __global__ static void genScanFilter_dict_init(struct dictHeader *dheader, int c
 }
 
 __global__ static void genScanFilter_dict_or(struct dictHeader *dheader, int colSize, int colType, int dNum, struct whereExp *where, int *dfilter){
-        int stride = blockDim.x * gridDim.x;
-        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int con;
 
     for(int i=tid;i<dNum;i+=stride){
@@ -186,8 +192,8 @@ __global__ static void genScanFilter_dict_and(struct dictHeader *dheader, int co
 }
 
 __global__ static void genScanFilter_rle(char *col, int colSize, int colType, long tupleNum, struct whereExp *where, int andOr, int * filter){
-        int stride = blockDim.x * gridDim.x;
-        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int con;
 
     struct rleHeader *rheader = (struct rleHeader *) col;
@@ -210,22 +216,65 @@ __global__ static void genScanFilter_rle(char *col, int colSize, int colType, lo
     }
 }
 
-
-__global__ static void genScanFilter_and(char *col, int colSize, int  colType, long tupleNum, struct whereExp * where, int * filter){
-        int stride = blockDim.x * gridDim.x;
-        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+__global__ static void genScanFilter_and_eq(char *col, int colSize, long tupleNum, struct whereExp * where, int * filter){
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int con;
 
     for(long i = tid; i<tupleNum;i+=stride){
-        con = testCon(col+colSize*i,where->content,colSize,colType,where->relation);
+        con = (stringCmp(col+colSize*i, where->content, colSize) == 0);
+        filter[i] &= con;
+    }
+}
+
+__global__ static void genScanFilter_and_gth(char *col, int colSize, long tupleNum, struct whereExp * where, int * filter){
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int con;
+
+    for(long i = tid; i<tupleNum;i+=stride){
+        con = (stringCmp(col+colSize*i, where->content, colSize) > 0);
+        filter[i] &= con;
+    }
+}
+
+__global__ static void genScanFilter_and_lth(char *col, int colSize, long tupleNum, struct whereExp * where, int * filter){
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int con;
+
+    for(long i = tid; i<tupleNum;i+=stride){
+        con = (stringCmp(col+colSize*i, where->content, colSize) < 0);
+        filter[i] &= con;
+    }
+}
+
+__global__ static void genScanFilter_and_geq(char *col, int colSize, long tupleNum, struct whereExp * where, int * filter){
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int con;
+
+    for(long i = tid; i<tupleNum;i+=stride){
+        con = (stringCmp(col+colSize*i, where->content, colSize) >= 0);
+        filter[i] &= con;
+    }
+}
+
+__global__ static void genScanFilter_and_leq(char *col, int colSize, long tupleNum, struct whereExp * where, int * filter){
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int con;
+
+    for(long i = tid; i<tupleNum;i+=stride){
+        con = (stringCmp(col+colSize*i, where->content, colSize) <= 0);
         filter[i] &= con;
     }
 }
 
 __global__ static void genScanFilter_and_soa(char *col, int colSize, int  colType, long tupleNum, struct whereExp * where, int * filter){
 
-        int stride = blockDim.x * gridDim.x;
-        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int rel = where->relation;
     int con;
 
@@ -259,8 +308,8 @@ __global__ static void genScanFilter_and_soa(char *col, int colSize, int  colTyp
 }
 
 __global__ static void genScanFilter_init_int_eq(char *col, long tupleNum, int where, int * filter){
-        int stride = blockDim.x * gridDim.x;
-        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int con;
 
     for(long i = tid; i<tupleNum;i+=stride){
@@ -280,8 +329,8 @@ __global__ static void genScanFilter_init_float_eq(char *col, long tupleNum, flo
 }
 
 __global__ static void genScanFilter_init_int_gth(char *col, long tupleNum, int where, int * filter){
-        int stride = blockDim.x * gridDim.x;
-        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int con;
 
     for(long i = tid; i<tupleNum;i+=stride){
@@ -291,8 +340,8 @@ __global__ static void genScanFilter_init_int_gth(char *col, long tupleNum, int 
 }
 
 __global__ static void genScanFilter_init_float_gth(char *col, long tupleNum, float where, int * filter){
-        int stride = blockDim.x * gridDim.x;
-        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int con;
 
     for(long i = tid; i<tupleNum;i+=stride){
@@ -301,8 +350,8 @@ __global__ static void genScanFilter_init_float_gth(char *col, long tupleNum, fl
     }
 }
 __global__ static void genScanFilter_init_int_lth(char *col, long tupleNum, int where, int * filter){
-        int stride = blockDim.x * gridDim.x;
-        int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int con;
 
     for(long i = tid; i<tupleNum;i+=stride){
@@ -471,26 +520,112 @@ __global__ static void genScanFilter_and_float_lth(char *col, long tupleNum, flo
     }
 }
 
-__global__ static void genScanFilter_init(char *col, int colSize, int  colType, long tupleNum, struct whereExp * where, int * filter){
+__global__ static void genScanFilter_init_eq(char *col, int colSize,long tupleNum, struct whereExp * where, int * filter){
     int stride = blockDim.x * gridDim.x;
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int con;
-    int rel = where->relation;
 
     for(long i = tid; i<tupleNum;i+=stride){
-        con = testCon(col+colSize*i,where->content,colSize,colType, rel);
+        con = (stringCmp(col+colSize*i, where->content,colSize) == 0);
         filter[i] = con;
     }
 }
 
-__global__ static void genScanFilter_or(char *col, int colSize, int  colType, long tupleNum, struct whereExp * where, int * filter){
+__global__ static void genScanFilter_init_gth(char *col, int colSize,long tupleNum, struct whereExp * where, int * filter){
     int stride = blockDim.x * gridDim.x;
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
     int con;
-    int rel = where->relation;
 
     for(long i = tid; i<tupleNum;i+=stride){
-        con = testCon(col+colSize*i,where->content,colSize,colType, rel);
+        con = (stringCmp(col+colSize*i, where->content,colSize) > 0);
+        filter[i] = con;
+    }
+}
+
+__global__ static void genScanFilter_init_lth(char *col, int colSize,long tupleNum, struct whereExp * where, int * filter){
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int con;
+
+    for(long i = tid; i<tupleNum;i+=stride){
+        con = (stringCmp(col+colSize*i, where->content,colSize) < 0);
+        filter[i] = con;
+    }
+}
+
+__global__ static void genScanFilter_init_geq(char *col, int colSize,long tupleNum, struct whereExp * where, int * filter){
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int con;
+
+    for(long i = tid; i<tupleNum;i+=stride){
+        con = (stringCmp(col+colSize*i, where->content,colSize) >= 0);
+        filter[i] = con;
+    }
+}
+
+__global__ static void genScanFilter_init_leq(char *col, int colSize,long tupleNum, struct whereExp * where, int * filter){
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int con;
+
+    for(long i = tid; i<tupleNum;i+=stride){
+        con = (stringCmp(col+colSize*i, where->content,colSize) <= 0);
+        filter[i] = con;
+    }
+}
+
+__global__ static void genScanFilter_or_eq(char *col, int colSize, long tupleNum, struct whereExp * where, int * filter){
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int con;
+
+    for(long i = tid; i<tupleNum;i+=stride){
+        con = (stringCmp(col+colSize *i, where->content, colSize) == 0);
+        filter[i] |= con;
+    }
+}
+
+__global__ static void genScanFilter_or_gth(char *col, int colSize, long tupleNum, struct whereExp * where, int * filter){
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int con;
+
+    for(long i = tid; i<tupleNum;i+=stride){
+        con = (stringCmp(col+colSize *i, where->content, colSize)> 0);
+        filter[i] |= con;
+    }
+}
+
+__global__ static void genScanFilter_or_lth(char *col, int colSize, long tupleNum, struct whereExp * where, int * filter){
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int con;
+
+    for(long i = tid; i<tupleNum;i+=stride){
+        con = (stringCmp(col+colSize *i, where->content, colSize) < 0);
+        filter[i] |= con;
+    }
+}
+
+__global__ static void genScanFilter_or_geq(char *col, int colSize, long tupleNum, struct whereExp * where, int * filter){
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int con;
+
+    for(long i = tid; i<tupleNum;i+=stride){
+        con = (stringCmp(col+colSize *i, where->content, colSize) >= 0);
+        filter[i] |= con;
+    }
+}
+
+__global__ static void genScanFilter_or_leq(char *col, int colSize, long tupleNum, struct whereExp * where, int * filter){
+    int stride = blockDim.x * gridDim.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int con;
+
+    for(long i = tid; i<tupleNum;i+=stride){
+        con = (stringCmp(col+colSize *i, where->content, colSize) <= 0);
         filter[i] |= con;
     }
 }
@@ -776,16 +911,24 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
     int tupleSize = 0;
 
     res = (struct tableNode *) malloc(sizeof(struct tableNode));
+    CHECK_POINTER(res);
 
     res->totalAttr = sn->outputNum;
 
     res->attrType = (int *) malloc(sizeof(int) * res->totalAttr);
+    CHECK_POINTER(res->attrType);
     res->attrSize = (int *) malloc(sizeof(int) * res->totalAttr);
+    CHECK_POINTER(res->attrSize);
     res->attrTotalSize = (int *) malloc(sizeof(int) * res->totalAttr);
+    CHECK_POINTER(res->attrTotalSize);
     res->attrIndex = (int *) malloc(sizeof(int) * res->totalAttr);
+    CHECK_POINTER(res->attrIndex);
     res->dataPos = (int *) malloc(sizeof(int) * res->totalAttr);
+    CHECK_POINTER(res->dataPos);
     res->dataFormat = (int *) malloc(sizeof(int) * res->totalAttr);
+    CHECK_POINTER(res->dataFormat);
     res->content = (char **) malloc(sizeof(char *) * res->totalAttr);
+    CHECK_POINTER(res->content);
 
     for(int i=0;i<res->totalAttr;i++){
         int index = sn->outputIndex[i];
@@ -793,10 +936,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
         res->attrSize[i] = sn->tn->attrSize[index];
     }
 
-    char ** column;
-    int * gpuCount;
-    int * gpuFilter;
-    int * gpuPsum;
+    int *gpuCount, *gpuFilter, *gpuPsum;
 
     dim3 grid(2048);
     dim3 block(256);
@@ -809,15 +949,15 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
     int threadNum = grid.x * block.x;
     int attrNum = sn->whereAttrNum;
-    column = (char **) malloc(attrNum * sizeof(char *));
+
+    char ** column = (char **) malloc(attrNum * sizeof(char *));
+    CHECK_POINTER(column);
 
     int * whereFree = (int *)malloc(attrNum * sizeof(int));
-    int * colWherePos = (int *)malloc(sn->outputNum * sizeof(int));
+    CHECK_POINTER(whereFree);
 
-    if(!column || !whereFree || !colWherePos){
-        printf("Failed to allocate host memory\n");
-        exit(-1);
-    }
+    int * colWherePos = (int *)malloc(sn->outputNum * sizeof(int));
+    CHECK_POINTER(colWherePos);
 
     for(int i=0;i<sn->outputNum;i++)
         colWherePos[i] = -1;
@@ -842,11 +982,25 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
     struct whereCondition *where = sn->filter;
 
+/*
+ * The first step is to evaluate the selection predicates and generate a vetor to form the final results.
+ */
+
     if(1){
 
         struct whereExp * gpuExp;
         CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuExp, sizeof(struct whereExp)));
         CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuExp, &where->exp[0], sizeof(struct whereExp), cudaMemcpyHostToDevice));
+
+/*
+ * Currently we evaluate the predicate one by one.
+ * When consecutive predicates are accessing the same column, we don't release the GPU device memory
+ * that store the accessed column until all these predicates have been evaluated. Otherwise the device
+ * memory will be released immediately after the corresponding predicate has been evaluated.
+ *
+ * (@whereIndex, @prevWhere), (@index,  @prevIndex), (@format, @prevFormat) are used to decide
+ * whether two consecutive predicates access the same column with the same format.
+ */
 
         int whereIndex = where->exp[0].index;
         int index = sn->whereIndex[whereIndex];
@@ -854,12 +1008,19 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
         int prevIndex = index;
 
         int format = sn->tn->dataFormat[index];
-
         int prevFormat = format;
+
+/*
+ * @dNum, @byteNum and @gpuDictFilter are for predicates that need to access dictionary-compressed columns.
+ */
         int dNum;
         int byteNum;
-
         int *gpuDictFilter;
+
+/*
+ * We will allocate GPU device memory for a column if it is stored in the host pageable or pinned memory.
+ * If it is configured to utilize the UVA technique, no GPU device memory will be allocated.
+ */
 
         if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
             CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &column[whereIndex], sn->tn->attrTotalSize[index]));
@@ -870,8 +1031,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
             else if (sn->tn->dataPos[index] == UVA)
                 column[whereIndex] = sn->tn->content[index];
 
+            int rel = where->exp[0].relation;
             if(sn->tn->attrType[index] == INT){
-                int rel = where->exp[0].relation;
                 int whereValue = *((int*) where->exp[0].content);
                 if(rel==EQ)
                     genScanFilter_init_int_eq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
@@ -885,8 +1046,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
                     genScanFilter_init_int_leq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 
             }else if (sn->tn->attrType[index] == FLOAT){
-                int rel = where->exp[0].relation;
-                float whereValue = *((int*) where->exp[0].content);
+                float whereValue = *((float*) where->exp[0].content);
                 if(rel==EQ)
                     genScanFilter_init_float_eq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
                 else if(rel == GTH)
@@ -898,10 +1058,23 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
                 else if (rel == LEQ)
                     genScanFilter_init_float_leq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
 
-            }else
-                genScanFilter_init<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, gpuExp, gpuFilter);
+            }else{
+                if(rel == EQ)
+                    genScanFilter_init_eq<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+                else if (rel == GTH)
+                    genScanFilter_init_gth<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+                else if (rel == LTH)
+                    genScanFilter_init_lth<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+                else if (rel == GEQ)
+                    genScanFilter_init_geq<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+                else if (rel == LEQ)
+                    genScanFilter_init_leq<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+            }
 
         }else if(format == DICT){
+
+/*Data are stored in the host memory for selection*/
+
             struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[index];
             dNum = dheader->dictNum;
             byteNum = dheader->bitNum/8;
@@ -931,7 +1104,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
             genScanFilter_rle<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, gpuExp, where->andOr, gpuFilter);
         }
 
-
         int dictFilter = 0;
         int dictFinal = OR;
         int dictInit = 1;
@@ -944,6 +1116,9 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
             CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuExp, &where->exp[i], sizeof(struct whereExp), cudaMemcpyHostToDevice));
 
             if(prevIndex != index){
+
+/*When the two consecutive predicates access different columns*/
+
                 if(prevFormat == DICT){
                     if(dictInit == 1){
                         transform_dict_filter_init<<<grid,block>>>(gpuDictFilter, column[prevWhere], totalTupleNum, dNum, gpuFilter,byteNum);
@@ -996,10 +1171,10 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
 
             if(format == UNCOMPRESSED){
+                int rel = where->exp[i].relation;
                 if(sn->tn->attrType[index] == INT){
+                    int whereValue = *((int*) where->exp[i].content);
                     if(where->andOr == AND){
-                        int rel = where->exp[i].relation;
-                        int whereValue = *((int*) where->exp[i].content);
                         if(rel==EQ)
                             genScanFilter_and_int_eq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
                         else if(rel == GTH)
@@ -1011,8 +1186,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
                         else if (rel == LEQ)
                             genScanFilter_and_int_leq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
                     }else{
-                        int rel = where->exp[i].relation;
-                        int whereValue = *((int*) where->exp[i].content);
                         if(rel==EQ)
                             genScanFilter_or_int_eq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
                         else if(rel == GTH)
@@ -1026,9 +1199,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
                     }
 
                 } else if (sn->tn->attrType[index] == FLOAT){
+                    float whereValue = *((float*) where->exp[i].content);
                     if(where->andOr == AND){
-                        int rel = where->exp[i].relation;
-                        float whereValue = *((int*) where->exp[i].content);
                         if(rel==EQ)
                             genScanFilter_and_float_eq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
                         else if(rel == GTH)
@@ -1040,8 +1212,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
                         else if (rel == LEQ)
                             genScanFilter_and_float_leq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
                     }else{
-                        int rel = where->exp[i].relation;
-                        float whereValue = *((int*) where->exp[i].content);
                         if(rel==EQ)
                             genScanFilter_or_float_eq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
                         else if(rel == GTH)
@@ -1054,10 +1224,29 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
                             genScanFilter_or_float_leq<<<grid,block>>>(column[whereIndex],totalTupleNum, whereValue, gpuFilter);
                     }
                 }else{
-                    if(where->andOr == AND)
-                        genScanFilter_and<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, gpuExp, gpuFilter);
-                    else
-                        genScanFilter_or<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, gpuExp, gpuFilter);
+                    if(where->andOr == AND){
+                        if (rel == EQ)
+                            genScanFilter_and_eq<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+                        else if (rel == GTH)
+                            genScanFilter_and_gth<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+                        else if (rel == LTH)
+                            genScanFilter_and_lth<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+                        else if (rel == GEQ)
+                            genScanFilter_and_geq<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+                        else if (rel == LEQ)
+                            genScanFilter_and_leq<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+                    }else{
+                        if (rel == EQ)
+                            genScanFilter_or_eq<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+                        else if (rel == GTH)
+                            genScanFilter_or_gth<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+                        else if (rel == LTH)
+                            genScanFilter_or_lth<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+                        else if (rel == GEQ)
+                            genScanFilter_or_geq<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+                        else if (rel == LEQ)
+                            genScanFilter_or_leq<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],totalTupleNum, gpuExp, gpuFilter);
+                    }
                 }
 
             }else if(format == DICT){
@@ -1081,7 +1270,6 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
                 CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuDictHeader));
 
             }else if (format == RLE){
-                //CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[index], sn->content[index], sn->whereSize[index], cudaMemcpyHostToDevice));
                 genScanFilter_rle<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, gpuExp, where->andOr, gpuFilter);
 
             }
@@ -1106,8 +1294,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
     }
 
-    countScanNum<<<grid,block>>>(gpuFilter,totalTupleNum,gpuCount);
 
+/* Count the number of tuples that meets the predicats for each thread
+ * and calculate the prefix sum.
+ */
+    countScanNum<<<grid,block>>>(gpuFilter,totalTupleNum,gpuCount);
     scanImpl(gpuCount,threadNum,gpuPsum, pp);
 
     int tmp1, tmp2;
@@ -1117,7 +1308,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
     count = tmp1+tmp2;
     res->tupleNum = count;
-    printf("scanNum %d\n",count);
+    printf("[INFO] Number of selection results: %d\n",count);
 
     CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuCount));
 
@@ -1126,7 +1317,9 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
     attrNum = sn->outputNum;
 
     scanCol = (char **) malloc(attrNum * sizeof(char *));
+    CHECK_POINTER(scanCol);
     result = (char **) malloc(attrNum * sizeof(char *));
+    CHECK_POINTER(result);
     
     for(int i=0;i<attrNum;i++){
 
@@ -1221,6 +1414,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
         }else{
             res->dataPos[i] = MEM;
             res->content[i] = (char *)malloc(colSize);
+            CHECK_POINTER(res->content[i]);
             memset(res->content[i],0,colSize);
             CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(res->content[i],result[i],colSize ,cudaMemcpyDeviceToHost));
             CUDA_SAFE_CALL(cudaFree(result[i]));
