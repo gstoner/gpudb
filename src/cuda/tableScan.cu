@@ -1308,7 +1308,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
     count = tmp1+tmp2;
     res->tupleNum = count;
-    printf("[INFO] Number of selection results: %d\n",count);
+    printf("[INFO]Number of selection results: %d\n",count);
 
     CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuCount));
 
