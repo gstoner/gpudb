@@ -9,7 +9,7 @@ Step 2: translate a ssb query using the following command:
 python translation.py test/ssb_test/q2_1.sql test/ssb_test/ssb.schema
 
 
-The outputs of the translation are in the result/GPUCODE direstory.
+The outputs of the translation are in the src/cuda direstory.
 driver.cu is the main entrance file.
 
 

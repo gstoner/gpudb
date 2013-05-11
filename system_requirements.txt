@@ -4,6 +4,6 @@
 
 3. Java and GCC are needed (for ANTLR)
 
-4. NVIDIA GPU
+4. NVIDIA GPU or AMD GPU
 
-5. CUDA tookit
+5. CUDA tookit or AMD APP SDK
