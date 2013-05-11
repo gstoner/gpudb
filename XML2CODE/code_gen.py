@@ -112,6 +112,11 @@ def generate_loader():
     print >>fo, "#include <getopt.h>"
     print >>fo, "#include \"../include/schema.h\""
     print >>fo, "#include \"../include/common.h\""
+    print >>fo, "#define CHECK_POINTER(p) do {\\"
+    print >>fo, "\tif(p == NULL){   \\"
+    print >>fo, "\t\tperror(\"Failed to allocate host memory\");    \\"
+    print >>fo, "\t\texit(-1);  \\"
+    print >>fo, "\t}} while(0)"
 
     print >>fo, "static char delimiter = '|';"
 
@@ -676,6 +681,12 @@ def generate_code(tree):
         print >>fo, "extern struct tableNode* orderBy(struct orderByNode *, struct clContext *, struct statistic *);"
         print >>fo, "extern void materializeCol(struct materializeNode * mn, struct clContext *, struct statistic *);"
 
+    print >>fo, "#define CHECK_POINTER(p) do {\\"
+    print >>fo, "\tif(p == NULL){   \\"
+    print >>fo, "\t\tperror(\"Failed to allocate host memory\");    \\"
+    print >>fo, "\t\texit(-1);      \\"
+    print >>fo, "\t}} while(0)"
+
     print >>fo, "int main(int argc, char ** argv){\n"
     
     if CODETYPE == 1:
@@ -689,7 +700,7 @@ def generate_code(tree):
         print >>fo, "\tclGetPlatformIDs(0,NULL,&numP);"
         print >>fo, "\tcl_platform_id * pid = new cl_platform_id[numP];"
         print >>fo, "\tclGetPlatformIDs(numP, pid, NULL);"
-        print >>fo, "\tclGetDeviceIDs(pid[0],CL_DEVICE_TYPE_GPU,1,&device,NULL);"
+        print >>fo, "\tclGetDeviceIDs(pid[1],CL_DEVICE_TYPE_CPU,1,&device,NULL);"
         print >>fo, "\tcontext.context = clCreateContext(0,1,&device,NULL,NULL,&error);"
         print >>fo, "\tcl_command_queue_properties prop = 0;"
         print >>fo, "\tprop |= CL_QUEUE_PROFILING_ENABLE;"
@@ -716,6 +727,7 @@ def generate_code(tree):
     get_tables(tree, joinAttr,aggNode, orderbyNode)
 
     print >>fo, "\tstruct tableNode *" + resultNode + " = (struct tableNode*) malloc(sizeof(struct tableNode));"
+    print >>fo, "\tCHECK_POINTER("+resultNode+");"
     print >>fo, "\tinitTable("+resultNode +");"
 
     for tn in joinAttr.dimTables:
@@ -762,18 +774,27 @@ def generate_code(tree):
         print >>fo, "\toffset=0;"
         print >>fo, "\ttupleOffset=0;"
         print >>fo, "\tstruct tableNode *" + resName + " = (struct tableNode *)malloc(sizeof(struct tableNode));"
+        print >>fo, "\tCHECK_POINTER("+ resName + ");"
         print >>fo, "\tinitTable("+resName +");"
         print >>fo, "\tfor(int i=0;i<blockTotal;i++){"
 
         print >>fo, "\t\t" + tnName+" = (struct tableNode *) malloc(sizeof(struct tableNode));"
+        print >>fo, "\t\tCHECK_POINTER(" + tnName + ");"
         print >>fo, "\t\t" + tnName+"->totalAttr = " + str(totalAttr) + ";"
         print >>fo, "\t\t" + tnName+"->attrType = (int *) malloc(sizeof(int)*"+str(totalAttr)+");"
+        print >>fo, "\t\tCHECK_POINTER(" + tnName + "->attrType);"
         print >>fo, "\t\t" + tnName+"->attrSize = (int *) malloc(sizeof(int)*"+str(totalAttr)+");"
+        print >>fo, "\t\tCHECK_POINTER(" + tnName + "->attrSize);"
         print >>fo, "\t\t" + tnName+"->attrIndex = (int *) malloc(sizeof(int)*"+str(totalAttr)+");"
+        print >>fo, "\t\tCHECK_POINTER(" + tnName + "->attrIndex);"
         print >>fo, "\t\t" + tnName+"->attrTotalSize = (int *) malloc(sizeof(int)*"+str(totalAttr)+");"
+        print >>fo, "\t\tCHECK_POINTER(" + tnName + "->attrTotalSize);"
         print >>fo, "\t\t" + tnName+"->dataPos = (int *) malloc(sizeof(int)*"+str(totalAttr)+");"
+        print >>fo, "\t\tCHECK_POINTER(" + tnName + "->dataPos);"
         print >>fo, "\t\t" + tnName+"->dataFormat = (int *) malloc(sizeof(int)*"+str(totalAttr)+");"
+        print >>fo, "\t\tCHECK_POINTER(" + tnName + "->dataFormat);"
         print >>fo, "\t\t" + tnName+"->content = (char **) malloc(sizeof(char *)*"+str(totalAttr)+");"
+        print >>fo, "\t\tCHECK_POINTER(" + tnName + "->content);"
 
         setTupleNum = 0
         for i in range(0,totalAttr):
@@ -858,8 +879,10 @@ def generate_code(tree):
             print >>fo, "\t\t" + relName + ".hasWhere = 1;"
             print >>fo, "\t\t" + relName + ".whereAttrNum = " + str(whereLen) + ";"
             print >>fo, "\t\t" + relName + ".whereIndex = (int *)malloc(sizeof(int)*" + str(len(whereList)) + ");"
+            print >>fo, "\t\tCHECK_POINTER(" + relName + ".whereIndex);"
             print >>fo, "\t\t" + relName + ".outputNum = " + str(len(selectList)) + ";"
             print >>fo, "\t\t" + relName + ".outputIndex = (int *)malloc(sizeof(int) * " + str(len(selectList)) + ");"
+            print >>fo, "\t\tCHECK_POINTER(" + relName + ".outputIndex);"
 
             for i in range(0,len(selectList)):
                 colIndex = selectList[i].column_name
@@ -876,10 +899,12 @@ def generate_code(tree):
                 print >>fo, "\t\t" + relName + ".keepInGpu = 1;"
 
             print >>fo, "\t\t" + relName + ".filter = (struct whereCondition *)malloc(sizeof(struct whereCondition));"
+            print >>fo, "\t\tCHECK_POINTER(" + relName + ".filter);"
 
             print >>fo, "\t\t(" + relName + ".filter)->nested = 0;"
             print >>fo, "\t\t(" + relName + ".filter)->expNum = " + str(len(whereList)) + ";"
             print >>fo, "\t\t(" + relName + ".filter)->exp = (struct whereExp*) malloc(sizeof(struct whereExp) *" + str(len(whereList)) + ");"
+            print >>fo, "\t\tCHECK_POINTER((" + relName + ".filter)->exp);"
 
             if tn.where_condition.where_condition_exp.func_name in ["AND","OR"]:
                 print >>fo, "\t\t(" + relName + ".filter)->andOr = " + tn.where_condition.where_condition_exp.func_name + ";"
@@ -1017,14 +1042,22 @@ def generate_code(tree):
         print >>fo, "\tfor(int i=0;i<blockTotal;i++){\n"
 
         print >>fo, "\t\tstruct tableNode *" + factName + " = (struct tableNode*)malloc(sizeof(struct tableNode));" 
+        print >>fo, "\t\tCHECK_POINTER(" + factName + ");"
         print >>fo, "\t\t" + factName + "->totalAttr = " + str(totalAttr) + ";"
         print >>fo, "\t\t" + factName + "->attrType = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + "->attrType);"
         print >>fo, "\t\t" + factName + "->attrSize = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + "->attrSize);"
         print >>fo, "\t\t" + factName + "->attrIndex = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + "->attrIndex);"
         print >>fo, "\t\t" + factName + "->attrTotalSize = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + "->attrTotalSize);"
         print >>fo, "\t\t" + factName + "->dataPos = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + "->dataPos);"
         print >>fo, "\t\t" + factName + "->dataFormat = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + "->dataFormat);"
         print >>fo, "\t\t" + factName + "->content = (char **) malloc(sizeof(char *)*" + str(totalAttr) + ");"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + "->content);"
 
         tupleSize = "0"
         for i in range(0,totalAttr):
@@ -1073,6 +1106,7 @@ def generate_code(tree):
             if CODETYPE == 0:
                 if POS == 0:
                     print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)malloc(outSize);\n"
+                    print >>fo, "\t\tCHECK_POINTER(" + factName + "->content[" + str(i) + "]);"
                 elif POS == 1:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
                 elif POS == 2:
@@ -1129,7 +1163,9 @@ def generate_code(tree):
             print >>fo, "\t\t" + relName + ".whereAttrNum = " + str(whereLen) + ";"
             print >>fo, "\t\t" + relName + ".outputNum = " + str(len(selectList)) + ";"
             print >>fo, "\t\t" + relName + ".whereIndex = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
+            print >>fo, "\t\tCHECK_POINTER(" + relName + ".whereIndex);"
             print >>fo, "\t\t" + relName + ".outputIndex = (int *)malloc(sizeof(int)*" + str(len(selectList)) + ");"
+            print >>fo, "\t\tCHECK_POINTER(" + relName + ".outputIndex);"
 
             for i in range(0,len(newWhereList)):
                 colIndex = indexList.index(newWhereList[i].column_name)
@@ -1146,10 +1182,12 @@ def generate_code(tree):
                 print >>fo, "\t\t" + relName + ".keepInGpu = 1;"
 
             print >>fo, "\t\t" + relName + ".filter = (struct whereCondition *)malloc(sizeof(struct whereCondition));"
+            print >>fo, "\t\tCHECK_POINTER(" + relName + ".filter);"
 
             print >>fo, "\t\t(" + relName + ".filter)->nested = 0;"
             print >>fo, "\t\t(" + relName + ".filter)->expNum = " + str(len(whereList)) + ";"
             print >>fo, "\t\t(" + relName + ".filter)->exp = (struct whereExp*) malloc(sizeof(struct whereExp) *" + str(len(whereList)) + ");"
+            print >>fo, "\t\tCHECK_POINTER((" + relName + ".filter)->exp);"
 
             if joinAttr.factTables[0].where_condition.where_condition_exp.func_name in ["AND","OR"]:
                 print >>fo, "\t\t(" + relName + ".filter)->andOr = " + joinAttr.factTables[0].where_condition.where_condition_exp.func_name + ";"
@@ -1227,6 +1265,7 @@ def generate_code(tree):
 
             print >>fo, "\t\t" + jName + ".totalAttr = " + str(len(rOutList) + len(lOutList)) + ";"
             print >>fo, "\t\t" + jName + ".keepInGpu = (int *) malloc(sizeof(int) * " + str(len(rOutList) + len(lOutList)) + ");"
+            print >>fo, "\t\tCHECK_POINTER(" + jName + ".keepInGpu);"
 
             if keepInGpu == 0:
                 print >>fo, "\t\tfor(int k=0;k<" + str(len(rOutList) + len(lOutList))  + ";k++)"
@@ -1238,8 +1277,11 @@ def generate_code(tree):
             print >>fo, "\t\t" + jName + ".rightOutputAttrNum = " + str(len(rOutList)) + ";"
             print >>fo, "\t\t" + jName + ".leftOutputAttrNum = " + str(len(lOutList)) + ";"
             print >>fo, "\t\t" + jName + ".leftOutputAttrType = (int *)malloc(sizeof(int)*" + str(len(lOutList)) + ");"
+            print >>fo, "\t\tCHECK_POINTER(" + jName + ".leftOutputAttrType);"
             print >>fo, "\t\t" + jName + ".leftOutputIndex = (int *)malloc(sizeof(int)*" + str(len(lOutList)) + ");"
+            print >>fo, "\t\tCHECK_POINTER(" + jName + ".leftOutputIndex);"
             print >>fo, "\t\t" + jName + ".leftPos = (int *)malloc(sizeof(int)*" + str(len(lOutList)) + ");"
+            print >>fo, "\t\tCHECK_POINTER(" + jName + ".leftPos);"
             print >>fo, "\t\t" + jName + ".tupleSize = 0;"
             for j in range(0,len(lOutList)):
                 ctype = to_ctype(lAttrList[j].type)
@@ -1249,8 +1291,11 @@ def generate_code(tree):
                 print >>fo, "\t\t" + jName + ".tupleSize += " + factName + "->attrSize[" + str(lOutList[j]) + "];"
 
             print >>fo, "\t\t" + jName + ".rightOutputAttrType = (int *)malloc(sizeof(int)*" + str(len(rOutList)) + ");"
+            print >>fo, "\t\tCHECK_POINTER(" + jName + ".rightOutputAttrType);"
             print >>fo, "\t\t" + jName + ".rightOutputIndex = (int *)malloc(sizeof(int)*" + str(len(rOutList)) + ");"
+            print >>fo, "\t\tCHECK_POINTER(" + jName + ".rightOutputIndex);"
             print >>fo, "\t\t" + jName + ".rightPos = (int *)malloc(sizeof(int)*" + str(len(rOutList)) + ");"
+            print >>fo, "\t\tCHECK_POINTER(" + jName + ".rightPos);"
             for j in range(0,len(rOutList)):
                 ctype = to_ctype(rAttrList[j].type)
                 print >>fo, "\t\t" + jName + ".rightOutputIndex[" + str(j) + "] = " + str(rOutList[j]) + ";"
@@ -1386,8 +1431,11 @@ def generate_code(tree):
         print >>fo, "\tstruct joinNode " + jName + ";"
         print >>fo, "\t" + jName + ".dimNum = " + str(dimNum) + ";" 
         print >>fo, "\t" + jName + ".dimTable = (struct tableNode **) malloc(sizeof(struct tableNode) * " + jName + ".dimNum);"
+        print >>fo, "\tCHECK_POINTER(" + jName + ".dimTable);"
         print >>fo, "\t" + jName + ".factIndex = (int *) malloc(sizeof(int) * " + jName + ".dimNum);"
+        print >>fo, "\tCHECK_POINTER(" + jName + ".factIndex);"
         print >>fo, "\t" + jName + ".dimIndex = (int *) malloc(sizeof(int) * " + jName + ".dimNum);\n"
+        print >>fo, "\tCHECK_POINTER(" + jName + ".dimIndex);"
 
         for i in joinAttr.factIndex:
             for j in range(0, len(factInputList)):
@@ -1403,6 +1451,7 @@ def generate_code(tree):
 
         print >>fo, "\t" + jName + ".totalAttr = " + str(outputNum) + ";"
         print >>fo, "\t" + jName + ".keepInGpu = (int *) malloc(sizeof(int) * " + str(outputNum) + ");"
+        print >>fo, "\tCHECK_POINTER(" + jName + ".keepInGpu);"
 
         if keepInGpu == 0:
             print >>fo, "\tfor(int k=0;k<" + str(outputNum)  + ";k++)"
@@ -1412,7 +1461,9 @@ def generate_code(tree):
             print >>fo, "\t\t" + jName + ".keepInGpu[k] = 1;\n"
 
         print >>fo, "\t" + jName +".attrType = (int *) (malloc(sizeof(int) * "+ jName + ".totalAttr));"
+        print >>fo, "\tCHECK_POINTER(" + jName + ".attrType);"
         print >>fo, "\t" + jName +".attrSize = (int *) (malloc(sizeof(int) * "+ jName + ".totalAttr));"
+        print >>fo, "\tCHECK_POINTER(" + jName + ".attrSize);"
 
         tupleSize = "0"
 
@@ -1450,7 +1501,9 @@ def generate_code(tree):
 
         print >>fo, "\t" + jName + ".factOutputNum = " + str(factOutputNum) + ";"
         print >>fo, "\t" + jName + ".factOutputIndex = (int *) malloc(" + jName + ".factOutputNum * sizeof(int));"
+        print >>fo, "\tCHECK_POINTER(" + jName + ".factOutputIndex);"
         print >>fo, "\t" + jName + ".factOutputPos = (int *) malloc(" + jName + ".factOutputNum * sizeof(int));"
+        print >>fo, "\tCHECK_POINTER(" + jName + ".factOutputpos);"
         for i in range(0, factOutputNum):
             print >>fo, "\t" + jName + ".factOutputIndex[" + str(i) + "] = " + str(factOutputIndex[i]) + ";"
             print >>fo, "\t" + jName + ".factOutputPos[" + str(i) + "] = " + str(factOutputPos[i]) + ";"
@@ -1459,8 +1512,11 @@ def generate_code(tree):
 
         print >>fo, "\t" + jName + ".dimOutputTotal = " + str(dimOutputTotal) + ";"
         print >>fo, "\t" + jName + ".dimOutputNum = (int *) malloc( sizeof(int) * " + jName + ".dimNum);"
+        print >>fo, "\tCHECK_POINTER(" + jName + ".dimOutputNum);"
         print >>fo, "\t" + jName + ".dimOutputIndex = (int **) malloc( sizeof(int*) * " + jName + ".dimNum);"
+        print >>fo, "\tCHECK_POINTER(" + jName + ".dimOutputIndex);"
         print >>fo, "\t" + jName + ".dimOutputPos = (int *) malloc( sizeof(int) * " + jName + ".dimOutputTotal);"
+        print >>fo, "\tCHECK_POINTER(" + jName + ".dimOutputPos);"
 
         dimOutputPos = []
         for i in range(0, len(joinAttr.dimTables)):
@@ -1470,6 +1526,7 @@ def generate_code(tree):
 
             if dimOutputNum >0:
                 print >>fo, "\t" + jName + ".dimOutputIndex[" + str(i) + "] = (int *) malloc(sizeof(int) *" +str(dimOutputNum) + ");"
+                print >>fo, "\tCHECK_POINTER(" + jName + ".dimOutputIndex);"
                 dimTableName = joinAttr.dimTables[i].table_name
                 dimExp = []
                 for exp in dimOutputExp:
@@ -1496,14 +1553,22 @@ def generate_code(tree):
         print >>fo, "\tfor(int i=0;i<blockTotal;i++){\n"
 
         print >>fo, "\t\tstruct tableNode *" + factName + " = (struct tableNode*)malloc(sizeof(struct tableNode));"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + ");"
         print >>fo, "\t\t" + factName + "->totalAttr = " + str(totalAttr) + ";"
         print >>fo, "\t\t" + factName + "->attrType = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + "->attrType);"
         print >>fo, "\t\t" + factName + "->attrSize = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + "->attrSize);"
         print >>fo, "\t\t" + factName + "->attrIndex = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + "->attrIndex);"
         print >>fo, "\t\t" + factName + "->attrTotalSize = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + "->attrTotalSize);"
         print >>fo, "\t\t" + factName + "->dataPos = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + "->dataPos);"
         print >>fo, "\t\t" + factName + "->dataFormat = (int *) malloc(sizeof(int)*" + str(totalAttr) + ");"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + "->dataFormat);"
         print >>fo, "\t\t" + factName + "->content = (char **) malloc(sizeof(char *)*" + str(totalAttr) + ");"
+        print >>fo, "\t\tCHECK_POINTER(" + factName + "->content);"
 
         tupleSize = "0"
         for i in range(0,totalAttr):
@@ -1561,6 +1626,7 @@ def generate_code(tree):
             if CODETYPE == 0:
                 if POS == 0:
                     print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char*)malloc(outSize);\n"
+                    print >>fo, "\t\tCHECK_POINTER(" + factName + "->content[" + str(i) + "];"
                 elif POS == 1:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
                 elif POS == 2:
@@ -1612,7 +1678,9 @@ def generate_code(tree):
             print >>fo, "\t\t" + relName + ".outputNum = " + str(len(selectList)) + ";"
             print >>fo, "\t\t" + relName + ".whereAttrNum = " + str(whereLen) + ";"
             print >>fo, "\t\t" + relName + ".whereIndex = (int *)malloc(sizeof(int)*" + str(whereLen) + ");"
+            print >>fo, "\t\tCHECK_POINTER(" + relName + ".whereIndex);"
             print >>fo, "\t\t" + relName + ".outputIndex = (int *)malloc(sizeof(int)*" + str(len(selectList)) + ");"
+            print >>fo, "\t\tCHECK_POINTER(" + relName + ".outputIndex);"
 
             if keepInGpu == 0:
                 print >>fo, "\t\t" + relName + ".keepInGpu = 0;"
@@ -1629,10 +1697,12 @@ def generate_code(tree):
                 print >>fo, "\t\t" + relName + ".outputIndex[" + str(i) + " ] = " + str(outputIndex) + ";"
 
             print >>fo, "\t\t" + relName + ".filter = (struct whereCondition *)malloc(sizeof(struct whereCondition));"
+            print >>fo, "\t\tCHECK_POINTER(" + relName + ".filter);"
 
             print >>fo, "\t\t(" + relName + ".filter)->nested = 0;"
             print >>fo, "\t\t(" + relName + ".filter)->expNum = " + str(len(whereList)) + ";"
             print >>fo, "\t\t(" + relName + ".filter)->exp = (struct whereExp*) malloc(sizeof(struct whereExp) *" + str(len(whereList)) + ");"
+            print >>fo, "\t\tCHECK_POINTER((" + relName + ".filter)->exp);"
 
             if joinAttr.factTables[0].where_condition.where_condition_exp.func_name in ["AND","OR"]:
                 print >>fo, "\t\t(" + relName + ".filter)->andOr = " + joinAttr.factTables[0].where_condition.where_condition_exp.func_name + ";"
@@ -1734,11 +1804,15 @@ def generate_code(tree):
         selectLen = len(select_list)
         gbLen = len(gb_exp_list)
         print >>fo, "\tstruct groupByNode * gbNode = (struct groupByNode *) malloc(sizeof(struct groupByNode));"
+        print >>fo, "\tCHECK_POINTER(gbNode);"
         print >>fo, "\tgbNode->table = " +resultNode +";"
         print >>fo, "\tgbNode->groupByColNum = " + str(gbLen) + ";"
         print >>fo, "\tgbNode->groupByIndex = (int *)malloc(sizeof(int) * " + str(gbLen) + ");"
+        print >>fo, "\tCHECK_POINTER(gbNode->groupByIndex);"
         print >>fo, "\tgbNode->groupByType = (int *)malloc(sizeof(int) * " + str(gbLen) + ");"
+        print >>fo, "\tCHECK_POINTER(gbNode->groupByType);"
         print >>fo, "\tgbNode->groupBySize = (int *)malloc(sizeof(int) * " + str(gbLen) + ");"
+        print >>fo, "\tCHECK_POINTER(gbNode->groupBySize);"
 
         for i in range(0,gbLen):
             exp = gb_exp_list[i]
@@ -1755,9 +1829,12 @@ def generate_code(tree):
 
         print >>fo, "\tgbNode->outputAttrNum = " + str(selectLen) + ";"
         print >>fo, "\tgbNode->attrType = (int *) malloc(sizeof(int) *" + str(selectLen) + ");"
+        print >>fo, "\tCHECK_POINTER(gbNode->attrType);"
         print >>fo, "\tgbNode->attrSize = (int *) malloc(sizeof(int) *" + str(selectLen) + ");"
+        print >>fo, "\tCHECK_POINTER(gbNode->attrSize);"
         print >>fo, "\tgbNode->tupleSize = 0;"
         print >>fo, "\tgbNode->gbExp = (struct groupByExp *) malloc(sizeof(struct groupByExp) * " + str(selectLen) + ");"
+        print >>fo, "\tCHECK_POINTER(gbNode->gbExp);"
 
         for i in range(0,selectLen):
             exp = select_list[i]
@@ -1816,10 +1893,13 @@ def generate_code(tree):
         orderby_exp_list = orderbyNode[0].order_by_clause.orderby_exp_list
         odLen = len(orderby_exp_list)
         print >>fo, "\tstruct orderByNode * odNode = (struct orderByNode *) malloc(sizeof(struct orderByNode));"
+        print >>fo, "\tCHECK_POINTER(odNode);"
         print >>fo, "\todNode->table = " +resultNode +";"
         print >>fo, "\todNode->orderByNum = " + str(odLen) + ";"
         print >>fo, "\todNode->orderBySeq = (int *) malloc(sizeof(int) * odNode->orderByNum);"
+        print >>fo, "\tCHECK_POINTER(odNode->orderBySeq);"
         print >>fo, "\todNode->orderByIndex = (int *) malloc(sizeof(int) * odNode->orderByNum);"
+        print >>fo, "\tCHECK_POINTER(odNode->orderByIndex);"
 
         for i in range(0,odLen):
             seq = orderbyNode[0].order_by_clause.order_indicator_list[i]
