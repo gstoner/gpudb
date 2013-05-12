@@ -5,6 +5,12 @@
 #include "../include/common.h"
 #include "../include/gpuOpenclLib.h"
 
+#define CHECK_POINTER(p)   do {                     \
+    if(p == NULL){                                  \
+        perror("Failed to allocate host memory");   \
+        exit(-1);                                   \
+    }} while(0)
+
 #define SAMPLE_STRIDE 128
 #define SHARED_SIZE_LIMIT 1024 
 #define NTHREAD  (SHARED_SIZE_LIMIT/2)
@@ -160,16 +166,23 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	size_t globalSize, localSize;
 
 	res = (struct tableNode *)malloc(sizeof(struct tableNode));
+	CHECK_POINTER(res);
 	res->tupleNum = odNode->table->tupleNum;
 	res->totalAttr = odNode->table->totalAttr;
 	res->tupleSize = odNode->table->tupleSize;
 
 	res->attrType = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->attrType);
 	res->attrSize = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->attrSize);
 	res->attrTotalSize = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->attrTotalSize);
 	res->dataPos = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->dataPos);
 	res->dataFormat = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->dataFormat);
 	res->content = (char **) malloc(sizeof(char *) * res->totalAttr);
+	CHECK_POINTER(res->content);
 
 	initMergeSort(context);
 
@@ -181,6 +194,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 
 	long totalSize = 0;
 	long * cpuOffset = (long *)malloc(sizeof(long) * res->totalAttr);
+	CHECK_POINTER(cpuOffset);
 	long offset = 0;
 
 	for(int i=0;i<res->totalAttr;i++){
@@ -237,6 +251,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 
 	int keySize = 0;
 	int *cpuSize = (int *)malloc(sizeof(int) * odNode->orderByNum);
+	CHECK_POINTER(cpuSize);
 
 	for(int i=0;i<odNode->orderByNum;i++){
 		int index = odNode->orderByIndex[i];
@@ -404,6 +419,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	}
 
 	long * resOffset = (long *) malloc(sizeof(long) * res->totalAttr);
+	CHECK_POINTER(resOffset);
 	offset = 0;
 	totalSize = 0;
 	for(int i=0; i<res->totalAttr;i++){
@@ -457,6 +473,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct clContext *contex
 	for(int i=0; i<res->totalAttr;i++){
 		int size = res->attrSize[i] * gpuTupleNum;
 		res->content[i] = (char *) malloc( size);
+		CHECK_POINTER(res->content[i]);
 		memset(res->content[i],0, size);
 		clEnqueueReadBuffer(context->queue,gpuResult, CL_TRUE, resOffset[i], size, res->content[i],0,0,&ndrEvt);
 
