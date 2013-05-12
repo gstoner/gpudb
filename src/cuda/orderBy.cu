@@ -3,6 +3,12 @@
 #include "../include/common.h"
 #include "../include/gpuCudaLib.h"
 
+#define CHECK_POINTER(p)   do {                     \
+    if(p == NULL){                                  \
+        perror("Failed to allocate host memory");   \
+        exit(-1);                                   \
+    }} while(0)
+
 #define SAMPLE_STRIDE 128
 #define SHARED_SIZE_LIMIT 1024 
 
@@ -581,16 +587,23 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
 	struct tableNode * res = NULL;
 
 	res = (struct tableNode *)malloc(sizeof(struct tableNode));
+	CHECK_POINTER(res);
 	res->tupleNum = odNode->table->tupleNum;
 	res->totalAttr = odNode->table->totalAttr;
 	res->tupleSize = odNode->table->tupleSize;
 
 	res->attrType = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->attrType);
 	res->attrSize = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->attrSize);
 	res->attrTotalSize = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->attrTotalSize);
 	res->dataPos = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->dataPos);
 	res->dataFormat = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->dataFormat);
 	res->content = (char **) malloc(sizeof(char *) * res->totalAttr);
+	CHECK_POINTER(res->content);
 
 	initMergeSort();
 
@@ -600,6 +613,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
 	int *gpuIndex,  *gpuSize;
 
 	column = (char**) malloc(sizeof(char*) *res->totalAttr);
+	CHECK_POINTER(column);
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuContent, sizeof(char *) * res->totalAttr));
 
 	for(int i=0;i<res->totalAttr;i++){
@@ -609,6 +623,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
 		res->dataPos[i] = MEM;
 		res->dataFormat[i] = UNCOMPRESSED;
 		res->content[i] = (char *) malloc( res->attrSize[i] * res->tupleNum);
+		CHECK_POINTER(res->content[i]);
 
 		int attrSize = res->attrSize[i];
 		if(odNode->table->dataPos[i] == MEM){
@@ -623,6 +638,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
 
 	int keySize = 0;
 	int *cpuSize = (int *)malloc(sizeof(int) * odNode->orderByNum);
+	CHECK_POINTER(cpuSize);
 
 	for(int i=0;i<odNode->orderByNum;i++){
 		int index = odNode->orderByIndex[i];
@@ -637,11 +653,9 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
 	}
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuSize, sizeof(int)* res->totalAttr));
-
 	CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuSize,cpuSize, sizeof(int)*odNode->orderByNum, cudaMemcpyHostToDevice));
 	
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuKey, keySize * newNum));
-
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuSortedKey, keySize * newNum));
 
 	set_key<<<512,128>>>(gpuKey,newNum*keySize);
@@ -719,6 +733,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
 	char ** result;
 	
 	result = (char**)malloc(sizeof(char *) * res->totalAttr);
+	CHECK_POINTER(result);
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuResult, sizeof(char*)*res->totalAttr));
 	for(int i=0;i<res->totalAttr;i++){
 		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&result[i], res->attrSize[i]* gpuTupleNum));
