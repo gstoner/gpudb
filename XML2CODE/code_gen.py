@@ -1942,7 +1942,7 @@ def generate_code(tree):
 
     fo.close()
 
-def ysmart_code_gen(argv):
+def gpudb_code_gen(argv):
     pwd = os.getcwd()
     resultDir = "./src"
     utilityDir = "./utility"

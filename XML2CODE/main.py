@@ -22,5 +22,5 @@ import config
 
 if __name__ == '__main__':
 
-    code_gen.ysmart_code_gen(sys.argv)
+    code_gen.gpudb_code_gen(sys.argv)
 
