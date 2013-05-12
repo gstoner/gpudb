@@ -7,7 +7,13 @@
 #include "../include/cudaHash.h"
 #include "scanImpl.cu"
 
-__device__ char * gpuItoa(int value, char* result, int base){
+#define CHECK_POINTER(p)   do {                     \
+    if(p == NULL){                                  \
+        perror("Failed to allocate host memory");   \
+        exit(-1);                                   \
+    }} while(0)
+
+__device__ static char * gpuItoa(int value, char* result, int base){
 
         if (base < 2 || base > 36) {
                 *result = '\0';
@@ -37,7 +43,7 @@ __device__ char * gpuItoa(int value, char* result, int base){
 
 }
 
-__device__ char * gpuStrcpy(char * dst, const char * src){
+__device__ static char * gpuStrcpy(char * dst, const char * src){
 
 	char * orig = dst;
         while(*src)
@@ -273,7 +279,6 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 
 	struct timespec start,end;
         clock_gettime(CLOCK_REALTIME,&start);
-	struct tableNode * res = NULL;
 	int *gpuGbIndex, gpuTupleNum, gpuGbColNum;
 	int * gpuGbType, * gpuGbSize;
 
@@ -283,15 +288,22 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 	int gbCount;				// the number of groups
 	int gbConstant = 0;			// whether group by constant
 
-	res = (struct tableNode *) malloc(sizeof(struct tableNode));
+	struct tableNode *res = (struct tableNode *) malloc(sizeof(struct tableNode));
+	CHECK_POINTER(res);
 	res->tupleSize = gb->tupleSize;
 	res->totalAttr = gb->outputAttrNum;
 	res->attrType = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->attrType);
 	res->attrSize = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->attrSize);
 	res->attrTotalSize = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->attrTotalSize);
 	res->dataPos = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->dataPos);
 	res->dataFormat = (int *) malloc(sizeof(int) * res->totalAttr);
+	CHECK_POINTER(res->dataFormat);
 	res->content = (char **) malloc(sizeof(char **) * res->totalAttr);
+	CHECK_POINTER(res->content);
 
 	for(int i=0;i<res->totalAttr;i++){
 		res->attrType[i] = gb->attrType[i];
@@ -303,7 +315,6 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 	gpuGbColNum = gb->groupByColNum;
 
 	if(gpuGbColNum == 1 && gb->groupByIndex[0] == -1){
-
 		gbConstant = 1;
 	}
 
@@ -314,12 +325,11 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 	if(blockNum < 1024)
 		grid = blockNum;
 
-	int * gpu_hashNum;
-	int * gpu_psum;
-	int *gpuGbCount;
+	int * gpu_hashNum, *gpu_psum, *gpuGbCount;
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuContent, gb->table->totalAttr * sizeof(char *)));
 	column = (char **) malloc(sizeof(char *) * gb->table->totalAttr);
+	CHECK_POINTER(column);
 
 	for(int i=0;i<gb->table->totalAttr;i++){
 		int attrSize = gb->table->attrSize[i];
@@ -378,12 +388,13 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 	else
 		res->tupleNum = gbCount;
 
-	printf("groupByNum %d\n",res->tupleNum);
+	printf("[INFO]Number of groupBy results: %d\n",res->tupleNum);
 
 	char ** gpuResult;
 	char ** result;
 	
 	result = (char **)malloc(sizeof(char*)*res->totalAttr);
+	CHECK_POINTER(result);
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuResult, sizeof(char *)* res->totalAttr));
 
 	for(int i=0; i<res->totalAttr;i++){
