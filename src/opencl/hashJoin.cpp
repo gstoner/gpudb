@@ -549,6 +549,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 	clReleaseMemObject(gpu_count);
 	clReleaseMemObject(gpu_hashNum);
 	clReleaseMemObject(gpu_psum);
+	clReleaseMemObject(gpu_resPsum);
 
 	clFinish(context->queue);
 	clock_gettime(CLOCK_REALTIME,&end);
