@@ -846,6 +846,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
     CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_count));
     CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_hashNum));
     CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_psum));
+    CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_resPsum));
 
     clock_gettime(CLOCK_REALTIME,&end);
     double timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;
