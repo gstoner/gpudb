@@ -1038,7 +1038,9 @@ def generate_code(tree):
                 break
 
         print >>fo, "\toffset = 0;"
-        print >>fo, "\ttupleOffset = 0;"
+        print >>fo, "\tlong blockSize["+str(totalAttr) + "];"
+        print >>fo, "\tfor(int i=0;i<" + str(totalAttr) + ";i++)"
+        print >>fo, "\t\tblockSize[i] = 0;"
         print >>fo, "\tfor(int i=0;i<blockTotal;i++){\n"
 
         print >>fo, "\t\tstruct tableNode *" + factName + " = (struct tableNode*)malloc(sizeof(struct tableNode));" 
@@ -1094,9 +1096,10 @@ def generate_code(tree):
                 print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = MEM;"
 
             print >>fo, "\t\toutFd = open(\"" + joinAttr.factTables[0].table_name + str(colIndex) + "\", O_RDONLY);"
-            print >>fo, "\t\toffset = i*sizeof(struct columnHeader) + tupleOffset * " + str(colLen) + ";"
+            print >>fo, "\t\toffset = i*sizeof(struct columnHeader) + blockSize[" + str(i) + "];"
             print >>fo, "\t\tlseek(outFd,offset,SEEK_SET);"
             print >>fo, "\t\tread(outFd, &header, sizeof(struct columnHeader));"
+            print >>fo, "\t\tblockSize[" + str(i) + "] += header.blockSize;"
             print >>fo, "\t\toffset += sizeof(struct columnHeader);"
             print >>fo, "\t\t" + factName + "->dataFormat[" + str(i) + "] = header.format;"
             print >>fo, "\t\toutSize = header.blockSize;"
