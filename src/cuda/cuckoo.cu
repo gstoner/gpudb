@@ -15,7 +15,19 @@
 #include "scanImpl.cu"
 
 #define CUCKOO_SIZE	512
-#define	SUBSIZE		(CUCKOO_SIZE/2)
+#define	SUBSIZE		(CUCKOO_SIZE)
+#define SEED_NUM	256
+#define PRIME		1900813
+
+#define NP2(n)              do {                    \
+    n--;                                            \
+    n |= n >> 1;                                    \
+    n |= n >> 2;                                    \
+    n |= n >> 4;                                    \
+    n |= n >> 8;                                    \
+    n |= n >> 16;                                   \
+    n ++; } while (0)
+
 
 // if the foreign key is compressed using dict-encoding, call this method to generate dict filter first
 __global__ static void count_join_result_dict(int *num, int* psum, char* bucket, char* fact, int dNum, int* dictFilter){
@@ -141,7 +153,7 @@ __global__ static void count_join_result_rle(int* num, int* psum, char* bucket, 
 }
 
 // if the foreign key is not compressed at all, call this method to generate join filter
-__global__ static void count_join_result(int * seeds, char* hashTable, int bucketNum,char* fact, long inNum, int* count, int * factFilter){
+__global__ static void count_join_result(int * seeds, int* hashTable, int bucketNum,char* fact, long inNum, int* count, int * factFilter){
 	int lcount = 0;
 	int stride = blockDim.x * gridDim.x;
 	long offset = blockIdx.x*blockDim.x + threadIdx.x;
@@ -150,7 +162,7 @@ __global__ static void count_join_result(int * seeds, char* hashTable, int bucke
 
 	for(int i=offset;i<inNum;i+=stride){
 		int fkey = ((int *)(fact))[i];
-		int bn = fkey % 1900813 % bucketNum;
+		int bn = fkey % PRIME % bucketNum;
 		int seed = seeds[bn];
 		con[0] = seed ^ 0xffff;
                 con[1] = seed ^ 0xcba9;
@@ -161,24 +173,23 @@ __global__ static void count_join_result(int * seeds, char* hashTable, int bucke
 
 		int htOffset = 3*2*SUBSIZE * bn;
 
-		int index1 = (con[0] *fkey + con[1]) % 1900813 % SUBSIZE;
-		int index2 = (con[2] *fkey + con[3]) % 1900813 % SUBSIZE;
-		int index3 = (con[4] *fkey + con[5]) % 1900813 % SUBSIZE;
+		int index1 = (con[0] *fkey + con[1]) % PRIME % SUBSIZE;
+		int index2 = (con[2] *fkey + con[3]) % PRIME % SUBSIZE;
+		int index3 = (con[4] *fkey + con[5]) % PRIME % SUBSIZE;
 
-		if(fkey == ((int*)hashTable)[htOffset+ 2*index1]){
-			factFilter[i] = ((int *)hashTable)[htOffset+2*index1 +1];
+		if(fkey == hashTable[htOffset+ 2*index1]){
+			factFilter[i] = hashTable[htOffset+2*index1 +1];
 			lcount ++;
-		}else if(fkey == ((int*)hashTable)[htOffset+2*SUBSIZE + 2*index2]){
-			factFilter[i] = ((int *)hashTable)[htOffset+2*SUBSIZE + 2*index2 +1];
+		}else if(fkey == hashTable[htOffset+2*SUBSIZE + 2*index2]){
+			factFilter[i] = hashTable[htOffset+2*SUBSIZE + 2*index2 +1];
 			lcount ++;
-		}else if(fkey == ((int*)hashTable)[htOffset+ 4*SUBSIZE +  2*index3]){
-			factFilter[i] = ((int *)hashTable)[htOffset+4*SUBSIZE + 2*index3 +1];
+		}else if(fkey == hashTable[htOffset+ 4*SUBSIZE +  2*index3]){
+			factFilter[i] = hashTable[htOffset+4*SUBSIZE + 2*index3 +1];
 			lcount ++;
 		}
 
 	}
 
-	__syncthreads();
 	count[offset] = lcount;
 }
 
@@ -492,17 +503,17 @@ __global__ void static joinDim_other(int *resPsum, char * dim, int attrSize, lon
 }
 
 
-__global__ void static preshuffle(char *dim, int tupleNum, int bucketNum, int * start, int *offset, int *count){
+__global__ void static preshuffle(char *dim, int tupleNum, int bucketNum, int * bucketID, int *offset, int *count){
 
 	int startIndex = blockIdx.x * blockDim.x + threadIdx.x;
 	int stride = blockDim.x * gridDim.x;
 
 	for(int i=startIndex;i<tupleNum; i+=stride){
 		int key = ((int *)dim)[i]; 
-		int bk = key % 1900813 % bucketNum;
+		int bk = key % PRIME % bucketNum;
 
 		offset[i] = atomicAdd(&count[bk],1);
-		start[i] = bk;
+		bucketID[i] = bk;
 	}
 
 }
@@ -522,112 +533,114 @@ __global__ void static shuffle_data(char *dim,int tupleNum,int bucketNum, int *s
 }
 
 
-__global__ void static cuckooHash(char *dim, int * rid, int * bucketStart,int* bucketCount,char* hashTable, int * seeds){
+__global__ void static cuckooHash(char *dim, int * rid, int * bucketOffset,int* bucketCount,int* hashTable, int *seedInput, int seedNum,int * seeds){
 
-	__shared__ int buf[SUBSIZE];
-	__shared__ int bufId[SUBSIZE];
-	__shared__ int done[SUBSIZE];
+	__shared__ int buf[CUCKOO_SIZE];
+	__shared__ int bufId[CUCKOO_SIZE];
 	__shared__ int sub1[2*SUBSIZE];
 	__shared__ int sub2[2*SUBSIZE];
 	__shared__ int sub3[2*SUBSIZE];
+	__shared__ int buildFinish[1];
 
 	int bkNum = bucketCount[blockIdx.x];
-	int offset = bucketStart[blockIdx.x];
+	int offset = bucketOffset[blockIdx.x];
 
-	for(int i=threadIdx.x;i<bkNum;i+=blockDim.x){
-		buf[i] = ((int *)dim)[i+offset];
-		bufId[i] = rid[i+offset];
+	if(threadIdx.x<bkNum){
+		buf[threadIdx.x] = ((int *)dim)[threadIdx.x+offset];
+		bufId[threadIdx.x] = rid[threadIdx.x+offset];
 	}
 
-	for(int i=threadIdx.x;i<SUBSIZE;i+=blockDim.x){
-		done[i] = 0;
-		sub1[2*i] = sub1[2*i+1] = -1;
-		sub2[2*i] = sub2[2*i+1] = -1;
-		sub3[2*i] = sub3[2*i+1] = -1;
-	}
-
-	__syncthreads();
-
-	int buildFinish = 0;
 	int count = 0;
-	unsigned int seed = 1234567;
-	unsigned int con[6];
+	unsigned int seed;
 
-	do{
-		con[0] = seed ^ 0xffff;
-		con[1] = seed ^ 0xcba9;
-		con[2] = seed ^ 0x7531;
-		con[3] = seed ^ 0xbeef;
-		con[4] = seed ^ 0xd9f1;
-		con[5] = seed ^ 0x337a;
+	if(threadIdx.x<bkNum){
 
-		buildFinish = 1;
+		unsigned int con[6];
+	
+		int key = buf[threadIdx.x];
+		int id = bufId[threadIdx.x];
 
-		for(int i=threadIdx.x;i<bkNum;i+=blockDim.x){
+		do{
 
-			int inSubTable = 0;
-			int key = buf[i];
-			int id = bufId[i];
+			seed = seedInput[count];
+			for(int i=threadIdx.x;i<SUBSIZE;i+=bkNum){
 
-			int index1 = (con[0] *key + con[1]) % 1900813 % SUBSIZE;
-
-			if(inSubTable == 0 && done[i] == 0){
-				inSubTable = 1;
-				sub1[2*index1] = key;
-				sub1[2*index1+1] = id;
-				done[i] = 1;
+				sub1[2*i] = sub1[2*i+1] = -1;
+				sub2[2*i] = sub2[2*i+1] = -1;
+				sub3[2*i] = sub3[2*i+1] = -1;
 			}
 			__syncthreads();
 
-			int index2 = (con[2] *key + con[3]) % 1900813 % SUBSIZE;
+			if(threadIdx.x == 0)
+				*buildFinish = 1;
+
+			int inSubTable = 0;
+			con[0] = seed ^ 0xffff;
+			con[1] = seed ^ 0xcba9;
+			con[2] = seed ^ 0x7531;
+			con[3] = seed ^ 0xbeef;
+			con[4] = seed ^ 0xd9f1;
+			con[5] = seed ^ 0x337a;
+
+			int index1 = (con[0] *key + con[1]) % PRIME % SUBSIZE;
+			int index2 = (con[2] *key + con[3]) % PRIME % SUBSIZE;
+			int index3 = (con[4] *key + con[5]) % PRIME % SUBSIZE;
+
+			if(inSubTable == 0 ){
+				inSubTable = 1;
+				sub1[2*index1] = key;
+				sub1[2*index1+1] = id;
+				__syncthreads();
+			}
+
 			if(inSubTable == 1 && sub1[2*index1] != key){
 				inSubTable = 2;
 				sub2[2*index2] = key;
 				sub2[2*index2+1] = id; 
-				done[i] = 2;
+				__syncthreads();
 			}
-			__syncthreads();
 
-			int index3 = (con[4] *key + con[5]) % 1900813 % SUBSIZE;
 
 			if(inSubTable == 2 && sub2[2*index2] != key){
 				inSubTable = 3;
 				sub3[2*index3] = key;
 				sub3[2*index3+1] = id;
-				done[i] = 3;
+				__syncthreads();
 			}
-			__syncthreads();
 
 			if(inSubTable == 3 && sub3[2*index3] != key){
-				buildFinish = 0;
-				done[i] = 0;
+				*buildFinish = 0;
 			}
-
 			__syncthreads();
-		}
 
-		count ++;
-		seed += 113;
+			if(*buildFinish == 1)
+				break;
 
-	} while (buildFinish);
+			count ++;
+
+		}while(count <seedNum);
+
+	}
+
+	offset = blockIdx.x * 3 * 2*SUBSIZE;
+	for(int i=threadIdx.x;i<2*SUBSIZE;i += blockDim.x){
+		hashTable[i+offset] = sub1[i];
+	}
 
 	__syncthreads();
 
 	for(int i=threadIdx.x;i<2*SUBSIZE;i += blockDim.x){
-		((int*)hashTable)[i] = sub1[i];
+		hashTable[i + offset + 2*SUBSIZE] = sub2[i];
 	}
 
+	__syncthreads();
 	for(int i=threadIdx.x;i<2*SUBSIZE;i += blockDim.x){
-		((int*)hashTable)[i + 2*SUBSIZE] = sub2[i];
+		hashTable[i + offset + 4*SUBSIZE] = sub3[i];
 	}
 
-	for(int i=threadIdx.x;i<2*SUBSIZE;i += blockDim.x){
-		((int*)hashTable)[i + 4*SUBSIZE] = sub3[i];
-	}
-
+	__syncthreads();
 
 	seeds[blockIdx.x] = seed;
-	__syncthreads();
 	
 }
 
@@ -662,7 +675,7 @@ struct tableNode * cuckooHashJoin(struct joinNode *jNode, struct statistic *pp){
 	int defaultBlock = 2048;
 
 	dim3 grid(defaultBlock);
-	dim3 block(256);
+	dim3 block(CUCKOO_SIZE);
 	int blockNum;
 	int threadNum;
 
@@ -733,17 +746,18 @@ struct tableNode * cuckooHashJoin(struct joinNode *jNode, struct statistic *pp){
 
 	int bucketSize = CUCKOO_SIZE;
 	int bucketNum = (jNode->rightTable->tupleNum + bucketSize -1 )/ bucketSize ;
+	bucketNum *= 1.2;
 
-	int * gpuBucketCount, *gpuBucketOffset, *gpuBucketStart;
+	int * gpuBucketCount, *gpuBucketOffset, *gpuBucketID;
 	int * gpuBucketPsum;
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuBucketCount, sizeof(int) * bucketNum));
 	CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpuBucketCount,0, sizeof(int) * bucketNum));
-	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuBucketStart, jNode->rightTable->tupleNum * sizeof(int)));
+	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuBucketID, jNode->rightTable->tupleNum * sizeof(int)));
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuBucketOffset,jNode->rightTable->tupleNum * sizeof(int)));
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuBucketPsum,sizeof(int) * bucketNum));
 
-	preshuffle<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,bucketNum,gpuBucketStart,gpuBucketOffset,gpuBucketCount);
+	preshuffle<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,bucketNum,gpuBucketID,gpuBucketOffset,gpuBucketCount);
 
 	scanImpl(gpuBucketCount,bucketNum,gpuBucketPsum,pp);
 
@@ -753,26 +767,36 @@ struct tableNode * cuckooHashJoin(struct joinNode *jNode, struct statistic *pp){
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuBucketData,jNode->rightTable->tupleNum * sizeof(int)));
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuRid,jNode->rightTable->tupleNum * sizeof(int)));
 
-	shuffle_data<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,bucketNum,gpuBucketStart,gpuBucketOffset,gpuBucketPsum, gpuBucketData, gpuRid);
+	shuffle_data<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,bucketNum,gpuBucketID,gpuBucketOffset,gpuBucketPsum, gpuBucketData, gpuRid);
 
-	char * gpuHash;
+	int * gpuHash;
 	int * gpuSeeds;
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuHash, bucketNum*2*3*SUBSIZE*sizeof(int)));
 	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuSeeds, sizeof(int)*bucketNum));
 
-	cuckooHash<<<bucketNum,block>>>(gpu_dim,gpuRid, gpuBucketPsum,gpuBucketCount, gpuHash, gpuSeeds);
+	int inputSeed[SEED_NUM];
+	struct timespec now;
 
-	int *xx = (int *) malloc(sizeof(int)*bucketNum);
-	cudaMemcpy(xx,gpuSeeds,sizeof(int)*bucketNum,cudaMemcpyDeviceToHost);
-	for(int i=0;i<bucketNum;i++){
-		printf("xx %d\n",xx[i]);
+        clock_gettime(CLOCK_REALTIME,&now);
+	for(int i=0;i<SEED_NUM;i++){
+		srand(i+1);
+		inputSeed[i] = random();
 	}
+
+	int * gpuRandomSeed;
+	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuRandomSeed,sizeof(inputSeed)));
+	CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuRandomSeed,inputSeed,sizeof(inputSeed),cudaMemcpyHostToDevice));
+
+	cuckooHash<<<bucketNum,block>>>(gpu_dim,gpuRid, gpuBucketPsum,gpuBucketCount, gpuHash, gpuRandomSeed,SEED_NUM,gpuSeeds);
 
 	if (dataPos == MEM || dataPos == PINNED)
 		CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_dim));
 
+	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuRandomSeed));
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_psum1));
+	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuBucketID));
+	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuBucketOffset));
 
 
 /*
@@ -780,7 +804,6 @@ struct tableNode * cuckooHashJoin(struct joinNode *jNode, struct statistic *pp){
  */
 
 	int *gpuFactFilter;
-	int maxAttrSize;
 
 	dataPos = jNode->leftTable->dataPos[jNode->leftKeyIndex];
 	int format = jNode->leftTable->dataFormat[jNode->leftKeyIndex];
@@ -1066,6 +1089,7 @@ struct tableNode * cuckooHashJoin(struct joinNode *jNode, struct statistic *pp){
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_count));
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_hashNum));
 	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_psum));
+	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_resPsum));
 
 	return res;
 
