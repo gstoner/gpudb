@@ -8,7 +8,14 @@
 #include <unistd.h>
 #include "../include/common.h"
 
-//the type of the column must be integer and the data should be stored in binary and column stored format
+/*
+ * @file rle.c
+ * Compress a sorted foreign key column in LINEORDER table using Run Length encoding.
+ *
+ * Input:
+ * 	@inputColumn: the column to be compressed using RLE.
+ * 	@outputColumn: the name of the compressed column.
+ */
 
 int main(int argc, char ** argv){
 

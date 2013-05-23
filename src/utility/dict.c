@@ -10,7 +10,10 @@
 
 #define	HHSIZE	(1024*1024)
 
-// assume the type of the column to be encoded is int
+/*
+ * @file dict.c
+ * Compress lineorder columns used in the Star Schema Benchmark using dictionary encoding.
+ */
 
 int main(int argc, char ** argv){
 

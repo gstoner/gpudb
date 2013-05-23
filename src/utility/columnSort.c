@@ -8,8 +8,10 @@
 #include <sys/mman.h>
 #include "../include/common.h"
 
-//currently only supports sorting of numbers
-//suppose the data are already stored in column store and  binary format
+/*
+ * @file columnSort.c
+ * Sort foreign key columns in LINEORDER table.
+ */
 
 struct sortObject{
 	int key;
@@ -33,9 +35,11 @@ static void bubbleSort(struct sortObject *obj, int start,int num){
 	}
 }
 
-// start to middle-1(inclusive) is the first part
-// middle to end is the second part
-// start, middle, and end are all array indexes
+/*
+ * start to middle-1(inclusive) is the first part
+ * middle to end is the second part
+ * start, middle, and end are all array indexes
+ */
 
 static void mergeSort(struct sortObject *obj, int start, int middle, int end){
 
@@ -91,15 +95,21 @@ static void primarySort(struct sortObject * obj, int num){
 
 }
 
-
-// assumes all the columns from the same table stored on disk have the same prefiex(such as the table name)
-// the only difference is the index 
-// prerequsite: the memory should be large enough to hold all the elements from one column
+/*
+ * Input:
+ * 	@inputPrefix: the name of the table to be sorted.
+ * 	@inputPrefix: the name of the table after sorting.
+ *	@index:	the index of the column that will be sorted.
+ *	@columnNum: the total number of columns in the table.
+ *
+ * Prerequisite:
+ * 	The memory is large enough to hold each column.	
+ */
 
 int main(int argc, char **argv){
 
-	if(argc != 4){
-		printf("./columnSort inputPrefix outputPrefix index\n");
+	if(argc != 5){
+		printf("./columnSort inputPrefix outputPrefix index columnNum\n");
 		exit(-1);
 	}
 
@@ -108,7 +118,7 @@ int main(int argc, char **argv){
 	struct columnHeader header;
 
 	primaryIndex = atoi(argv[3]);
-	largestIndex = 16; 
+	largestIndex = atoi(argv[4]); 
 
 	char buf[32] = {0};
 

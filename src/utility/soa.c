@@ -9,7 +9,7 @@
 
 /*
  * Transform the column stored string from AOS to SOA.
- * Currently he column must be stored in an uncompressed format.
+ * Currently the column must be stored in an uncompressed format.
  */
 
 int main(int argc, char **argv){
