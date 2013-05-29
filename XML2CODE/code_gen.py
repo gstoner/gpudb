@@ -264,14 +264,30 @@ def generate_loader():
     print >>fo, "int main(int argc, char ** argv){\n"
     print >>fo, "\tFILE * in = NULL, *out = NULL;"
     print >>fo, "\tint table;"
+    print >>fo, "\tint setPath = 0;"
+    print >>fo, "\tchar path[1024];"
     print >>fo, "\tint long_index;"
 
     print >>fo, "\tstruct option long_options[] = {"
     for i in range(0, len(schema.keys())):
         print >>fo, "\t\t{\"" + schema.keys()[i].lower()+ "\",required_argument,0,'" + str(i) + "'},"
 
-    print >>fo, "\t\t{\"delimiter\",required_argument,0,'" +str(i+1) + "'}"
+    print >>fo, "\t\t{\"delimiter\",required_argument,0,'" +str(i+1) + "'},"
+    print >>fo, "\t\t{\"datadir\",required_argument,0,'" +str(i+2) + "'}"
     print >>fo, "\t};\n"
+
+    print >>fo, "\twhile((table=getopt_long(argc,argv,\"\",long_options,&long_index))!=-1){"
+    print >>fo, "\t\tswitch(table){"
+    print >>fo, "\t\t\tcase '6':"
+    print >>fo, "\t\t\t\tsetPath = 1;"
+    print >>fo, "\t\t\t\tstrcpy(path,optarg);"
+    print >>fo, "\t\t\t\tbreak;"
+    print >>fo, "\t\t}"
+    print >>fo, "\t}\n"
+
+    print >>fo, "\tif(setPath == 1)"
+    print >>fo, "\t\tchdir(path);"
+    print >>fo, "\toptind=1;\n"
 
     print >>fo, "\twhile((table=getopt_long(argc,argv,\"\",long_options,&long_index))!=-1){"
     print >>fo, "\t\tswitch(table){"
