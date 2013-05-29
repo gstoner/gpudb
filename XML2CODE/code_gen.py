@@ -658,6 +658,7 @@ def generate_code(tree):
     print >>fo, "#include <unistd.h>"
     print >>fo, "#include <malloc.h>"
     print >>fo, "#include <time.h>"
+    print >>fo, "#include <getopt.h>"
     print >>fo, "#include \"../include/common.h\""
 
     if joinType == 0:
@@ -727,7 +728,28 @@ def generate_code(tree):
     else:
         print >>fo, "\tint * cudaTmp;"
         print >>fo, "\tcudaMalloc((void**)&cudaTmp,sizeof(int));"
-        print >>fo, "\tcudaFree(cudaTmp);"
+        print >>fo, "\tcudaFree(cudaTmp);\n"
+
+
+    print >>fo, "\tint table;"
+    print >>fo, "\tint long_index;"
+    print >>fo, "\tchar path[1024];"
+    print >>fo, "\tint setPath = 0;"
+    print >>fo, "\tstruct option long_options[] = {"
+    print >>fo, "\t\t{\"datadir\",required_argument,0,'0'}"
+    print >>fo, "\t};\n"
+
+    print >>fo, "\twhile((table=getopt_long(argc,argv,\"\",long_options,&long_index))!=-1){"
+    print >>fo, "\t\tswitch(table){"
+    print >>fo, "\t\t\tcase '0':"
+    print >>fo, "\t\t\t\tsetPath = 1;"
+    print >>fo, "\t\t\t\tstrcpy(path,optarg);"
+    print >>fo, "\t\t\t\tbreak;"
+    print >>fo, "\t\t}"
+    print >>fo, "\t}\n"
+
+    print >>fo, "\tif(setPath == 1)"
+    print >>fo, "\t\tchdir(path);\n"
 
     print >>fo, "\tstruct timespec start,end;"
     print >>fo, "\tstruct timespec diskStart, diskEnd;"
