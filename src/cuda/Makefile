@@ -23,17 +23,6 @@ else
     LDFLAGS   := -lcudart -lrt
 endif
 
-loader: load.c
-	gcc -o gpuDBLoader load.c
-
-sort: columnSort.c
-	gcc -o columnSort columnSort.c -std=c99 
-
-rle: rle.c
-	gcc -std=c99 rle.c -o rleCompression
-
-dict: dict.c
-	gcc -std=c99 dict.c -o dictCompression
 
 gpudb: gpu cpu
 	 $(NVCC) -pg tableScan.o inviJoin.o hashJoin.o cuckoo.o materialize.o groupby.o orderBy.o driver.o $(LDFLAGS) -o GPUDATABASE
@@ -44,7 +33,7 @@ cpu: driver.cu
 gpu: tableScan.cu hashJoin.cu cuckoo.cu inviJoin.cu materialize.cu groupby.cu orderBy.cu
 	$(NVCC) -c -g $(GENCODE_FLAGS) tableScan.cu hashJoin.cu cuckoo.cu inviJoin.cu materialize.cu groupby.cu orderBy.cu 
 
-all: loader gpudb
+all: gpudb
 
 clean:
-	rm -rf *.o GPUDATABASE gpuDBLoader
+	rm -rf *.o GPUDATABASE
