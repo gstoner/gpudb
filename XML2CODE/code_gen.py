@@ -110,6 +110,7 @@ def generate_loader():
     print >>fo, "#include <unistd.h>"
     print >>fo, "#include <string.h>"
     print >>fo, "#include <getopt.h>"
+    print >>fo, "#include <linux/limits.h>"
     print >>fo, "#include \"../include/schema.h\""
     print >>fo, "#include \"../include/common.h\""
     print >>fo, "#define CHECK_POINTER(p) do {\\"
@@ -136,6 +137,10 @@ def generate_loader():
         print >>fo, "\t\tchar path[64] = {0};"
         print >>fo, "\t\tsprintf(path,\"%s%d\",outName,i);"
         print >>fo, "\t\tout[i] = fopen(path, \"w\");"
+        print >>fo, "\t\tif(!out[i]){"
+        print >>fo, "\t\t\tprintf(\"Failed to open %s\\n\",path);"
+        print >>fo, "\t\t\texit(-1);"
+        print >>fo, "\t\t}"
         print >>fo, "\t}\n"
 
         print >>fo, "\tstruct columnHeader header;"
@@ -265,7 +270,9 @@ def generate_loader():
     print >>fo, "\tFILE * in = NULL, *out = NULL;"
     print >>fo, "\tint table;"
     print >>fo, "\tint setPath = 0;"
-    print >>fo, "\tchar path[1024];"
+    print >>fo, "\tchar path[PATH_MAX];"
+    print >>fo, "\tchar cwd[PATH_MAX];"
+    print >>fo, "\t"
     print >>fo, "\tint long_index;"
 
     print >>fo, "\tstruct option long_options[] = {"
@@ -285,8 +292,6 @@ def generate_loader():
     print >>fo, "\t\t}"
     print >>fo, "\t}\n"
 
-    print >>fo, "\tif(setPath == 1)"
-    print >>fo, "\t\tchdir(path);"
     print >>fo, "\toptind=1;\n"
 
     print >>fo, "\twhile((table=getopt_long(argc,argv,\"\",long_options,&long_index))!=-1){"
@@ -294,7 +299,17 @@ def generate_loader():
     for i in range(0, len(schema.keys())):
         print >>fo, "\t\t\tcase '" + str(i) + "':"
         print >>fo, "\t\t\t\tin = fopen(optarg,\"r\");"
+        print >>fo, "\t\t\t\tif(!in){"
+        print >>fo, "\t\t\t\t\tprintf(\"Failed to open %s\\n\",optarg);"
+        print >>fo, "\t\t\t\t\texit(-1);"
+        print >>fo, "\t\t\t\t}"
+        print >>fo, "\t\t\t\tif (setPath == 1){"
+        print >>fo, "\t\t\t\t\tchdir(path);"
+        print >>fo, "\t\t\t\t}"
         print >>fo, "\t\t\t\t" + schema.keys()[i].lower() + "(in,\"" + schema.keys()[i] + "\");"
+        print >>fo, "\t\t\t\tif (setPath == 1){"
+        print >>fo, "\t\t\t\t\tchdir(cwd);"
+        print >>fo, "\t\t\t\t}"
         print >>fo, "\t\t\t\tfclose(in);"
         print >>fo, "\t\t\t\tbreak;"
 
