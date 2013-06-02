@@ -293,6 +293,7 @@ def generate_loader():
     print >>fo, "\t}\n"
 
     print >>fo, "\toptind=1;\n"
+    print >>fo, "\tgetcwd(cwd,PATH_MAX);"
 
     print >>fo, "\twhile((table=getopt_long(argc,argv,\"\",long_options,&long_index))!=-1){"
     print >>fo, "\t\tswitch(table){"
