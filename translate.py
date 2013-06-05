@@ -22,6 +22,11 @@ import os
 import subprocess
 import sys
 
+sys.path.append("SQL2XML")
+import sql2xml
+sys.path.append("XML2CODE")
+import code_gen
+
 CURRENT_DIR = os.getcwd()
 EXEC_DIR = 'bin'
 TEMP_DIR = '.tmp'
@@ -32,7 +37,10 @@ def genXMLTree(queryFile, tmpFilePath):
     except:
         pass
 
-    subprocess.check_call(EXEC_DIR + '/YSmartFront.exe ' +  queryFile + ' > ' + tmpFilePath, shell=True)
+    with open(queryFile) as inputFile:
+        xmlStr = sql2xml.toXml(inputFile)
+        with open(tmpFilePath, "w") as outputFile:
+            outputFile.write(xmlStr)
 
 def genGPUCode(schemaFile, tmpFilePath):
     #print 'TODO: call job generation program in ./bin/'

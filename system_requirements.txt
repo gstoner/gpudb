@@ -2,8 +2,6 @@
 
 2. Python (not Python3)
 
-3. Java and GCC are needed (for ANTLR)
+3. NVIDIA GPU, AMD GPU or CPUs that support OpenCL
 
-4. NVIDIA GPU or AMD GPU
-
-5. CUDA tookit or AMD APP SDK
+4. CUDA tookit, AMD APP SDK or Intel OpenCL SDK
