@@ -21,7 +21,7 @@ __global__ static void materialize(char ** content,  int colNum, int *attrSize, 
 	}
 }
 
-void * materializeCol(struct materializeNode * mn, struct statistic * pp){
+char * materializeCol(struct materializeNode * mn, struct statistic * pp){
 
 	struct timespec start,end;
         clock_gettime(CLOCK_REALTIME,&start);

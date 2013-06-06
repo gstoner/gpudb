@@ -465,7 +465,7 @@ __global__ void static joinDim_other_soa(int *resPsum, char * dim, int attrSize,
 struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
     struct timespec start,end;
-        clock_gettime(CLOCK_REALTIME,&start);
+    clock_gettime(CLOCK_REALTIME,&start);
 
     struct tableNode * res = NULL;
 

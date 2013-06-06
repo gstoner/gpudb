@@ -555,8 +555,8 @@ __global__ static void gather_result(char * keyPos, char ** col, int newNum, int
         int index = blockIdx.x * blockDim.x + threadIdx.x;
 
 	for(int j=0;j<colNum;j++){
-        	for(int i=index;i<newNum;i+=stride){
-                	int pos = ((int *)keyPos)[i];
+			for(int i=index;i<newNum;i+=stride){
+					int pos = ((int *)keyPos)[i];
 			if(pos<tupleNum)
 				memcpy(result[j] + i*size[j], col[j] +pos*size[j], size[j]);
 		}
@@ -678,10 +678,10 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
 	}else{
 		int stageCount = 0;
 
-       		for (int i = SHARED_SIZE_LIMIT; i < newNum; i <<= 1, stageCount++);
+			for (int i = SHARED_SIZE_LIMIT; i < newNum; i <<= 1, stageCount++);
 
-        	char *ikey, *okey;
-        	char *ival, *oval;
+			char *ikey, *okey;
+			char *ival, *oval;
 		char * d_BufKey, * d_BufVal;
 
 		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&d_BufKey, keySize * newNum));
@@ -725,7 +725,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
 			t = ival;
 			ival = oval;
 			oval = t;
-        	}
+			}
 	}	
 
 	CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());

@@ -712,7 +712,7 @@ def generate_code(tree):
             print >>fo, "extern struct tableNode* inviJoin(struct joinNode *, struct clContext *, struct statistic *);"
         print >>fo, "extern struct tableNode* groupBy(struct groupByNode *, struct clContext *, struct statistic *);"
         print >>fo, "extern struct tableNode* orderBy(struct orderByNode *, struct clContext *, struct statistic *);"
-        print >>fo, "extern void materializeCol(struct materializeNode * mn, struct clContext *, struct statistic *);"
+        print >>fo, "extern char * materializeCol(struct materializeNode * mn, struct clContext *, struct statistic *);"
 
     print >>fo, "#define CHECK_POINTER(p) do {\\"
     print >>fo, "\tif(p == NULL){   \\"
