@@ -211,7 +211,7 @@ __global__ void agg_cal_cons(char ** content, int colNum, struct groupByExp* exp
         for(int j=0;j<colNum;j++){
             int func = exp[j].func;
             if (func == SUM){
-                float tmpRes = calMathExp(content, exp[j].exp, j);
+                float tmpRes = calMathExp(content, exp[j].exp, i);
                 buf[j] += tmpRes;
             }
         }
@@ -250,7 +250,7 @@ __global__ void agg_cal(char ** content, int colNum, struct groupByExp* exp, int
                     }
 
                 }else if (func == SUM){
-                    float tmpRes = calMathExp(content, exp[j].exp, j);
+                    float tmpRes = calMathExp(content, exp[j].exp, i);
                     atomicAdd(& ((float *)result[j])[offset], tmpRes);
                 }
             }
