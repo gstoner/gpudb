@@ -7,8 +7,14 @@
 
 enum {
 
+// data format
+    RLE = 0,
+    DICT,
+    DELTA,
+    UNCOMPRESSED,
+
 //type supported in schema
-    INT =0,
+    INT,
     FLOAT,
     STRING,
 
@@ -53,12 +59,6 @@ enum {
 // order by sequence
     ASC,
     DESC,
-
-// data format
-    RLE,
-    DICT,
-    DELTA,
-    UNCOMPRESSED,
 
     NOOP
 };

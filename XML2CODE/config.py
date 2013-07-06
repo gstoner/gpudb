@@ -15,7 +15,38 @@
    limitations under the License.
 """
 
-joinType = 0	# 0 for traditional hash join and 1 for invisible join
-POS = 0			# 0 for MEM, 1 for PINNED and 2 for UVA
-SOA = 0			# 0 for AOS and 1 for SOA
-CODETYPE = 0 	# 0 for cuda, 1 for opencl
+"""
+Several configurable variables:
+    @CODETYPE determines whether CUDA or OpenCL codes should be generated.
+    0 represents CUDA and 1 represents OpenCL.
+
+    @joinType determines whether we should generate invisible joins for star
+    schema queries. 0 represents normal join and 1 represents invisible join.
+
+    @POS describes where the data are stored in the host memory and how the
+    codes should be generated. 0 means data are stored in pageable host
+    memory and data are explicitly transferred. 1 means data are stored in
+    pinned host memory and data are explicitly transferred. 2 means data are
+    stored in pinned host memory and the kernel will directly access the data
+    without explicit data transferring.
+
+    @SOA is currently for testing only.
+"""
+
+joinType = 0    
+POS = 0
+CODETYPE = 0
+SOA = 0
+
+"""
+OpenCL specific configurable variables: 
+    @PID is the platform ID that will execute the query.
+    @DTYPE specifies the type of the device which executes the query. 
+    0 represents CL_DEVICE_TYPE_GPU,
+    1 represnets CL_DEVICE_TYPE_CPU and
+    2 represnets CL_DEVICE_TYPE_ACCELERATOR.
+"""
+
+PID = 0
+DTYPE = 0
+
