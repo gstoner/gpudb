@@ -1153,12 +1153,11 @@ def generate_code(tree):
         print >>fo, "\t}\n"
 
 
-"""
-Generate the codes for star schema joins.
-0 represents normal hash join and 1 represents invisible join.
-"""
-
     if joinType == 0:
+        """
+        Generate the codes for star schema joins.
+        0 represents normal hash join and 1 represents invisible join.
+        """
 
         selectOnly = len(joinAttr.dimTables) == 0
         hasWhere = 0
@@ -1540,11 +1539,11 @@ Generate the codes for star schema joins.
 
         print >>fo, "\t}\n"
 
-"""
-Generating codes for invisible join.
-"""
 
     elif joinType == 1:
+        """
+        Generating codes for invisible join.
+        """
 
         factName = joinAttr.factTables[0].table_name.lower() + "Table"
         resName = joinAttr.factTables[0].table_name.lower() + "Res"
@@ -1959,11 +1958,12 @@ Generating codes for invisible join.
 
         print >>fo, "\t}\n"
 
-"""
-Generate codes for aggregation node.
-"""
 
     if len(aggNode) >0 :
+        """
+        Generate codes for aggregation node.
+        """
+
         gb_exp_list = aggNode[0].group_by_clause.groupby_exp_list
         select_list = aggNode[0].select_list.tmp_exp_list
         selectLen = len(select_list)
@@ -2055,11 +2055,11 @@ Generate codes for aggregation node.
         print >>fo, "\tfreeGroupByNode(gbNode);\n"
 
 
-"""
-Generate codes for order by node.
-"""
-
     if len(orderbyNode) > 0 :
+        """
+        Generate codes for order by node.
+        """
+
         orderby_exp_list = orderbyNode[0].order_by_clause.orderby_exp_list
         odLen = len(orderby_exp_list)
         print >>fo, "\tstruct orderByNode * odNode = (struct orderByNode *) malloc(sizeof(struct orderByNode));"
