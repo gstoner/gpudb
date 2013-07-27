@@ -1,7 +1,7 @@
 
 OS_SIZE = $(shell uname -m | sed -e "s/i.86/32/" -e "s/x86_64/64/")
 
-CUDA_PATH       ?= /usr/local/cuda-5.0
+CUDA_PATH       ?= /usr/local/cuda
 CUDA_INC_PATH   ?= $(CUDA_PATH)/include
 CUDA_BIN_PATH   ?= $(CUDA_PATH)/bin
 
