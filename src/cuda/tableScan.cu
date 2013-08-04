@@ -34,8 +34,17 @@
     }} while(0)
 
 /*
- * stringCmp: Compare two strings on GPU.
+ * stringCmp: Compare two strings on GPU using one single GPU thread.
+ * @buf1: the first input buffer
+ * @buf2: the second input buffer
+ * @size: the length of data to be compared
+ *
+ * Return 
+ *  1 if buf1 is larger
+ *  0 if they are equal
+ *  -1 if buf2 is larger
  */
+
 __device__ static inline int stringCmp(char* buf1, char *buf2, int size){
     int i;
     int res = 0;
@@ -54,7 +63,16 @@ __device__ static inline int stringCmp(char* buf1, char *buf2, int size){
 }
 
 /*
- * testCon: evaluate one selection predicate
+ * testCon: evaluate one selection predicate using one GPU thread
+ * @buf1: input data to be tested
+ * @buf2: the test criterion, usually a number of a string.
+ * @size: the size of the input data buf1
+ * @type: the type of the input data buf1 
+ * @rel: >,<, >=, <= or ==.
+ *
+ * Return:
+ *  0 if the input data meets the criteria
+ *  1 otherwise
  */
 
 __device__ static inline int testCon(char *buf1, char* buf2, int size, int type, int rel){
@@ -105,6 +123,10 @@ __device__ static inline int testCon(char *buf1, char* buf2, int size, int type,
 
 /*
  * transform_dict_filter_and: merge the filter for dictionary-compressed predicate into the final filter.
+ * @dictFilter: the filter for the dictionary compressed data
+ * @dictFact: the compressed fact table column
+ * @tupleNum: the number of tuples in the column
+ * @filter: the filter for the uncompressed data
  */
 
 __global__ static void transform_dict_filter_and(int * dictFilter, char *dictFact, long tupleNum, int dNum,  int * filter, int byteNum){
@@ -646,7 +668,10 @@ __global__ static void genScanFilter_or_leq(char *col, int colSize, long tupleNu
     }
 }
 
-//the string is stored in the format of SOA
+/*
+ * This is only for testing the performance of soa in certain cases.
+ */
+
 __global__ static void genScanFilter_or_soa(char *col, int colSize, int  colType, long tupleNum, struct whereExp * where, int * filter){
 
     int stride = blockDim.x * gridDim.x;
@@ -1445,8 +1470,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
     free(result);
 
     clock_gettime(CLOCK_REALTIME,&end);
-        double timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;
-        printf("TableScan Time: %lf\n", timeE/(1000*1000));
+    double timeE = (end.tv_sec -  start.tv_sec)* BILLION + end.tv_nsec - start.tv_nsec;
+    printf("TableScan Time: %lf\n", timeE/(1000*1000));
 
     return res;
 
