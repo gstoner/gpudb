@@ -470,11 +470,33 @@ void initMergeSort(void)
 }
 
 void finishMergeSort(void){
-	CUDA_SAFE_CALL_NO_SYNC(cudaFree(d_RanksA));
-	CUDA_SAFE_CALL_NO_SYNC(cudaFree(d_RanksB));
-	CUDA_SAFE_CALL_NO_SYNC(cudaFree(d_LimitsA));
-	CUDA_SAFE_CALL_NO_SYNC(cudaFree(d_LimitsB));
+    CUDA_SAFE_CALL_NO_SYNC(cudaFree(d_RanksA));
+    CUDA_SAFE_CALL_NO_SYNC(cudaFree(d_RanksB));
+    CUDA_SAFE_CALL_NO_SYNC(cudaFree(d_LimitsA));
+    CUDA_SAFE_CALL_NO_SYNC(cudaFree(d_LimitsB));
 }
+
+__device__ static inline void ComparatorInt(
+    int &keyA,
+    int &valA,
+    int &keyB,
+    int &valB,
+    int dir
+)
+{
+    int t;
+
+    if ((keyA > keyB) == dir)
+    {
+        t = keyA;
+        keyA = keyB;
+        keyB = t;
+        t = valA;
+        valA = valB;
+        valB = t;
+    }
+}
+
 
 __device__ static inline void Comparator(
     char * keyA,
@@ -556,13 +578,72 @@ __global__ static void sort_key(char * key, int tupleNum, int keySize, char *res
 
 }
 
+/*
+ * Sorting small number of intergers.
+ */
+
+__global__ static void sort_key_int(int * key, int tupleNum, int keySize, int *result, char *pos,int dir){
+        int lid = threadIdx.x;
+        int bid = blockIdx.x;
+
+        __shared__ int bufKey[SHARED_SIZE_LIMIT];
+        __shared__ int bufVal[SHARED_SIZE_LIMIT];
+
+        int gid = bid * SHARED_SIZE_LIMIT + lid;
+
+        bufKey[lid] = key[gid];
+        bufVal[lid] = gid;
+        bufKey[lid + blockDim.x] = key[gid + blockDim.x];
+        bufVal[lid+blockDim.x] = gid+ blockDim.x;
+
+        __syncthreads();
+
+        for (int size = 2; size < tupleNum && size < SHARED_SIZE_LIMIT; size <<= 1){
+                int ddd = dir ^ ((threadIdx.x & (size / 2)) != 0);
+
+                for (int stride = size / 2; stride > 0; stride >>= 1){
+                        __syncthreads();
+                        int pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
+                        ComparatorInt(
+                                bufKey[pos + 0], bufVal[pos +      0],
+                                bufKey[pos + stride], bufVal[pos + stride],
+                                ddd
+                        );
+                }
+        }
+
+    {
+        for (int stride = blockDim.x ; stride > 0; stride >>= 1)
+        {
+            __syncthreads();
+            int pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
+            ComparatorInt(
+                bufKey[pos + 0], bufVal[pos +      0],
+                bufKey[pos + stride], bufVal[pos + stride],
+                dir
+            );
+        }
+    }
+
+    __syncthreads();
+
+        result[gid] = bufKey[lid];
+        pos[gid] = bufVal[lid];
+        result[gid + blockDim.x] = bufKey[li + blockDim.x];
+        ((int *)pos)[gid+blockDim.x] = bufVal[lid+blockDim.x];
+
+}
+
+
+
+
 __global__ static void set_key(char *key, int tupleNum){
 
         int stride = blockDim.x * gridDim.x;
         int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-	for(int i=tid;i<tupleNum;i+=stride)
-		key[i] = '{';
+    for(int i=tid;i<tupleNum;i+=stride)
+        key[i] = '{';
 
 }
 
@@ -570,28 +651,28 @@ __global__ static void gather_result(char * keyPos, char ** col, int newNum, int
         int stride = blockDim.x * gridDim.x;
         int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-	for(int j=0;j<colNum;j++){
-			for(int i=index;i<newNum;i+=stride){
-					int pos = ((int *)keyPos)[i];
-			if(pos<tupleNum)
-				memcpy(result[j] + i*size[j], col[j] +pos*size[j], size[j]);
-		}
+    for(int j=0;j<colNum;j++){
+            for(int i=index;i<newNum;i+=stride){
+                    int pos = ((int *)keyPos)[i];
+            if(pos<tupleNum)
+                memcpy(result[j] + i*size[j], col[j] +pos*size[j], size[j]);
+        }
         }
 }
 
 __global__ void build_orderby_keys(char ** content, int tupleNum, int odNum, int keySize,int *index, int * size, char *key){
-	int stride = blockDim.x * gridDim.x;
+    int stride = blockDim.x * gridDim.x;
         int offset = blockIdx.x * blockDim.x + threadIdx.x;
 
-	for(int i=offset;i<tupleNum;i+=stride){
-		int pos = i* keySize;
-		
-		for(int j=0;j<odNum;j++){
-			memcpy(key+pos,content[index[j]]+i*size[j],size[j]);
-			pos += size[j];
-		}
+    for(int i=offset;i<tupleNum;i+=stride){
+        int pos = i* keySize;
+        
+        for(int j=0;j<odNum;j++){
+            memcpy(key+pos,content[index[j]]+i*size[j],size[j]);
+            pos += size[j];
+        }
 
-	}
+    }
 }
 
 
@@ -599,188 +680,203 @@ __global__ void build_orderby_keys(char ** content, int tupleNum, int odNum, int
 //only handle uncompressed data
 //if the data are compressed, uncompress first
 
+/*
+ * orderBy: sort the input data by the order by columns
+ *
+ * Prerequisite:
+ *  input data are not compressed
+ *
+ * Input:
+ *  odNode: the groupby node which contains the input data and groupby information
+ *  pp: records the statistics such as kernel execution time
+ *
+ * Return:
+ *  a new table node
+ */
+
+
 struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
-	struct tableNode * res = NULL;
+    struct tableNode * res = NULL;
 
-	res = (struct tableNode *)malloc(sizeof(struct tableNode));
-	CHECK_POINTER(res);
-	res->tupleNum = odNode->table->tupleNum;
-	res->totalAttr = odNode->table->totalAttr;
-	res->tupleSize = odNode->table->tupleSize;
+    res = (struct tableNode *)malloc(sizeof(struct tableNode));
+    CHECK_POINTER(res);
+    res->tupleNum = odNode->table->tupleNum;
+    res->totalAttr = odNode->table->totalAttr;
+    res->tupleSize = odNode->table->tupleSize;
 
-	res->attrType = (int *) malloc(sizeof(int) * res->totalAttr);
-	CHECK_POINTER(res->attrType);
-	res->attrSize = (int *) malloc(sizeof(int) * res->totalAttr);
-	CHECK_POINTER(res->attrSize);
-	res->attrTotalSize = (int *) malloc(sizeof(int) * res->totalAttr);
-	CHECK_POINTER(res->attrTotalSize);
-	res->dataPos = (int *) malloc(sizeof(int) * res->totalAttr);
-	CHECK_POINTER(res->dataPos);
-	res->dataFormat = (int *) malloc(sizeof(int) * res->totalAttr);
-	CHECK_POINTER(res->dataFormat);
-	res->content = (char **) malloc(sizeof(char *) * res->totalAttr);
-	CHECK_POINTER(res->content);
+    res->attrType = (int *) malloc(sizeof(int) * res->totalAttr);
+    CHECK_POINTER(res->attrType);
+    res->attrSize = (int *) malloc(sizeof(int) * res->totalAttr);
+    CHECK_POINTER(res->attrSize);
+    res->attrTotalSize = (int *) malloc(sizeof(int) * res->totalAttr);
+    CHECK_POINTER(res->attrTotalSize);
+    res->dataPos = (int *) malloc(sizeof(int) * res->totalAttr);
+    CHECK_POINTER(res->dataPos);
+    res->dataFormat = (int *) malloc(sizeof(int) * res->totalAttr);
+    CHECK_POINTER(res->dataFormat);
+    res->content = (char **) malloc(sizeof(char *) * res->totalAttr);
+    CHECK_POINTER(res->content);
 
-	initMergeSort();
+    initMergeSort();
 
-	int gpuTupleNum = odNode->table->tupleNum;
-	char * gpuKey, **column, ** gpuContent;
-	char * gpuSortedKey;
-	int *gpuIndex,  *gpuSize;
+    int gpuTupleNum = odNode->table->tupleNum;
+    char * gpuKey, **column, ** gpuContent;
+    char * gpuSortedKey;
+    int *gpuIndex,  *gpuSize;
 
-	column = (char**) malloc(sizeof(char*) *res->totalAttr);
-	CHECK_POINTER(column);
-	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuContent, sizeof(char *) * res->totalAttr));
+    column = (char**) malloc(sizeof(char*) *res->totalAttr);
+    CHECK_POINTER(column);
+    CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuContent, sizeof(char *) * res->totalAttr));
 
-	for(int i=0;i<res->totalAttr;i++){
-		res->attrType[i] = odNode->table->attrType[i];
-		res->attrSize[i] = odNode->table->attrSize[i];
-		res->attrTotalSize[i] = odNode->table->attrTotalSize[i];
-		res->dataPos[i] = MEM;
-		res->dataFormat[i] = UNCOMPRESSED;
-		res->content[i] = (char *) malloc( res->attrSize[i] * res->tupleNum);
-		CHECK_POINTER(res->content[i]);
+    for(int i=0;i<res->totalAttr;i++){
+        res->attrType[i] = odNode->table->attrType[i];
+        res->attrSize[i] = odNode->table->attrSize[i];
+        res->attrTotalSize[i] = odNode->table->attrTotalSize[i];
+        res->dataPos[i] = MEM;
+        res->dataFormat[i] = UNCOMPRESSED;
+        res->content[i] = (char *) malloc( res->attrSize[i] * res->tupleNum);
+        CHECK_POINTER(res->content[i]);
 
-		int attrSize = res->attrSize[i];
-		if(odNode->table->dataPos[i] == MEM){
-			CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&column[i], attrSize *res->tupleNum));
-			CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[i], odNode->table->content[i], attrSize*res->tupleNum, cudaMemcpyHostToDevice));
-		}else if (odNode->table->dataPos[i] == GPU){
-			column[i] = odNode->table->content[i];
-		}
+        int attrSize = res->attrSize[i];
+        if(odNode->table->dataPos[i] == MEM){
+            CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&column[i], attrSize *res->tupleNum));
+            CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[i], odNode->table->content[i], attrSize*res->tupleNum, cudaMemcpyHostToDevice));
+        }else if (odNode->table->dataPos[i] == GPU){
+            column[i] = odNode->table->content[i];
+        }
 
-		CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(&gpuContent[i], &column[i], sizeof(char *), cudaMemcpyHostToDevice));
-	}
+        CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(&gpuContent[i], &column[i], sizeof(char *), cudaMemcpyHostToDevice));
+    }
 
-	int keySize = 0;
-	int *cpuSize = (int *)malloc(sizeof(int) * odNode->orderByNum);
-	CHECK_POINTER(cpuSize);
+    int keySize = 0;
+    int *cpuSize = (int *)malloc(sizeof(int) * odNode->orderByNum);
+    CHECK_POINTER(cpuSize);
 
-	for(int i=0;i<odNode->orderByNum;i++){
-		int index = odNode->orderByIndex[i];
-		cpuSize[i] = odNode->table->attrSize[index];
-		keySize += odNode->table->attrSize[index];
-	}
+    for(int i=0;i<odNode->orderByNum;i++){
+        int index = odNode->orderByIndex[i];
+        cpuSize[i] = odNode->table->attrSize[index];
+        keySize += odNode->table->attrSize[index];
+    }
 
-	int newNum = 1;
+    int newNum = 1;
 
-	while(newNum<gpuTupleNum){
-		newNum *=2;
-	}
+    while(newNum<gpuTupleNum){
+        newNum *=2;
+    }
 
-	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuSize, sizeof(int)* res->totalAttr));
-	CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuSize,cpuSize, sizeof(int)*odNode->orderByNum, cudaMemcpyHostToDevice));
-	
-	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuKey, keySize * newNum));
-	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuSortedKey, keySize * newNum));
+    CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuSize, sizeof(int)* res->totalAttr));
+    CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuSize,cpuSize, sizeof(int)*odNode->orderByNum, cudaMemcpyHostToDevice));
+    
+    CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuKey, keySize * newNum));
+    CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuSortedKey, keySize * newNum));
 
-	set_key<<<512,128>>>(gpuKey,newNum*keySize);
+    set_key<<<512,128>>>(gpuKey,newNum*keySize);
 
 
-	dim3 grid(512);
-	dim3 block(NTHREAD);
+    dim3 grid(512);
+    dim3 block(NTHREAD);
 
-	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuIndex,res->totalAttr * sizeof(int)));
-	CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuIndex, odNode->orderByIndex, sizeof(int) * odNode->orderByNum, cudaMemcpyHostToDevice));
-	
-	build_orderby_keys<<<grid,block>>>(gpuContent, gpuTupleNum, odNode->orderByNum, keySize,gpuIndex, gpuSize, gpuKey);
+    CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuIndex,res->totalAttr * sizeof(int)));
+    CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuIndex, odNode->orderByIndex, sizeof(int) * odNode->orderByNum, cudaMemcpyHostToDevice));
+    
+    build_orderby_keys<<<grid,block>>>(gpuContent, gpuTupleNum, odNode->orderByNum, keySize,gpuIndex, gpuSize, gpuKey);
 
-	char * gpuPos;
+    char * gpuPos;
 
-	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuPos, sizeof(int)*newNum));
+    CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuPos, sizeof(int)*newNum));
 
-	if(newNum < SHARED_SIZE_LIMIT){
-		sort_key<<<1, newNum/2>>>(gpuKey, newNum, keySize,gpuSortedKey,(char *)gpuPos, 1);
-	}else{
-		int stageCount = 0;
+    if(newNum < SHARED_SIZE_LIMIT){
+        sort_key<<<1, newNum/2>>>(gpuKey, newNum, keySize,gpuSortedKey,(char *)gpuPos, 1);
+    }else{
+        int stageCount = 0;
 
-			for (int i = SHARED_SIZE_LIMIT; i < newNum; i <<= 1, stageCount++);
+            for (int i = SHARED_SIZE_LIMIT; i < newNum; i <<= 1, stageCount++);
 
-			char *ikey, *okey;
-			char *ival, *oval;
-		char * d_BufKey, * d_BufVal;
+            char *ikey, *okey;
+            char *ival, *oval;
+        char * d_BufKey, * d_BufVal;
 
-		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&d_BufKey, keySize * newNum));
-		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&d_BufVal, sizeof(int) * newNum));
+        CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&d_BufKey, keySize * newNum));
+        CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&d_BufVal, sizeof(int) * newNum));
 
-		if (stageCount & 1){
-			ikey = d_BufKey;
-			ival = d_BufVal;
-			okey = gpuSortedKey;
-			oval = gpuPos;
-		}else{
-			ikey = gpuSortedKey;
-			ival = gpuPos;
-			okey = d_BufKey;
-			oval = d_BufVal;
-		}
+        if (stageCount & 1){
+            ikey = d_BufKey;
+            ival = d_BufVal;
+            okey = gpuSortedKey;
+            oval = gpuPos;
+        }else{
+            ikey = gpuSortedKey;
+            ival = gpuPos;
+            okey = d_BufKey;
+            oval = d_BufVal;
+        }
 
-		grid = newNum/NTHREAD;
+        grid = newNum/NTHREAD;
 
-		sort_key<<<grid, block>>>(gpuKey, newNum, keySize,gpuSortedKey,(char *)gpuPos, 1);
+        sort_key<<<grid, block>>>(gpuKey, newNum, keySize,gpuSortedKey,(char *)gpuPos, 1);
 
-		for(int i=SHARED_SIZE_LIMIT;i<newNum;i*=2){
-			int lastSegmentElements = newNum % (2 * i);
+        for(int i=SHARED_SIZE_LIMIT;i<newNum;i*=2){
+            int lastSegmentElements = newNum % (2 * i);
 
-			generateSampleRanks(d_RanksA, d_RanksB, ikey,keySize, i, newNum, 1);
+            generateSampleRanks(d_RanksA, d_RanksB, ikey,keySize, i, newNum, 1);
 
-			CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
-			mergeRanksAndIndices(d_LimitsA, d_LimitsB, d_RanksA, d_RanksB, i, newNum);
+            CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
+            mergeRanksAndIndices(d_LimitsA, d_LimitsB, d_RanksA, d_RanksB, i, newNum);
 
-			mergeElementaryIntervals(okey, (int *)oval, ikey, (int *)ival, d_LimitsA, d_LimitsB, i, newNum, 1, keySize);
+            mergeElementaryIntervals(okey, (int *)oval, ikey, (int *)ival, d_LimitsA, d_LimitsB, i, newNum, 1, keySize);
 
-			if (lastSegmentElements <= i){
-				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(okey + (newNum - lastSegmentElements)*keySize, ikey + (newNum - lastSegmentElements)*keySize, lastSegmentElements * keySize, cudaMemcpyDeviceToDevice));
-				CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(oval + (newNum - lastSegmentElements)*keySize, ival + (newNum - lastSegmentElements)*keySize, lastSegmentElements * keySize, cudaMemcpyDeviceToDevice));
-			}
+            if (lastSegmentElements <= i){
+                CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(okey + (newNum - lastSegmentElements)*keySize, ikey + (newNum - lastSegmentElements)*keySize, lastSegmentElements * keySize, cudaMemcpyDeviceToDevice));
+                CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(oval + (newNum - lastSegmentElements)*keySize, ival + (newNum - lastSegmentElements)*keySize, lastSegmentElements * keySize, cudaMemcpyDeviceToDevice));
+            }
 
-			char *t;
-			t = ikey;
-			ikey = okey;
-			okey = t;
-			t = ival;
-			ival = oval;
-			oval = t;
-			}
-	}	
+            char *t;
+            t = ikey;
+            ikey = okey;
+            okey = t;
+            t = ival;
+            ival = oval;
+            oval = t;
+            }
+    }   
 
-	CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
-	char ** gpuResult;
-	char ** result;
-	
-	result = (char**)malloc(sizeof(char *) * res->totalAttr);
-	CHECK_POINTER(result);
-	CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuResult, sizeof(char*)*res->totalAttr));
-	for(int i=0;i<res->totalAttr;i++){
-		CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&result[i], res->attrSize[i]* gpuTupleNum));
-		CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(&gpuResult[i], &result[i], sizeof(char*), cudaMemcpyHostToDevice));
-	}
+    CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
+    char ** gpuResult;
+    char ** result;
+    
+    result = (char**)malloc(sizeof(char *) * res->totalAttr);
+    CHECK_POINTER(result);
+    CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuResult, sizeof(char*)*res->totalAttr));
+    for(int i=0;i<res->totalAttr;i++){
+        CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&result[i], res->attrSize[i]* gpuTupleNum));
+        CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(&gpuResult[i], &result[i], sizeof(char*), cudaMemcpyHostToDevice));
+    }
 
-	CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuSize, res->attrSize, sizeof(int) * res->totalAttr, cudaMemcpyHostToDevice););
+    CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuSize, res->attrSize, sizeof(int) * res->totalAttr, cudaMemcpyHostToDevice););
 
         gather_result<<<512,64>>>(gpuPos, gpuContent, newNum, gpuTupleNum, gpuSize,res->totalAttr,gpuResult);
 
-	for(int i=0; i<res->totalAttr;i++){
-		int size = res->attrSize[i] * gpuTupleNum;
-		memset(res->content[i],0, size);
-		CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(res->content[i], result[i],size, cudaMemcpyDeviceToHost));
-	}
+    for(int i=0; i<res->totalAttr;i++){
+        int size = res->attrSize[i] * gpuTupleNum;
+        memset(res->content[i],0, size);
+        CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(res->content[i], result[i],size, cudaMemcpyDeviceToHost));
+    }
 
-	for(int i=0;i<res->totalAttr;i++){
-		CUDA_SAFE_CALL_NO_SYNC(cudaFree(column[i]));
-		CUDA_SAFE_CALL_NO_SYNC(cudaFree(result[i]));
-	}
-	free(column);
-	free(result);
+    for(int i=0;i<res->totalAttr;i++){
+        CUDA_SAFE_CALL_NO_SYNC(cudaFree(column[i]));
+        CUDA_SAFE_CALL_NO_SYNC(cudaFree(result[i]));
+    }
+    free(column);
+    free(result);
 
-	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuKey));
-	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuContent));
-	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuResult));
-	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuIndex));
-	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuSize));
-	CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuPos));
+    CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuKey));
+    CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuContent));
+    CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuResult));
+    CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuIndex));
+    CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuSize));
+    CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuPos));
 
-	finishMergeSort();
+    finishMergeSort();
 
-	return res;
+    return res;
 }
