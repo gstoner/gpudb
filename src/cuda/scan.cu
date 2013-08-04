@@ -145,14 +145,8 @@ static void prescanArrayRecursive(int *outArray, const int *inArray, int numElem
     dim3  grid(max(1, numBlocks - np2LastBlock), 1, 1); 
     dim3  threads(numThreads, 1, 1);
 
-    cudaEvent_t startGPU, stopGPU;
-    cudaEventCreate(&startGPU);
-    cudaEventCreate(&stopGPU);
-    float gpuTime;
-
     if (numBlocks > 1)
     {
-	cudaEventRecord(startGPU,0);
         prescan<true, false><<< grid, threads, sharedMemSize >>>(outArray, 
                                                                  inArray, 
                                                                  g_scanBlockSums[level],
@@ -164,18 +158,12 @@ static void prescanArrayRecursive(int *outArray, const int *inArray, int numElem
                  numBlocks - 1, numElements - numEltsLastBlock);
         }
 
-	cudaEventRecord(stopGPU,0);
-        cudaEventSynchronize(stopGPU);
-        cudaEventElapsedTime(&gpuTime,startGPU,stopGPU);
-
-        pp->kernel += gpuTime;	
 
         prescanArrayRecursive(g_scanBlockSums[level], 
                               g_scanBlockSums[level], 
                               numBlocks, 
                               level+1, pp);
 
-	cudaEventRecord(startGPU,0);
         uniformAdd<<< grid, threads >>>(outArray, 
                                         g_scanBlockSums[level], 
                                         numElements - numEltsLastBlock, 
@@ -188,33 +176,16 @@ static void prescanArrayRecursive(int *outArray, const int *inArray, int numElem
                                                      numBlocks - 1, 
                                                      numElements - numEltsLastBlock);
         }
-	cudaEventRecord(stopGPU,0);
-        cudaEventSynchronize(stopGPU);
-        cudaEventElapsedTime(&gpuTime,startGPU,stopGPU);
-
-        pp->kernel += gpuTime;	
     }
     else if (isPowerOfTwo(numElements))
     {
-	cudaEventRecord(startGPU,0);
         prescan<false, false><<< grid, threads, sharedMemSize >>>(outArray, inArray,
                                                                   0, numThreads * 2, 0, 0);
-	cudaEventRecord(stopGPU,0);
-        cudaEventSynchronize(stopGPU);
-        cudaEventElapsedTime(&gpuTime,startGPU,stopGPU);
-
-        pp->kernel += gpuTime;	
     }
     else
     {
-	cudaEventRecord(startGPU,0);
         prescan<false, true><<< grid, threads, sharedMemSize >>>(outArray, inArray, 
                                                                   0, numElements, 0, 0);
-	cudaEventRecord(stopGPU,0);
-        cudaEventSynchronize(stopGPU);
-        cudaEventElapsedTime(&gpuTime,startGPU,stopGPU);
-
-        pp->kernel += gpuTime;	
     }
 }
 
