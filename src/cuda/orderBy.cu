@@ -477,12 +477,7 @@ void finishMergeSort(void){
 }
 
 __device__ static inline void ComparatorInt(
-    int &keyA,
-    int &valA,
-    int &keyB,
-    int &valB,
-    int dir
-)
+    int &keyA,int &valA,int &keyB,int &valB,int dir)
 {
     int t;
 
@@ -494,6 +489,23 @@ __device__ static inline void ComparatorInt(
         t = valA;
         valA = valB;
         valB = t;
+    }
+}
+
+__device__ static inline void ComparatorFloat(
+    float &keyA,int &valA,float &keyB,int &valB,int dir)
+{
+    float t1;
+    int t2;
+
+    if ((keyA > keyB) == dir)
+    {
+        t1 = keyA;
+        keyA = keyB;
+        keyB = t1;
+        t2 = valA;
+        valA = valB;
+        valB = t2;
     }
 }
 
@@ -582,35 +594,35 @@ __global__ static void sort_key(char * key, int tupleNum, int keySize, char *res
  * Sorting small number of intergers.
  */
 
-__global__ static void sort_key_int(int * key, int tupleNum, int keySize, int *result, char *pos,int dir){
-        int lid = threadIdx.x;
-        int bid = blockIdx.x;
+__global__ static void sort_key_int(int * key, int tupleNum, int keySize, int *result, int *pos,int dir){
+    int lid = threadIdx.x;
+    int bid = blockIdx.x;
 
-        __shared__ int bufKey[SHARED_SIZE_LIMIT];
-        __shared__ int bufVal[SHARED_SIZE_LIMIT];
+    __shared__ int bufKey[SHARED_SIZE_LIMIT];
+    __shared__ int bufVal[SHARED_SIZE_LIMIT];
 
-        int gid = bid * SHARED_SIZE_LIMIT + lid;
+    int gid = bid * SHARED_SIZE_LIMIT + lid;
 
-        bufKey[lid] = key[gid];
-        bufVal[lid] = gid;
-        bufKey[lid + blockDim.x] = key[gid + blockDim.x];
-        bufVal[lid+blockDim.x] = gid+ blockDim.x;
+    bufKey[lid] = key[gid];
+    bufVal[lid] = gid;
+    bufKey[lid + blockDim.x] = key[gid + blockDim.x];
+    bufVal[lid+blockDim.x] = gid+ blockDim.x;
 
+    __syncthreads();
+
+    for (int size = 2; size < tupleNum && size < SHARED_SIZE_LIMIT; size <<= 1){
+    int ddd = dir ^ ((threadIdx.x & (size / 2)) != 0);
+
+    for (int stride = size / 2; stride > 0; stride >>= 1){
         __syncthreads();
-
-        for (int size = 2; size < tupleNum && size < SHARED_SIZE_LIMIT; size <<= 1){
-                int ddd = dir ^ ((threadIdx.x & (size / 2)) != 0);
-
-                for (int stride = size / 2; stride > 0; stride >>= 1){
-                        __syncthreads();
-                        int pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
-                        ComparatorInt(
-                                bufKey[pos + 0], bufVal[pos +      0],
-                                bufKey[pos + stride], bufVal[pos + stride],
-                                ddd
-                        );
-                }
-        }
+        int pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
+        ComparatorInt(
+            bufKey[pos + 0], bufVal[pos +      0],
+            bufKey[pos + stride], bufVal[pos + stride],
+            ddd
+        );
+    }
+    }
 
     {
         for (int stride = blockDim.x ; stride > 0; stride >>= 1)
@@ -627,10 +639,67 @@ __global__ static void sort_key_int(int * key, int tupleNum, int keySize, int *r
 
     __syncthreads();
 
-        result[gid] = bufKey[lid];
-        pos[gid] = bufVal[lid];
-        result[gid + blockDim.x] = bufKey[lid + blockDim.x];
-        ((int *)pos)[gid+blockDim.x] = bufVal[lid+blockDim.x];
+    result[gid] = bufKey[lid];
+    pos[gid] = bufVal[lid];
+    result[gid + blockDim.x] = bufKey[lid + blockDim.x];
+    ((int *)pos)[gid+blockDim.x] = bufVal[lid+blockDim.x];
+
+}
+
+
+/*
+ * Sorting small number of floats.
+ */
+
+__global__ static void sort_key_float(float * key, int tupleNum, int keySize, float *result, int *pos,int dir){
+    int lid = threadIdx.x;
+    int bid = blockIdx.x;
+
+    __shared__ float bufKey[SHARED_SIZE_LIMIT];
+    __shared__ int bufVal[SHARED_SIZE_LIMIT];
+
+    int gid = bid * SHARED_SIZE_LIMIT + lid;
+
+    bufKey[lid] = key[gid];
+    bufVal[lid] = gid;
+    bufKey[lid + blockDim.x] = key[gid + blockDim.x];
+    bufVal[lid+blockDim.x] = gid+ blockDim.x;
+
+    __syncthreads();
+
+    for (int size = 2; size < tupleNum && size < SHARED_SIZE_LIMIT; size <<= 1){
+    int ddd = dir ^ ((threadIdx.x & (size / 2)) != 0);
+
+    for (int stride = size / 2; stride > 0; stride >>= 1){
+        __syncthreads();
+        int pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
+        ComparatorFloat(
+            bufKey[pos + 0], bufVal[pos +      0],
+            bufKey[pos + stride], bufVal[pos + stride],
+            ddd
+        );
+    }
+    }
+
+    {
+        for (int stride = blockDim.x ; stride > 0; stride >>= 1)
+        {
+            __syncthreads();
+            int pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
+            ComparatorFloat(
+                bufKey[pos + 0], bufVal[pos +      0],
+                bufKey[pos + stride], bufVal[pos + stride],
+                dir
+            );
+        }
+    }
+
+    __syncthreads();
+
+    result[gid] = bufKey[lid];
+    pos[gid] = bufVal[lid];
+    result[gid + blockDim.x] = bufKey[lid + blockDim.x];
+    pos[gid+blockDim.x] = bufVal[lid+blockDim.x];
 
 }
 
