@@ -45,16 +45,29 @@
     n |= n >> 16;                                   \
     n ++; } while (0) 
 
+/*
+ * Count the number of dimension keys for each bucket.
+ */
+
 __global__ static void count_hash_num(char *dim, long  inNum,int *num,int hsize){
     int stride = blockDim.x * gridDim.x;
     int offset = blockIdx.x * blockDim.x + threadIdx.x;
 
     for(int i=offset;i<inNum;i+=stride){
-        int joinKey = ((int *)dim)[i]; 
+        int joinKey = ((int *)dim)[i];
         int hKey = joinKey & (hsize-1);
         atomicAdd(&(num[hKey]),1);
     }
 }
+
+/*
+ * All the buckets are stored in a continues memory region.
+ * The starting position of each bucket is stored in the psum array.
+ * For star schema quereis, the size of fact table is usually much
+ * larger than the size of the dimension table. In this case, hash probing is much more
+ * time consuming than building hash table. By avoiding pointer, the efficiency of hash probing
+ * can be improved.
+ */
 
 __global__ static void build_hash_table(char *dim, long inNum, int *psum, char * bucket,int hsize){
 
@@ -73,7 +86,10 @@ __global__ static void build_hash_table(char *dim, long inNum, int *psum, char *
 
 }
 
-// if the foreign key is compressed using dict-encoding, call this method to generate dict filter first
+/*
+ * Count join result for each thread for dictionary encoded column. 
+ */
+
 __global__ static void count_join_result_dict(int *num, int* psum, char* bucket, struct dictHeader *dheader, int dNum, int* dictFilter,int hsize){
 
     int stride = blockDim.x * gridDim.x;
@@ -100,7 +116,9 @@ __global__ static void count_join_result_dict(int *num, int* psum, char* bucket,
 
 }
 
-// transform the dictionary filter to the final filter than can be used to generate the result
+/*
+ * Transform the dictionary filter to the final filter than can be used to generate the result
+ */
 
 __global__ static void transform_dict_filter(int * dictFilter, char *fact, long tupleNum, int dNum,  int * filter){
 
@@ -125,8 +143,9 @@ __global__ static void transform_dict_filter(int * dictFilter, char *fact, long 
     }
 }
 
-
-// count the number that is not zero in the filter
+/*
+ * count the number that is not zero in the filter
+ */
 __global__ static void filter_count(long tupleNum, int * count, int * factFilter){
 
     int lcount = 0;
@@ -140,8 +159,10 @@ __global__ static void filter_count(long tupleNum, int * count, int * factFilter
     count[offset] = lcount;
 }
 
+/*
+ * count join result for rle-compressed key.
+ */
 
-// if the foreign key is compressed using rle, call this method to generate join filter
 __global__ static void count_join_result_rle(int* num, int* psum, char* bucket, char* fact, long tupleNum, int * factFilter,int hsize){
 
     int stride = blockDim.x * gridDim.x;
@@ -176,7 +197,10 @@ __global__ static void count_join_result_rle(int* num, int* psum, char* bucket, 
 
 }
 
-// if the foreign key is not compressed at all, call this method to generate join filter
+/*
+ * Count join result for uncompressed column
+ */
+
 __global__ static void count_join_result(int* num, int* psum, char* bucket, char* fact, long inNum, int* count, int * factFilter,int hsize){
     int lcount = 0;
     int stride = blockDim.x * gridDim.x;
@@ -204,7 +228,9 @@ __global__ static void count_join_result(int* num, int* psum, char* bucket, char
     count[offset] = lcount;
 }
 
-// unpack the column that is compresses using Run Length Encoding
+/*
+ * Unpact the rle-compressed data
+ */
 
 __global__ void static unpack_rle(char * fact, char * rle, long tupleNum,int dNum){
 
@@ -223,8 +249,10 @@ __global__ void static unpack_rle(char * fact, char * rle, long tupleNum,int dNu
     }
 }
 
-// generate psum for RLE compressed column based on filter
-// current implementaton: scan through rle element and find the correponsding element in the filter
+/*
+ * generate psum for RLE compressed column based on filter
+ * current implementaton: scan through rle element and find the correponsding element in the filter
+ */
 
 __global__ void static rle_psum(int *count, char * fact,  long  tupleNum, int * filter){
 
@@ -249,7 +277,9 @@ __global__ void static rle_psum(int *count, char * fact,  long  tupleNum, int * 
 
 }
 
-//filter the column that is compressed using Run Length Encoding
+/*
+ * filter the column that is compressed using Run Length Encoding
+ */
 
 __global__ void static joinFact_rle(int *resPsum, char * fact,  int attrSize, long  tupleNum, int * filter, char * result){
 
@@ -275,7 +305,9 @@ __global__ void static joinFact_rle(int *resPsum, char * fact,  int attrSize, lo
 
 }
 
-// filter the column in the fact table that is compressed using dictionary encoding
+/*
+ * filter the column in the fact table that is compressed using dictionary encoding
+ */
 __global__ void static joinFact_dict_other(int *resPsum, char * fact,  struct dictHeader *dheader, int byteNum,int attrSize, long  num, int * filter, char * result){
 
     int startIndex = blockIdx.x*blockDim.x + threadIdx.x;
