@@ -30,6 +30,10 @@
         exit(-1);                                   \
     }} while(0)
 
+/*
+ * Transform integer to string using one single gpu thread.
+ */
+
 __device__ static char * gpuItoa(int value, char* result, int base){
 
         if (base < 2 || base > 36) {
@@ -59,6 +63,10 @@ __device__ static char * gpuItoa(int value, char* result, int base){
         return result;
 
 }
+
+/*
+ * string copy using one gpu thread.
+ */
 
 __device__ static char * gpuStrcpy(char * dst, const char * src){
 
@@ -106,6 +114,10 @@ __device__ static char * gpuStrcat(char * dest, const char * src){
     return dest;
 }
 
+/*
+ * Combine the group by columns to build the group by keys. 
+ */
+
 __global__ static void build_groupby_key(char ** content, int gbColNum, int * gbIndex, int * gbType, int * gbSize, long tupleNum, int * key, int *num){
 
     int stride = blockDim.x * gridDim.x;
@@ -135,6 +147,10 @@ __global__ static void build_groupby_key(char ** content, int gbColNum, int * gb
         num[hkey] = 1;
     }
 }
+
+/*
+ * This is for testing only. 
+ */
 
 __global__ static void build_groupby_key_soa(char ** content, int gbColNum, int * gbIndex, int * gbType, int * gbSize, long tupleNum, int * key, int *num){
 
@@ -171,7 +187,9 @@ __global__ static void build_groupby_key_soa(char ** content, int gbColNum, int 
 }
 
 
-// count the number of groups
+/*
+ * Count the number of groups 
+ */
 
 __global__ void count_group_num(int *num, int tupleNum, int *totalCount){
         int stride = blockDim.x * gridDim.x;
@@ -187,7 +205,9 @@ __global__ void count_group_num(int *num, int tupleNum, int *totalCount){
         atomicAdd(totalCount,localCount);
 }
 
-//fix me here: to make things simple, assume all the operands are int.
+/*
+ * Calculate the groupBy expression.
+ */
 
 __device__ static float calMathExp(char **content, struct mathExp exp, int pos){
     float res ;
@@ -216,6 +236,10 @@ __device__ static float calMathExp(char **content, struct mathExp exp, int pos){
     return res;
 }
 
+/*
+ * group by constant. Currently only support SUM function.
+ */
+
 __global__ void agg_cal_cons(char ** content, int colNum, struct groupByExp* exp, int * gbType, int * gbSize, long tupleNum, int * key, int *psum,  char ** result){
 
     int stride = blockDim.x * gridDim.x;
@@ -238,6 +262,9 @@ __global__ void agg_cal_cons(char ** content, int colNum, struct groupByExp* exp
         atomicAdd(&((float *)result[i])[0], buf[i]);
 }
 
+/*
+ * gropu by
+ */
 
 __global__ void agg_cal(char ** content, int colNum, struct groupByExp* exp, int * gbType, int * gbSize, long tupleNum, int * key, int *psum,  char ** result){
 
@@ -299,8 +326,13 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
     int * gpuGbKey;
     char ** gpuContent, ** column;
 
-    int gbCount;                // the number of groups
-    int gbConstant = 0;         // whether group by constant
+    /*
+     * @gbCount: the number of groups
+     * gbConstant: whether group by constant
+     */
+
+    int gbCount;
+    int gbConstant = 0;
 
     struct tableNode *res = (struct tableNode *) malloc(sizeof(struct tableNode));
     CHECK_POINTER(res);
