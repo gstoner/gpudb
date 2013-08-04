@@ -629,7 +629,7 @@ __global__ static void sort_key_int(int * key, int tupleNum, int keySize, int *r
 
         result[gid] = bufKey[lid];
         pos[gid] = bufVal[lid];
-        result[gid + blockDim.x] = bufKey[li + blockDim.x];
+        result[gid + blockDim.x] = bufKey[lid + blockDim.x];
         ((int *)pos)[gid+blockDim.x] = bufVal[lid+blockDim.x];
 
 }
