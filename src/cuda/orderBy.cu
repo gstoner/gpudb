@@ -697,17 +697,15 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
         if(secType == INT){
             gather_col_int<<<8,128>>>(gpuPos,(int*)column[secIndex],newNum, gpuTupleNum, (int*)gpuKey2);
             sec_sort_key_int<<<cpuKeyNum,1>>>((int*)gpuKey2, keyPsum, keyCount , gpuTupleNum, gpuPos, gpuPos2);
-            gather_result<<<8,128>>>(gpuPos2, gpuContent, newNum, gpuTupleNum, gpuSize,res->totalAttr,gpuResult);
         }else if (secType == FLOAT){
             gather_col_float<<<8,128>>>(gpuPos,(float*)column[secIndex],newNum, gpuTupleNum, (float*)gpuKey2);
             sec_sort_key_float<<<cpuKeyNum,1>>>((float*)gpuKey2, keyPsum, keyCount , gpuTupleNum, gpuPos, gpuPos2);
-            gather_result<<<8,128>>>(gpuPos2, gpuContent, newNum, gpuTupleNum, gpuSize,res->totalAttr,gpuResult);
         }else if (secType == STRING){
             gather_col_string<<<8,128>>>(gpuPos,column[secIndex],newNum, gpuTupleNum, keySize2,gpuKey2);
             sec_sort_key_string<<<cpuKeyNum,1>>>(gpuKey2, keySize2, keyPsum, keyCount , gpuTupleNum, gpuPos, gpuPos2);
-            gather_result<<<8,128>>>(gpuPos2, gpuContent, newNum, gpuTupleNum, gpuSize,res->totalAttr,gpuResult);
         }
 
+        gather_result<<<8,128>>>(gpuPos2, gpuContent, newNum, gpuTupleNum, gpuSize,res->totalAttr,gpuResult);
         CUDA_SAFE_CALL_NO_SYNC(cudaFree(keyCount));
         CUDA_SAFE_CALL_NO_SYNC(cudaFree(keyNum));
     }else{
