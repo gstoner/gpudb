@@ -262,11 +262,11 @@ __global__ static void sort_key_string(char * key, int tupleNum, int keySize, ch
 
     __syncthreads();
 
-        memcpy(result + gid*keySize, bufKey + lid*keySize, keySize);
+    memcpy(result + gid*keySize, bufKey + lid*keySize, keySize);
 
-        ((int *)pos)[gid] = bufVal[lid];
-        memcpy(result + (gid+blockDim.x)*keySize, bufKey + (lid+blockDim.x)*keySize,keySize);
-        ((int *)pos)[gid+blockDim.x] = bufVal[lid+blockDim.x];
+    ((int *)pos)[gid] = bufVal[lid];
+    memcpy(result + (gid+blockDim.x)*keySize, bufKey + (lid+blockDim.x)*keySize,keySize);
+    ((int *)pos)[gid+blockDim.x] = bufVal[lid+blockDim.x];
 
 }
 
@@ -291,17 +291,17 @@ __global__ static void sort_key_int(int * key, int tupleNum, int *result, int *p
     __syncthreads();
 
     for (int size = 2; size < tupleNum && size < SHARED_SIZE_LIMIT; size <<= 1){
-    int ddd = dir ^ ((threadIdx.x & (size / 2)) != 0);
+        int ddd = dir ^ ((threadIdx.x & (size / 2)) != 0);
 
-    for (int stride = size / 2; stride > 0; stride >>= 1){
-        __syncthreads();
-        int pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
-        ComparatorInt(
-            bufKey[pos + 0], bufVal[pos +      0],
-            bufKey[pos + stride], bufVal[pos + stride],
-            ddd
-        );
-    }
+        for (int stride = size / 2; stride > 0; stride >>= 1){
+            __syncthreads();
+            int pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
+            ComparatorInt(
+                bufKey[pos + 0], bufVal[pos +      0],
+                bufKey[pos + stride], bufVal[pos + stride],
+                ddd
+            );
+        }
     }
 
     {
@@ -322,7 +322,7 @@ __global__ static void sort_key_int(int * key, int tupleNum, int *result, int *p
     result[gid] = bufKey[lid];
     pos[gid] = bufVal[lid];
     result[gid + blockDim.x] = bufKey[lid + blockDim.x];
-    ((int *)pos)[gid+blockDim.x] = bufVal[lid+blockDim.x];
+    pos[gid+blockDim.x] = bufVal[lid+blockDim.x];
 
 }
 
@@ -348,17 +348,17 @@ __global__ static void sort_key_float(float * key, int tupleNum,  float *result,
     __syncthreads();
 
     for (int size = 2; size < tupleNum && size < SHARED_SIZE_LIMIT; size <<= 1){
-    int ddd = dir ^ ((threadIdx.x & (size / 2)) != 0);
+        int ddd = dir ^ ((threadIdx.x & (size / 2)) != 0);
 
-    for (int stride = size / 2; stride > 0; stride >>= 1){
-        __syncthreads();
-        int pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
-        ComparatorFloat(
-            bufKey[pos + 0], bufVal[pos +      0],
-            bufKey[pos + stride], bufVal[pos + stride],
-            ddd
-        );
-    }
+        for (int stride = size / 2; stride > 0; stride >>= 1){
+            __syncthreads();
+            int pos = 2 * threadIdx.x - (threadIdx.x & (stride - 1));
+            ComparatorFloat(
+                bufKey[pos + 0], bufVal[pos +      0],
+                bufKey[pos + stride], bufVal[pos + stride],
+                ddd
+            );
+        }
     }
 
     {
@@ -526,21 +526,6 @@ __global__ static void gather_result(int * keyPos, char ** col, int newNum, int 
     }
 }
 
-__global__ void build_orderby_keys(char ** content, int tupleNum, int odNum, int keySize,int *index, int * size, char *key){
-    int stride = blockDim.x * gridDim.x;
-    int offset = blockIdx.x * blockDim.x + threadIdx.x;
-
-    for(int i=offset;i<tupleNum;i+=stride){
-        int pos = i* keySize;
-        
-        for(int j=0;j<odNum;j++){
-            memcpy(key+pos,content[index[j]]+i*size[j],size[j]);
-            pos += size[j];
-        }
-
-    }
-}
-
 
 /*
  * orderBy: sort the input data by the order by columns
@@ -563,7 +548,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
 
     clock_gettime(CLOCK_REALTIME,&start);
 
-    assert(odNode->table->tupleNum <= SHARED_SIZE_LIMIT);
+    assert(odNode->table->tupleNum < SHARED_SIZE_LIMIT);
 
     res = (struct tableNode *)malloc(sizeof(struct tableNode));
     CHECK_POINTER(res);
@@ -619,6 +604,8 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
     }
 
     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuPos, sizeof(int)*newNum));
+    CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuSize, sizeof(int) * res->totalAttr));
+    CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuSize, res->attrSize, sizeof(int) * res->totalAttr, cudaMemcpyHostToDevice););
 
     char ** gpuResult;
     char ** result;
@@ -631,8 +618,6 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
         CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(&gpuResult[i], &result[i], sizeof(char*), cudaMemcpyHostToDevice));
     }
     
-    CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuSize, sizeof(int) * res->totalAttr));
-    CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuSize, res->attrSize, sizeof(int) * res->totalAttr, cudaMemcpyHostToDevice););
 
     /* Sort by the first orderby column first */
 
