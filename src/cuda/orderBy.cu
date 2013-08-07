@@ -708,6 +708,9 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
         gather_result<<<8,128>>>(gpuPos2, gpuContent, newNum, gpuTupleNum, gpuSize,res->totalAttr,gpuResult);
         CUDA_SAFE_CALL_NO_SYNC(cudaFree(keyCount));
         CUDA_SAFE_CALL_NO_SYNC(cudaFree(keyNum));
+        CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuPos2));
+        CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuKey2));
+
     }else{
         gather_result<<<8,128>>>(gpuPos, gpuContent, newNum, gpuTupleNum, gpuSize,res->totalAttr,gpuResult);
     }
