@@ -69,6 +69,7 @@ enum {
     MEM,
     PINNED,
     UVA,
+    MMAP,
     DISK,
     TMPFILE,
 
