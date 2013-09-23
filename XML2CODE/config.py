@@ -28,7 +28,8 @@ Several configurable variables:
     memory and data are explicitly transferred. 1 means data are stored in
     pinned host memory and data are explicitly transferred. 2 means data are
     stored in pinned host memory and the kernel will directly access the data
-    without explicit data transferring.
+    without explicit data transferring. 3 means data are stored in disk and only
+    mapped to host memory.
 
     @SOA is currently for testing only.
 """

@@ -102,20 +102,22 @@ static void mergeIntoTable(struct tableNode *dst, struct tableNode * src, struct
 }
 
 static void freeTable(struct tableNode * tn){
-        int i;
+    int i;
 
-        for(i=0;i<tn->totalAttr;i++){
+    for(i=0;i<tn->totalAttr;i++){
         if(tn->dataPos[i] == MEM)
-                    free(tn->content[i]);
+            free(tn->content[i]);
+        else if(tn->dataPos[i] == MMAP)
+            munmap(tn->conent[i],tn->attrTotalSize[i]);
         else if(tn->dataPos[i] == GPU)
             cudaFree(tn->content[i]);
         else if(tn->dataPos[i] == UVA || tn->dataPos[i] == PINNED)
             cudaFreeHost(tn->content[i]);
-        }
+    }
 
-        free(tn->attrType);
+    free(tn->attrType);
     tn->attrType = NULL;
-        free(tn->attrSize);
+    free(tn->attrSize);
     tn->attrSize = NULL;
     free(tn->attrTotalSize);
     tn->attrTotalSize = NULL;
@@ -123,7 +125,7 @@ static void freeTable(struct tableNode * tn){
     tn->dataFormat = NULL;
     free(tn->dataPos);
     tn->dataPos = NULL;
-        free(tn->content);
+    free(tn->content);
     tn->content = NULL;
 }
 
@@ -132,7 +134,7 @@ static void freeScan(struct scanNode * rel){
     rel->whereIndex = NULL;
     free(rel->outputIndex);
     rel->outputIndex = NULL;
-        free(rel->filter);
+    free(rel->filter);
     rel->filter = NULL;
     freeTable(rel->tn);
 
@@ -140,11 +142,11 @@ static void freeScan(struct scanNode * rel){
 
 static void freeMathExp(struct mathExp exp){
     if (exp.exp != 0 && exp.opNum == 2){
-                freeMathExp(((struct mathExp *)exp.exp)[0]);
-                freeMathExp(((struct mathExp *)exp.exp)[1]);
-                free(((struct mathExp *)exp.exp));
-                exp.exp = NULL;
-        }
+        freeMathExp(((struct mathExp *)exp.exp)[0]);
+        freeMathExp(((struct mathExp *)exp.exp)[1]);
+        free(((struct mathExp *)exp.exp));
+        exp.exp = NULL;
+    }
 }
 
 static void freeGroupByNode(struct groupByNode * tn){

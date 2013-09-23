@@ -153,9 +153,9 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 
     int dataPos = jNode->rightTable->dataPos[jNode->rightKeyIndex];
 
-    if(dataPos == MEM || dataPos == PINNED){
+    if(dataPos == MEM || dataPos == MMAP || dataPos == PINNED){
         gpu_dim = clCreateBuffer(context->context,CL_MEM_READ_ONLY,primaryKeySize, NULL,&error);
-        if (dataPos == MEM)
+        if (dataPos == MEM || dataPos == MMAP)
             clEnqueueWriteBuffer(context->queue,gpu_dim,CL_TRUE,0,primaryKeySize,jNode->rightTable->content[jNode->rightKeyIndex],0,0,&ndrEvt);
         else
             clEnqueueCopyBuffer(context->queue,(cl_mem)jNode->rightTable->content[jNode->rightKeyIndex],gpu_dim,0,0,primaryKeySize,0,0,&ndrEvt);
@@ -202,7 +202,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
     pp->kernel += 1e-6 * (endTime - startTime);
 #endif
 
-    if (dataPos == MEM || dataPos == PINNED)
+    if (dataPos == MEM || dataPos == MMAP || dataPos == PINNED)
         clReleaseMemObject(gpu_dim);
 
     clReleaseMemObject(gpu_psum1);
@@ -219,9 +219,9 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
     long foreignKeySize = jNode->leftTable->attrTotalSize[jNode->leftKeyIndex];
     long filterSize = jNode->leftTable->attrSize[jNode->leftKeyIndex] * jNode->leftTable->tupleNum;
 
-    if(dataPos == MEM || dataPos == PINNED){
+    if(dataPos == MEM || dataPos == MMAP || dataPos == PINNED){
         gpu_fact = clCreateBuffer(context->context,CL_MEM_READ_ONLY,foreignKeySize,NULL,&error);
-        if(dataPos == MEM)
+        if(dataPos == MEM || dataPos == MMAP)
             clEnqueueWriteBuffer(context->queue,gpu_fact,CL_TRUE,0,foreignKeySize,jNode->leftTable->content[jNode->leftKeyIndex],0,0,&ndrEvt);
         else
             clEnqueueCopyBuffer(context->queue,(cl_mem)jNode->leftTable->content[jNode->leftKeyIndex],gpu_fact,0,0,foreignKeySize,0,0,&ndrEvt);
@@ -276,7 +276,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
         struct dictHeader * dheader;
         cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), NULL,&error);
 
-        if(dataPos == MEM ){
+        if(dataPos == MEM || dataPos == MMAP){
             dheader = (struct dictHeader *) jNode->leftTable->content[jNode->leftKeyIndex];
             dNum = dheader->dictNum;
             byteNum = dheader->bitNum/8;
@@ -284,10 +284,10 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
 
         }else{
             dheader = (struct dictHeader*)clEnqueueMapBuffer(context->queue,(cl_mem)jNode->leftTable->content[jNode->leftKeyIndex],CL_TRUE,CL_MAP_READ,0,sizeof(struct dictHeader),0,0,0,0);
-                        dNum = dheader->dictNum;
+            dNum = dheader->dictNum;
             byteNum = dheader->bitNum/8;
             clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,&ndrEvt);
-                        clEnqueueUnmapMemObject(context->queue,(cl_mem)jNode->leftTable->content[jNode->leftKeyIndex],(void*)dheader,0,0,0);
+            clEnqueueUnmapMemObject(context->queue,(cl_mem)jNode->leftTable->content[jNode->leftKeyIndex],(void*)dheader,0,0,0);
         }
 
 #ifdef OPENCL_PROFILE
@@ -403,7 +403,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
     res->tupleNum = count;
     printf("[INFO]joinNum %ld\n",count);
 
-    if(dataPos == MEM || dataPos == PINNED){
+    if(dataPos == MEM || dataPos == MMAP || dataPos == PINNED){
         clReleaseMemObject(gpu_fact);
     }
 

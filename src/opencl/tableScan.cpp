@@ -157,11 +157,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
         cl_mem gpuDictFilter;
 
-        if(sn->tn->dataPos[index] == MEM||sn->tn->dataPos[index] == PINNED)
+        if(sn->tn->dataPos[index] == MEM|| sn->tn->dataPos[index] == MMAP || sn->tn->dataPos[index] == PINNED)
             column[whereIndex] = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sn->tn->attrTotalSize[index], NULL, &error);
 
         if(format == UNCOMPRESSED){
-            if(sn->tn->dataPos[index] == MEM)
+            if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP)
                 clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,&ndrEvt);
             else if(sn->tn->dataPos[index] == PINNED)
                 clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],column[whereIndex],0,0,sn->tn->attrTotalSize[index],0,0,&ndrEvt);
@@ -169,7 +169,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
                 column[whereIndex] = (cl_mem) sn->tn->content[index];
 
 #ifdef OPENCL_PROFILE
-            if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED){
+            if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP || sn->tn->dataPos[index] == PINNED){
                 clWaitForEvents(1, &ndrEvt);
                 clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
                 clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
@@ -255,7 +255,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
             struct dictHeader * dheader;
             cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), NULL,&error);
 
-            if(sn->tn->dataPos[index] == MEM){
+            if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP){
                 dheader = (struct dictHeader *)sn->tn->content[index];
                 dNum = dheader->dictNum;
                 byteNum = dheader->bitNum/8;
@@ -275,7 +275,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
             pp->pcie += 1e-6 * (endTime - startTime);
 #endif
 
-            if(sn->tn->dataPos[index] == MEM)
+            if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP)
                 clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,&ndrEvt);
             else if(sn->tn->dataPos[index] == PINNED)
                 clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],column[whereIndex],0,0,sn->tn->attrTotalSize[index],0,0,&ndrEvt);
@@ -316,7 +316,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
         }else if(format == RLE){
 
-            if(sn->tn->dataPos[index] == MEM)
+            if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP)
                 clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,&ndrEvt);
 
             else if(sn->tn->dataPos[index] == PINNED)
@@ -403,14 +403,14 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
                     dictFinal = where->andOr;
                 }
 
-                if(whereFree[prevWhere] == 1 && (sn->tn->dataPos[prevIndex] == MEM || sn->tn->dataPos[prevIndex] == PINNED))
+                if(whereFree[prevWhere] == 1 && (sn->tn->dataPos[prevIndex] == MEM || sn->tn->dataPos[prevIndex] == MMAP || sn->tn->dataPos[prevIndex] == PINNED))
                     clReleaseMemObject(column[prevWhere]);
 
-                if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+                if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP || sn->tn->dataPos[index] == PINNED)
                     column[whereIndex] = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sn->tn->attrTotalSize[index], NULL, &error);
 
                 if(format == DICT){
-                    if(sn->tn->dataPos[index] == MEM)
+                    if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP)
                         clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,&ndrEvt);
                     else if(sn->tn->dataPos[index] == PINNED)
                         clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],column[whereIndex],0,0,sn->tn->attrTotalSize[index],0,0,&ndrEvt);
@@ -431,7 +431,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
                     cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), NULL,&error);
                     struct dictHeader *dheader;
 
-                    if(sn->tn->dataPos[index] == MEM){
+                    if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP){
                         dheader = (struct dictHeader *)sn->tn->content[index];
                         dNum = dheader->dictNum;
                         byteNum = dheader->bitNum/8;
@@ -440,8 +440,8 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
                         dheader = (struct dictHeader*)clEnqueueMapBuffer(context->queue,(cl_mem)sn->tn->content[index],CL_TRUE,CL_MAP_READ,0,sizeof(struct dictHeader),0,0,0,0);
                         dNum = dheader->dictNum;
                         byteNum = dheader->bitNum/8;
-                                        clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,&ndrEvt);
-                                        clEnqueueUnmapMemObject(context->queue,(cl_mem)sn->tn->content[index],(void*)dheader,0,0,0);
+                        clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,&ndrEvt);
+                        clEnqueueUnmapMemObject(context->queue,(cl_mem)sn->tn->content[index],(void*)dheader,0,0,0);
                     }
 
 #ifdef OPENCL_PROFILE
@@ -475,7 +475,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
                     clReleaseMemObject(gpuDictHeader);
 
                 }else{
-                    if(sn->tn->dataPos[index] == MEM)
+                    if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP)
                         clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,&ndrEvt);
                     else if(sn->tn->dataPos[index] == PINNED)
                         clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],column[whereIndex],0,0,sn->tn->attrTotalSize[index],0,0,&ndrEvt);
@@ -636,18 +636,18 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
                 struct dictHeader *dheader;
                 cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), NULL,&error);
         
-                if(sn->tn->dataPos[index] == MEM){
-                                    dheader = (struct dictHeader *)sn->tn->content[index];
-                                    dNum = dheader->dictNum;
-                                    byteNum = dheader->bitNum/8;
-                                    clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,&ndrEvt);
-                            }else{
-                                    dheader = (struct dictHeader*)clEnqueueMapBuffer(context->queue,(cl_mem)sn->tn->content[index],CL_TRUE,CL_MAP_READ,0,sizeof(struct dictHeader),0,0,0,0);
-                                    dNum = dheader->dictNum;
-                                    byteNum = dheader->bitNum/8;
-                                    clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,&ndrEvt);
-                                    clEnqueueUnmapMemObject(context->queue,(cl_mem)sn->tn->content[index],(void*)dheader,0,0,0);
-                            }
+                if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP){
+                        dheader = (struct dictHeader *)sn->tn->content[index];
+                        dNum = dheader->dictNum;
+                        byteNum = dheader->bitNum/8;
+                        clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,&ndrEvt);
+                }else{
+                        dheader = (struct dictHeader*)clEnqueueMapBuffer(context->queue,(cl_mem)sn->tn->content[index],CL_TRUE,CL_MAP_READ,0,sizeof(struct dictHeader),0,0,0,0);
+                        dNum = dheader->dictNum;
+                        byteNum = dheader->bitNum/8;
+                        clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,&ndrEvt);
+                        clEnqueueUnmapMemObject(context->queue,(cl_mem)sn->tn->content[index],(void*)dheader,0,0,0);
+                }
 #ifdef OPENCL_PROFILE
                 clWaitForEvents(1, &ndrEvt);
                 clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
@@ -731,7 +731,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
             clReleaseMemObject(gpuDictFilter);
         }
     
-        if(whereFree[prevWhere] == 1 && (sn->tn->dataPos[prevIndex] == MEM || sn->tn->dataPos[prevIndex] == PINNED))
+        if(whereFree[prevWhere] == 1 && (sn->tn->dataPos[prevIndex] == MEM || sn->tn->dataPos[prevIndex] == MMAP || sn->tn->dataPos[prevIndex] == PINNED))
             clReleaseMemObject(column[prevWhere]);
 
         clReleaseMemObject(gpuExp);
@@ -793,10 +793,10 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
         if(pos != -1){
             scanCol[i] = column[pos];
         }else{
-            if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+            if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP || sn->tn->dataPos[index] == PINNED)
                 scanCol[i] = clCreateBuffer(context->context, CL_MEM_READ_ONLY, sn->tn->attrTotalSize[index], NULL, &error);
 
-            if(sn->tn->dataPos[index] == MEM)
+            if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP)
                 clEnqueueWriteBuffer(context->queue, scanCol[i], CL_TRUE, 0, sn->tn->attrTotalSize[index],sn->tn->content[index] ,0,0,&ndrEvt);
             else if (sn->tn->dataPos[index] == PINNED)
                 clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],scanCol[i],0,0,sn->tn->attrTotalSize[index],0,0,&ndrEvt);
@@ -849,7 +849,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
                 cl_mem gpuDictHeader = clCreateBuffer(context->context,CL_MEM_READ_ONLY, sizeof(struct dictHeader), NULL,&error);
                 int byteNum;
 
-                if(sn->tn->dataPos[index] == MEM){
+                if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP){
                     dheader = (struct dictHeader *)sn->tn->content[index];
                     byteNum = dheader->bitNum/8;
                     clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,&ndrEvt);
@@ -939,7 +939,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
 
         int index = sn->outputIndex[i];
 
-        if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+        if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP || sn->tn->dataPos[index] == PINNED)
             clReleaseMemObject(scanCol[i]);
 
         int colSize = res->tupleNum * res->attrSize[i];

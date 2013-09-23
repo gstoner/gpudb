@@ -722,7 +722,8 @@ Several configurable variables (in config.py):
     memory and data are explicitly transferred. 1 means data are stored in
     pinned host memory and data are explicitly transferred. 2 means data are
     stored in pinned host memory and the kernel will directly access the data
-    without explicit data transferring.
+    without explicit data transferring. 3 means data are stored in disk and only
+    mapped to host memory.
 """
 
 def generate_code(tree):
@@ -736,8 +737,8 @@ def generate_code(tree):
         print "Error! The value of CODETYPE can only be 0 or 1."
         exit(-1)
 
-    if POS not in [0,1,2]:
-        print "Error! The value of POS can only be 0,1,2."
+    if POS not in [0,1,2,3]:
+        print "Error! The value of POS can only be 0,1,2,3."
         exit(-1)
 
     if joinType not in [0,1]:
@@ -976,6 +977,8 @@ def generate_code(tree):
                 print >>fo, "\t\t" + tnName+"->dataPos[" + str(i) + "] = PINNED;"
             elif POS == 2:
                 print >>fo, "\t\t" + tnName+"->dataPos[" + str(i) + "] = UVA;"
+            elif POS == 3:
+                print >>fo, "\t\t" + tnName+"->dataPos[" + str(i) + "] = MMAP;"
             else:
                 print >>fo, "\t\t" + tnName+"->dataPos[" + str(i) + "] = MEM;"
 
@@ -995,16 +998,22 @@ def generate_code(tree):
             if CODETYPE == 0:
                 if POS == 1:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void **)&" + tnName+"->content["+str(i)+"],outSize));"
+                    print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
                 elif POS == 2:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void **)&" + tnName+"->content["+str(i)+"],outSize));"
+                    print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
+                elif POS == 3:
+                    print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
                 else:
                     print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)memalign(256,outSize);"
-                print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
+                    print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
 
             else:
                 if POS == 0:
                     print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)memalign(256,outSize);"
                     print >>fo, "\t\tmemcpy("+tnName+"->content["+str(i)+"],outTable,outSize);"
+                elif POS == 3:
+                    print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
                 else:
                     print >>fo, "\t\t"+tnName+"->content["+str(i)+"] = (char *)clCreateBuffer(context.context,CL_MEM_READ_ONLY|CL_MEM_ALLOC_HOST_PTR,outSize,NULL,0);"
                     print >>fo, "\t\tclTmp = clEnqueueMapBuffer(context.queue,(cl_mem)"+tnName+"->content["+str(i)+"],CL_TRUE,CL_MAP_WRITE,0,outSize,0,0,0,0);"
@@ -1256,6 +1265,8 @@ def generate_code(tree):
                 print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = PINNED;"
             elif POS == 2:
                 print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = UVA;"
+            elif POS == 3:
+                print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = MMAP;"
             else:
                 print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = MEM;"
 
@@ -1274,19 +1285,25 @@ def generate_code(tree):
                 if POS == 0:
                     print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)malloc(outSize);\n"
                     print >>fo, "\t\tCHECK_POINTER(" + factName + "->content[" + str(i) + "]);"
+                    print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
                 elif POS == 1:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+                    print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
                 elif POS == 2:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+                    print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
+                elif POS == 3:
+                    print >>fo, "\t\t"+factName+"->content["+str(i)+"] = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
                 else:
                     print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char*)memalign(256,outSize);\n"
-
-                print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
+                    print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
 
             else:
                 if POS == 0:
                     print >>fo, "\t\t"+factName+"->content["+str(i)+"] = (char *)memalign(256,outSize);"
                     print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
+                elif POS == 3:
+                    print >>fo, "\t\t"+factName+"->content["+str(i)+"] = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
                 else:
                     print >>fo, "\t\t"+factName+"->content["+str(i)+"] = (char *)clCreateBuffer(context.context,CL_MEM_READ_ONLY|CL_MEM_ALLOC_HOST_PTR,outSize,NULL,0);"
                     print >>fo, "\t\tclTmp = clEnqueueMapBuffer(context.queue,(cl_mem)"+factName+"->content["+str(i)+"],CL_TRUE,CL_MAP_WRITE,0,outSize,0,0,0,0);"
@@ -1767,6 +1784,8 @@ def generate_code(tree):
                 print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = PINNED;"
             elif POS == 2:
                 print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = UVA;"
+            elif POS == 3:
+                print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = MMAP;"
             else:
                 print >>fo, "\t\t" + factName + "->dataPos[" + str(i) + "] = MEM;"
 
@@ -1798,6 +1817,8 @@ def generate_code(tree):
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
                 elif POS == 2:
                     print >>fo, "\t\tCUDA_SAFE_CALL_NO_SYNC(cudaMallocHost((void**)&"+factName+"->content["+str(i)+"],outSize));"
+                elif POS == 3:
+                    print >>fo, "\t\t"+factName+"->content["+str(i)+"] = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
                 else:
                     print >>fo, "\t\t" + factName + "->content[" + str(i) + "] = (char *)memalign(256,outSize);\n"
 
@@ -1807,6 +1828,8 @@ def generate_code(tree):
                 if POS == 0:
                     print >>fo, "\t\t"+factName+"->content["+str(i)+"] = (char *)memalign(256,outSize);"
                     print >>fo, "\t\tmemcpy("+factName+"->content["+str(i)+"],outTable,outSize);"
+                elif POS == 3:
+                    print >>fo, "\t\t"+factName+"->content["+str(i)+"] = (char *)mmap(0,outSize,PROT_READ,MAP_SHARED,outFd,offset);"
                 else:
                     print >>fo, "\t\t"+factName+"->content["+str(i)+"] = (char *)clCreateBuffer(context.context,CL_MEM_READ_ONLY|CL_MEM_ALLOC_HOST_PTR,outSize,NULL,0);"
                     print >>fo, "\t\tclTmp = clEnqueueMapBuffer(context.queue,(cl_mem)"+factName+"->content["+str(i)+"],CL_TRUE,CL_MAP_WRITE,0,outSize,0,0,0,0);"
