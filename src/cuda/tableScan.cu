@@ -1176,7 +1176,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
                 if(whereFree[prevWhere] == 1 && (sn->tn->dataPos[prevIndex] == MEM || sn->tn->dataPos[prevIndex] == MMAP || sn->tn->dataPos[prevIndex] == PINNED))
                     CUDA_SAFE_CALL_NO_SYNC(cudaFree(column[prevWhere]));
 
-                if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == PINNED)
+                if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP || sn->tn->dataPos[index] == PINNED)
                     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **) &column[whereIndex] , sn->tn->attrTotalSize[index]));
 
                 if(format == DICT){
