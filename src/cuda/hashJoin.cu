@@ -590,7 +590,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
     int dataPos = jNode->rightTable->dataPos[jNode->rightKeyIndex];
 
-    if(dataPos == MEM || dataPos == PINNED){
+    if(dataPos == MEM || dataPos == MMAP || dataPos == PINNED){
         CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_dim,primaryKeySize));
         CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_dim,jNode->rightTable->content[jNode->rightKeyIndex], primaryKeySize,cudaMemcpyHostToDevice));
 
@@ -605,7 +605,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
     build_hash_table<<<grid,block>>>(gpu_dim,jNode->rightTable->tupleNum,gpu_psum1,gpu_bucket,hsize);
 
-    if (dataPos == MEM || dataPos == PINNED)
+    if (dataPos == MEM || dataPos == MMAP || dataPos == PINNED)
         CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_dim));
 
     CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_psum1));
@@ -629,7 +629,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
     long foreignKeySize = jNode->leftTable->attrTotalSize[jNode->leftKeyIndex];
     long filterSize = jNode->leftTable->attrSize[jNode->leftKeyIndex] * jNode->leftTable->tupleNum;
 
-    if(dataPos == MEM || dataPos == PINNED){
+    if(dataPos == MEM || dataPos == MMAP || dataPos == PINNED){
         CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_fact, foreignKeySize));
         CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact,jNode->leftTable->content[jNode->leftKeyIndex], foreignKeySize,cudaMemcpyHostToDevice));
 
@@ -650,7 +650,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
         CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuDictHeader, sizeof(struct dictHeader)));
 
-        if(dataPos == MEM || dataPos == UVA || dataPos == PINNED){
+        if(dataPos == MEM || dataPos == MMAP || dataPos == UVA || dataPos == PINNED){
             dheader = (struct dictHeader *) jNode->leftTable->content[jNode->leftKeyIndex];
             dNum = dheader->dictNum;
             CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader),cudaMemcpyHostToDevice));
@@ -692,7 +692,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
     res->tupleNum = tmp1 + tmp2;
     printf("[INFO]Number of join results: %d\n",res->tupleNum);
 
-    if(dataPos == MEM || dataPos == PINNED){
+    if(dataPos == MEM || dataPos == MMAP || dataPos == PINNED){
         CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_fact));
     }
 
@@ -762,7 +762,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
         if(leftRight == 0){
             if(format == UNCOMPRESSED){
 
-                if(dataPos == MEM || dataPos == PINNED){
+                if(dataPos == MEM || dataPos == MMAP || dataPos == PINNED){
                     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
                     CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
                 }else{
@@ -784,7 +784,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
                 CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuDictHeader,sizeof(struct dictHeader)));
                 CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader),cudaMemcpyHostToDevice));
 
-                if(dataPos == MEM || dataPos == PINNED){
+                if(dataPos == MEM || dataPos == MMAP || dataPos == PINNED){
                     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
                     CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
                 }else{
@@ -802,7 +802,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
                 struct rleHeader* rheader;
 
-                if(dataPos == MEM || dataPos == PINNED){
+                if(dataPos == MEM || dataPos == MMAP || dataPos == PINNED){
                     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
                     CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
                 }else{
@@ -827,7 +827,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
         }else{
             if(format == UNCOMPRESSED){
 
-                if(dataPos == MEM || dataPos == PINNED){
+                if(dataPos == MEM || dataPos == MMAP || dataPos == PINNED){
                     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
                     CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
                 }else{
@@ -848,7 +848,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
                 byteNum = dheader->bitNum/8;
                 CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuDictHeader,sizeof(struct dictHeader)));
                 CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader),cudaMemcpyHostToDevice));
-                if(dataPos == MEM || dataPos == PINNED){
+                if(dataPos == MEM || dataPos == MMAP || dataPos == PINNED){
                     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
                     CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
                 }else{
@@ -863,7 +863,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
             }else if (format == RLE){
 
-                if(dataPos == MEM || dataPos == PINNED){
+                if(dataPos == MEM || dataPos == MMAP || dataPos == PINNED){
                     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
                     CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpu_fact, table, colSize,cudaMemcpyHostToDevice));
                 }else{
@@ -885,7 +885,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
         }else if(res->dataPos[i] == GPU){
             res->content[i] = gpu_result;
         }
-        if(dataPos == MEM || dataPos == PINNED)
+        if(dataPos == MEM || dataPos == MMAP || dataPos == PINNED)
             CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_fact));
 
     }
