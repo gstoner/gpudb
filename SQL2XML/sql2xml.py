@@ -26,8 +26,8 @@ Created on May 6, 2013
 
 import antlr3
 import antlr3.tree
-from ysmart.frontend.YSmartLexer import *
-from ysmart.frontend.YSmartParser import *
+from YSmartLexer import *
+from YSmartParser import *
 
 
 def toXml(sqlFile):
