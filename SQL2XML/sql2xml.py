@@ -24,11 +24,10 @@ Created on May 6, 2013
 @author: Meisam
 '''
 
-import sys
 import antlr3
 import antlr3.tree
-from YSmartLexer import *
-from YSmartParser import *
+from ysmart.frontend.YSmartLexer import *
+from ysmart.frontend.YSmartParser import *
 
 
 def toXml(sqlFile):
@@ -36,9 +35,9 @@ def toXml(sqlFile):
     parses the contents of the given file and returns a string that represents the AST in xml format 
     '''
     with sqlFile:
-        # TODO Meisam: Make the grammar case insensitive?
-        query = sqlFile.read().upper()
-        stringStream = antlr3.StringStream(query)
+        # TODO Meisam: This is a hack to make the grammar case insensitive.
+        query = sqlFile.read()
+        stringStream = antlr3.StringStream(query.upper())
         lexer = YSmartLexer(stringStream)
         
         tokenStream = antlr3.CommonTokenStream(lexer)
@@ -47,9 +46,9 @@ def toXml(sqlFile):
         
         parseTree = parser.start_rule()
         
-        return traverseTree(parseTree.tree)
+        return traverseTree(parseTree.tree, query)
     
-def traverseTree(tree):
+def traverseTree(tree, query):
     '''
     traverses the given tree to create an XML string  
     '''
@@ -66,7 +65,10 @@ def traverseTree(tree):
     
     for child in tree.children:
         token = child.token
-        type = token.getType()
+        if token is None:
+            type = 0 # the "<invalid>" token
+        else:
+            type = token.getType()
         name = YSmartParser.tokenNames[type]
         line = child.getLine()
         position = child.getCharPositionInLine()
@@ -74,11 +76,11 @@ def traverseTree(tree):
         
         xmlStr = xmlStr + ('<node tokentype="%d" tokenname="%s" line="%d" positioninline="%d" childcount="%d">\n' % (type, name, line, position, childCount))
         
-        content = str(child)
+        content = token2str(child, query)
         
         xmlStr += ('<content>%s</content>\n' % escapeXmlCharacters(content));
                 
-        xmlStr += traverseTree(child)
+        xmlStr += traverseTree(child, query)
         xmlStr += '</node>'
     
     if isRoot:
@@ -86,6 +88,22 @@ def traverseTree(tree):
         
     return xmlStr
 
+def token2str(token, query):
+    if token.getType() in [DOUBLEQUOTED_STRING, QUOTED_STRING]: 
+        lines = query.splitlines()
+        start = token.charPositionInLine
+        stop = start + len(token.text) # Meisam token.stopIndex does not work
+        result = lines[token.line - 1][start:stop]
+        return result
+    elif token.getType() in [ID]:
+        # if an keyword is used as ID (columns/table name), it should be quoted
+        sql_id = str(token)
+        if sql_id[0] in ["'", '"']:
+            assert sql_id[-1] == sql_id[0]
+            return sql_id[1:-1]
+    
+    return str(token)
+    
 #TODO Meisam: This should be escaped to XML characters
 def escapeXmlCharacters(rawString):
     return rawString.replace(">", "?").replace("<", "?")
