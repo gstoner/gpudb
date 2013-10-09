@@ -258,7 +258,7 @@ __global__ static void uniformAdd(int *g_data,
                            int *uniforms, 
                            int n, 
                            int blockOffset, 
-                           int baseIndex)
+                           int baseIndex, int total)
 {
     __shared__ int uni;
     if (threadIdx.x == 0)
@@ -270,7 +270,8 @@ __global__ static void uniformAdd(int *g_data,
     
     // note two adds per thread
     g_data[address]              += uni;
-    g_data[address + blockDim.x] += (threadIdx.x + blockDim.x < n) * uni;
+    if(address + blockDim.x < total)
+        g_data[address + blockDim.x] += (threadIdx.x + blockDim.x < n) * uni;
 }
 
 

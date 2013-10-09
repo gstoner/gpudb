@@ -1448,7 +1448,7 @@ __kernel void uniformAdd(__global int *g_data,
                            __global int *uniforms,
                            int n,
                            int blockOffset,
-                           int baseIndex)
+                           int baseIndex, int total)
 {
     __local int uni;
     if (get_local_id(0) == 0)
@@ -1462,7 +1462,8 @@ __kernel void uniformAdd(__global int *g_data,
     barrier(CLK_LOCAL_MEM_FENCE);
 
     g_data[address]              += uni;
-    g_data[address + get_local_size(0)] += (get_local_id(0) + get_local_size(0) < n) * uni;
+    if(address + get_local_size(0) < total)
+        g_data[address + get_local_size(0)] += (get_local_id(0) + get_local_size(0) < n) * uni;
 }
 
 // for materialization
@@ -1565,7 +1566,7 @@ void Comparator(
 
 __kernel void count_unique_keys_int(__global int *key, int tupleNum, __global int * result){
     int i = 0;
-    int res = 0;
+    int res = 1;
     for(i=0;i<tupleNum -1;i++){
         if(key[i+1] != key[i])
             res ++;
@@ -1575,7 +1576,7 @@ __kernel void count_unique_keys_int(__global int *key, int tupleNum, __global in
 
 __kernel void count_unique_keys_float(__global float *key, int tupleNum, __global int * result){
     int i = 0;
-    int res = 0;
+    int res = 1;
     for(i=0;i<tupleNum -1;i++){
         if(key[i+1] != key[i])
             res ++;
@@ -1585,7 +1586,7 @@ __kernel void count_unique_keys_float(__global float *key, int tupleNum, __globa
 
 __kernel void count_unique_keys_string(__global char *key, int tupleNum, int keySize, __global int * result){
     int i = 0;
-    int res = 0;
+    int res = 1;
     for(i=0;i<tupleNum -1;i++){
         if(gpu_strcmp(key+i*keySize, key+(i+1)*keySize,keySize) != 0)
             res ++;

@@ -52,7 +52,7 @@ __device__ static int gpu_strcmp(const char *s1, const char *s2, int len){
 
 __global__ static void count_unique_keys_int(int *key, int tupleNum, int * result){
     int i = 0;
-    int res = 0;
+    int res = 1;
     for(i=0;i<tupleNum -1;i++){
         if(key[i+1] != key[i])
             res ++;
@@ -62,7 +62,7 @@ __global__ static void count_unique_keys_int(int *key, int tupleNum, int * resul
 
 __global__ static void count_unique_keys_float(float *key, int tupleNum, int * result){
     int i = 0;
-    int res = 0;
+    int res = 1;
     for(i=0;i<tupleNum -1;i++){
         if(key[i+1] != key[i])
             res ++;
@@ -72,7 +72,7 @@ __global__ static void count_unique_keys_float(float *key, int tupleNum, int * r
 
 __global__ static void count_unique_keys_string(char *key, int tupleNum, int keySize,int * result){
     int i = 0;
-    int res = 0;
+    int res = 1;
     for(i=0;i<tupleNum -1;i++){
         if(gpu_strcmp(key+i*keySize, key+(i+1)*keySize,keySize) != 0)
             res ++;

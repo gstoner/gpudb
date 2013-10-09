@@ -167,14 +167,14 @@ static void prescanArrayRecursive(int *outArray, const int *inArray, int numElem
         uniformAdd<<< grid, threads >>>(outArray, 
                                         g_scanBlockSums[level], 
                                         numElements - numEltsLastBlock, 
-                                        0, 0);
+                                        0, 0, numElements);
         if (np2LastBlock)
         {
             uniformAdd<<< 1, numThreadsLastBlock >>>(outArray, 
                                                      g_scanBlockSums[level], 
                                                      numEltsLastBlock, 
                                                      numBlocks - 1, 
-                                                     numElements - numEltsLastBlock);
+                                                     numElements - numEltsLastBlock, numElements);
         }
     }
     else if (isPowerOfTwo(numElements))
