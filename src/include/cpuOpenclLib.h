@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/mman.h>
 #include <CL/cl.h>
 #include "common.h"
 
