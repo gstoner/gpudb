@@ -486,7 +486,8 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
     }
     free(column);
     CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuContent));
-
+    CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuGbType));
+    CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuGbSize));
     CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuGbExp));
     CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuResult));
 
