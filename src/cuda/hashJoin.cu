@@ -518,8 +518,8 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
     struct tableNode * res = NULL;
 
-    char * gpu_result, *gpu_bucket, *gpu_fact, * gpu_dim;
-    int * gpu_count,  *gpu_psum, *gpu_resPsum, *gpu_hashNum;
+    char *gpu_result = NULL, *gpu_bucket = NULL, *gpu_fact = NULL, *gpu_dim = NULL;
+    int *gpu_count = NULL,  *gpu_psum = NULL, *gpu_resPsum = NULL, *gpu_hashNum = NULL;
 
     int defaultBlock = 4096;
 
@@ -576,7 +576,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
  *  build hash table on GPU
  */
 
-    int *gpu_psum1;
+    int *gpu_psum1 = NULL;
 
     int hsize = jNode->rightTable->tupleNum;
     NP2(hsize);
@@ -621,7 +621,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_count,sizeof(int)*threadNum));
     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_resPsum,sizeof(int)*threadNum));
 
-    int *gpuFactFilter;
+    int *gpuFactFilter = NULL;
 
     dataPos = jNode->leftTable->dataPos[jNode->leftKeyIndex];
     int format = jNode->leftTable->dataFormat[jNode->leftKeyIndex];
@@ -645,8 +645,8 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
     else if(format == DICT){
         int dNum;
-        struct dictHeader * dheader;
-        struct dictHeader * gpuDictHeader;
+        struct dictHeader * dheader = NULL;
+        struct dictHeader * gpuDictHeader = NULL;
 
         CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuDictHeader, sizeof(struct dictHeader)));
 
@@ -704,7 +704,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
         int leftRight = 0;
 
         int attrSize, attrType;
-        char * table;
+        char * table = NULL;
         int found = 0 , dataPos, format;
 
         if (jNode->keepInGpu[i] == 1)
@@ -775,9 +775,9 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
                     joinFact_other<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum,gpuFactFilter,gpu_result);
 
             }else if (format == DICT){
-                struct dictHeader * dheader;
+                struct dictHeader * dheader = NULL;
                 int byteNum;
-                struct dictHeader * gpuDictHeader;
+                struct dictHeader * gpuDictHeader = NULL;
 
                 dheader = (struct dictHeader *)table;
                 byteNum = dheader->bitNum/8;
@@ -800,7 +800,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
             }else if (format == RLE){
 
-                struct rleHeader* rheader;
+                struct rleHeader* rheader = NULL;
 
                 if(dataPos == MEM || dataPos == MMAP || dataPos == PINNED){
                     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpu_fact, colSize));
@@ -813,7 +813,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
 
                 int dNum = rheader->dictNum;
 
-                char * gpuRle;
+                char * gpuRle = NULL;
                 CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuRle, jNode->leftTable->tupleNum * sizeof(int)));
 
                 unpack_rle<<<grid,block>>>(gpu_fact, gpuRle,jNode->leftTable->tupleNum, dNum);
@@ -840,9 +840,9 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct statistic *pp){
                     joinDim_other<<<grid,block>>>(gpu_resPsum,gpu_fact, attrSize, jNode->leftTable->tupleNum, gpuFactFilter,gpu_result);
 
             }else if (format == DICT){
-                struct dictHeader * dheader;
+                struct dictHeader * dheader = NULL;
                 int byteNum;
-                struct dictHeader * gpuDictHeader;
+                struct dictHeader * gpuDictHeader = NULL;
 
                 dheader = (struct dictHeader *)table;
                 byteNum = dheader->bitNum/8;

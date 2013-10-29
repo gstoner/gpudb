@@ -320,11 +320,11 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 
     struct timespec start,end;
     clock_gettime(CLOCK_REALTIME,&start);
-    int *gpuGbIndex, gpuTupleNum, gpuGbColNum;
-    int * gpuGbType, * gpuGbSize;
+    int *gpuGbIndex = NULL, gpuTupleNum, gpuGbColNum;
+    int *gpuGbType = NULL, *gpuGbSize = NULL;
 
-    int * gpuGbKey;
-    char ** gpuContent, ** column;
+    int *gpuGbKey = NULL;
+    char ** gpuContent = NULL, **column = NULL;
 
     /*
      * @gbCount: the number of groups
@@ -371,7 +371,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
     if(blockNum < 1024)
         grid = blockNum;
 
-    int * gpu_hashNum, *gpu_psum, *gpuGbCount;
+    int *gpu_hashNum = NULL, *gpu_psum = NULL, *gpuGbCount = NULL;
 
     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuContent, gb->table->totalAttr * sizeof(char *)));
     column = (char **) malloc(sizeof(char *) * gb->table->totalAttr);
@@ -436,8 +436,8 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
 
     printf("[INFO]Number of groupBy results: %d\n",res->tupleNum);
 
-    char ** gpuResult;
-    char ** result;
+    char ** gpuResult = NULL;
+    char ** result = NULL;
     
     result = (char **)malloc(sizeof(char*)*res->totalAttr);
     CHECK_POINTER(result);

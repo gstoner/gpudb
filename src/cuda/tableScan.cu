@@ -977,7 +977,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
         res->attrSize[i] = sn->tn->attrSize[index];
     }
 
-    int *gpuCount, *gpuFilter, *gpuPsum;
+    int *gpuCount = NULL, *gpuFilter = NULL, *gpuPsum = NULL;
 
     dim3 grid(2048);
     dim3 block(256);
@@ -1029,7 +1029,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
     if(1){
 
-        struct whereExp * gpuExp;
+        struct whereExp * gpuExp = NULL;
         CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuExp, sizeof(struct whereExp)));
         CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuExp, &where->exp[0], sizeof(struct whereExp), cudaMemcpyHostToDevice));
 
@@ -1056,7 +1056,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
  */
         int dNum;
         int byteNum;
-        int *gpuDictFilter;
+        int *gpuDictFilter = NULL;
 
 /*
  * We will allocate GPU device memory for a column if it is stored in the host pageable or pinned memory.
@@ -1120,7 +1120,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
             dNum = dheader->dictNum;
             byteNum = dheader->bitNum/8;
 
-            struct dictHeader* gpuDictHeader;
+            struct dictHeader* gpuDictHeader = NULL;
             CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictHeader,sizeof(struct dictHeader)));
             CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader), cudaMemcpyHostToDevice));
 
@@ -1189,7 +1189,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
                     dNum = dheader->dictNum;
                     byteNum = dheader->bitNum/8;
 
-                    struct dictHeader * gpuDictHeader;
+                    struct dictHeader * gpuDictHeader = NULL;
                     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictHeader,sizeof(struct dictHeader)));
                     CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader), cudaMemcpyHostToDevice));
                     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
@@ -1353,7 +1353,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
     CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuCount));
 
-    char **result, **scanCol;
+    char **result = NULL, **scanCol = NULL;
 
     attrNum = sn->outputNum;
 
@@ -1406,7 +1406,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
                 struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[index];
                 int byteNum = dheader->bitNum/8;
 
-                struct dictHeader * gpuDictHeader;
+                struct dictHeader * gpuDictHeader = NULL;
                 CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictHeader,sizeof(struct dictHeader)));
                 CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuDictHeader,dheader,sizeof(struct dictHeader), cudaMemcpyHostToDevice));
 
@@ -1419,7 +1419,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
             }else if(format == RLE){
                 int dNum = (sn->tn->attrTotalSize[index] - sizeof(struct rleHeader))/(3*sizeof(int));
-                char * gpuRle;
+                char * gpuRle = NULL;
 
                 CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuRle, totalTupleNum * sizeof(int)));
 

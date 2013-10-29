@@ -570,9 +570,9 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
     CHECK_POINTER(res->content);
 
     int gpuTupleNum = odNode->table->tupleNum;
-    char * gpuKey, **column, ** gpuContent;
-    char * gpuSortedKey;
-    int *gpuSize, *gpuPos;
+    char *gpuKey = NULL, **column = NULL, **gpuContent = NULL;
+    char *gpuSortedKey = NULL;
+    int *gpuSize = NULL, *gpuPos = NULL;
 
     column = (char**) malloc(sizeof(char*) *res->totalAttr);
     CHECK_POINTER(column);
@@ -607,8 +607,8 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuSize, sizeof(int) * res->totalAttr));
     CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(gpuSize, res->attrSize, sizeof(int) * res->totalAttr, cudaMemcpyHostToDevice););
 
-    char ** gpuResult;
-    char ** result;
+    char ** gpuResult = NULL;
+    char ** result = NULL;
     result = (char**)malloc(sizeof(char *) * res->totalAttr);
     CHECK_POINTER(result);
 
@@ -660,7 +660,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
         int secIndex = odNode->orderByIndex[1];
         int keySize2 = odNode->table->attrSize[secIndex];
         int secType = odNode->table->attrType[secIndex];
-        int * keyNum , *keyCount, *keyPsum;
+        int *keyNum = NULL, *keyCount = NULL, *keyPsum = NULL;
 
         CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&keyNum, sizeof(int)));
         if(type == INT){
@@ -689,9 +689,9 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
         }
         scanImpl(keyCount, cpuKeyNum, keyPsum, pp);
 
-        int * gpuPos2;
+        int * gpuPos2 = NULL;
         CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuPos2, sizeof(int)* newNum));
-        char * gpuKey2;
+        char * gpuKey2 = NULL;
         CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpuKey2, keySize2 * newNum));
 
         if(secType == INT){
