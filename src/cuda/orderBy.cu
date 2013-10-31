@@ -669,7 +669,7 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
             count_unique_keys_float<<<1,1>>>((float *)gpuSortedKey, gpuTupleNum, keyNum);
 
         }else if (type == STRING){
-            count_unique_keys_string<<<1,1>>>(gpuKey, gpuTupleNum,keySize,keyNum);
+            count_unique_keys_string<<<1,1>>>(gpuSortedKey, gpuTupleNum,keySize,keyNum);
         }
 
         int cpuKeyNum;
