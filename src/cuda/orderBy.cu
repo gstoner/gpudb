@@ -680,12 +680,12 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
         CUDA_SAFE_CALL_NO_SYNC(cudaMemset(keyPsum, 0, sizeof(int) * cpuKeyNum));
 
         if(type == INT){
-            count_key_num_int<<<1,1>>>((int*)gpuKey,gpuTupleNum,keyCount);
+            count_key_num_int<<<1,1>>>((int*)gpuSortedKey,gpuTupleNum,keyCount);
         }else if (type == FLOAT){
-            count_key_num_float<<<1,1>>>((float*)gpuKey,gpuTupleNum,keyCount);
+            count_key_num_float<<<1,1>>>((float*)gpuSortedKey,gpuTupleNum,keyCount);
 
         }else if (type == STRING){
-            count_key_num_string<<<1,1>>>(gpuKey,gpuTupleNum,keySize,keyCount);
+            count_key_num_string<<<1,1>>>(gpuSortedKey,gpuTupleNum,keySize,keyCount);
         }
         scanImpl(keyCount, cpuKeyNum, keyPsum, pp);
 
@@ -722,7 +722,8 @@ struct tableNode * orderBy(struct orderByNode * odNode, struct statistic *pp){
     }
 
     for(int i=0;i<res->totalAttr;i++){
-        CUDA_SAFE_CALL_NO_SYNC(cudaFree(column[i]));
+        if(odNode->table->dataPos[i] == MEM)
+            CUDA_SAFE_CALL_NO_SYNC(cudaFree(column[i]));
         CUDA_SAFE_CALL_NO_SYNC(cudaFree(result[i]));
     }
 
