@@ -21,7 +21,6 @@ static void scanImpl(cl_mem d_input, int rLen, cl_mem d_output, struct clContext
         	clSetKernelArg(context->kernel,1,sizeof(int), (void*)&len);
        		clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,0);
 
-                cudaMemcpy(input, d_input, rLen*sizeof(int), cudaMemcpyDeviceToDevice);
 		clEnqueueWriteBuffer(context->queue, input, CL_TRUE, 0, rLen * sizeof(int), d_input,0,0,0);
                 preallocBlockSums(len, context);
                 prescanArray(output, input, len, context,pp);
