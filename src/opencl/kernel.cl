@@ -1862,6 +1862,7 @@ __kernel void sec_sort_key_int(__global int *key, __global int *psum, __global i
 
     for(int i=start; i< end-1; i++){
         int min = key[i];
+        int tmp = tmp;
         int pos = i;
         for(int j=i+1;j<end;j++){
             if(min > key[j]){
@@ -1869,8 +1870,11 @@ __kernel void sec_sort_key_int(__global int *key, __global int *psum, __global i
                 pos = j;
             }
         }
+        key[pos] = tmp;
         outputPos[i] = inputPos[pos];
+        inputPos[pos] = inputPos[i];
     }
+    outputPos[end-1] = inputPos[end-1];
 }
 
 __kernel void sec_sort_key_float(__global float *key, __global int *psum, __global int *count ,int tupleNum, __global int *inputPos, __global int* outputPos){
@@ -1880,6 +1884,7 @@ __kernel void sec_sort_key_float(__global float *key, __global int *psum, __glob
 
     for(int i=start; i< end-1; i++){
         float min = key[i];
+        float tmp = min;
         int pos = i;
         for(int j=i+1;j<end;j++){
             if(min > key[j]){
@@ -1887,8 +1892,11 @@ __kernel void sec_sort_key_float(__global float *key, __global int *psum, __glob
                 pos = j;
             }
         }
+        key[pos] = tmp;
         outputPos[i] = inputPos[pos];
+        inputPos[pos] = inputPos[i];
     }
+    outputPos[end-1] = inputPos[end-1];
 }
 
 __kernel void sec_sort_key_string(__global char *key, int keySize, __global int *psum, __global int *count ,int tupleNum, __global int *inputPos, __global int* outputPos){
@@ -1898,8 +1906,10 @@ __kernel void sec_sort_key_string(__global char *key, int keySize, __global int 
 
     for(int i=start; i< end-1; i++){
         char min[128];
+        char tmp[128];
         for(int k=0;k<keySize;k++){
             min[k] = key[i*keySize + k];
+            tmp[k] = key[i*keySize + k];
         }
         int pos = i;
         for(int j=i+1;j<end;j++){
@@ -1910,8 +1920,13 @@ __kernel void sec_sort_key_string(__global char *key, int keySize, __global int 
                 pos = j;
             }
         }
+        for(int k=0;k<keySize;k++){
+            key[pos*keySize + k] = tmp[k];
+        }
         outputPos[i] = inputPos[pos];
+        inputPos[pos] = inputPos[i];
     }
+    outputPos[end-1] = inputPos[end-1];
 }
 
 __kernel void set_key_string(__global char *key, int tupleNum){
