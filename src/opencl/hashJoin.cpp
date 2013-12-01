@@ -518,7 +518,7 @@ struct tableNode * hashJoin(struct joinNode *jNode, struct clContext * context,s
                     dheader = (struct dictHeader *)table;
                     byteNum = dheader->bitNum/8;
                     clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,&ndrEvt);
-                }else if(dataPos == PINNED or dataPos == UVA){
+                }else if(dataPos == PINNED || dataPos == UVA){
                     dheader = (struct dictHeader*)clEnqueueMapBuffer(context->queue,(cl_mem)table,CL_TRUE,CL_MAP_READ,0,sizeof(struct dictHeader),0,0,0,0);
                                     byteNum = dheader->bitNum/8;
                                     clEnqueueWriteBuffer(context->queue,gpuDictHeader,CL_TRUE,0,sizeof(struct dictHeader),dheader,0,0,&ndrEvt);
