@@ -226,7 +226,7 @@ def generate_loader():
         print >>fo, "\t\t\t\tprev = i+1;"
         print >>fo, "\t\t\t\tswitch(count){"
 
-        for i in range(0,attrLen-1):
+        for i in range(0,attrLen):
             col = schema[tn].column_list[i]
             print >>fo, "\t\t\t\t\t case " + str(i) + ":"
 
@@ -260,32 +260,36 @@ def generate_loader():
         print >>fo, "\t\t\t}"
         print >>fo, "\t\t}"
 
+        print >>fo, "\t\tif(count == " + str(attrLen-1) + "){"
+
         col = schema[tn].column_list[attrLen-1]
         if col.column_type == "INTEGER" or col.column_type == "DATE":
-            print >>fo, "\t\tif(writeHeader == 1){"
-            print >>fo, "\t\t\theader.blockSize = header.tupleNum * sizeof(int);"
-            print >>fo, "\t\t\tfwrite(&header,sizeof(struct columnHeader),1,out[" + str(attrLen-1) + "]);"
-            print >>fo, "\t\t}"
-            print >>fo, "\t\tmemset(data,0,sizeof(data));"
-            print >>fo, "\t\tstrncpy(data,buf+prev,i-prev);"
-            print >>fo, "\t\ttmp."+str(col.column_name.lower()) + " = strtol(data,NULL,10);"
-            print >>fo, "\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(int),1,out["+str(attrLen-1) + "]);"
+            print >>fo, "\t\t\tif(writeHeader == 1){"
+            print >>fo, "\t\t\t\theader.blockSize = header.tupleNum * sizeof(int);"
+            print >>fo, "\t\t\t\tfwrite(&header,sizeof(struct columnHeader),1,out[" + str(attrLen-1) + "]);"
+            print >>fo, "\t\t\t}"
+            print >>fo, "\t\t\tmemset(data,0,sizeof(data));"
+            print >>fo, "\t\t\tstrncpy(data,buf+prev,i-prev);"
+            print >>fo, "\t\t\ttmp."+str(col.column_name.lower()) + " = strtol(data,NULL,10);"
+            print >>fo, "\t\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(int),1,out["+str(attrLen-1) + "]);"
         elif col.column_type == "DECIMAL":
-            print >>fo, "\t\tif(writeHeader == 1){"
-            print >>fo, "\t\t\theader.blockSize = header.tupleNum * sizeof(float);"
-            print >>fo, "\t\t\tfwrite(&header,sizeof(struct columnHeader),1,out[" + str(attrLen-1) + "]);"
-            print >>fo, "\t\t}"
-            print >>fo, "\t\tmemset(data,0,sizeof(data));"
-            print >>fo, "\t\tstrncpy(data,buf+prev,i-prev);"
-            print >>fo, "\t\ttmp."+str(col.column_name.lower()) + " = atof(data);"
-            print >>fo, "\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(float),1,out["+str(i) + "]);"
+            print >>fo, "\t\t\tif(writeHeader == 1){"
+            print >>fo, "\t\t\t\theader.blockSize = header.tupleNum * sizeof(float);"
+            print >>fo, "\t\t\t\tfwrite(&header,sizeof(struct columnHeader),1,out[" + str(attrLen-1) + "]);"
+            print >>fo, "\t\t\t}"
+            print >>fo, "\t\t\tmemset(data,0,sizeof(data));"
+            print >>fo, "\t\t\tstrncpy(data,buf+prev,i-prev);"
+            print >>fo, "\t\t\ttmp."+str(col.column_name.lower()) + " = atof(data);"
+            print >>fo, "\t\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(float),1,out["+str(i) + "]);"
         elif col.column_type == "TEXT":
-            print >>fo, "\t\tif(writeHeader == 1){"
-            print >>fo, "\t\t\theader.blockSize = header.tupleNum * " + str(col.column_others) + ";"
-            print >>fo, "\t\t\tfwrite(&header,sizeof(struct columnHeader),1,out[" + str(attrLen-1) + "]);"
-            print >>fo, "\t\t}"
-            print >>fo, "\t\tstrncpy(tmp." + str(col.column_name.lower()) + ",buf+prev,i-prev);"
-            print >>fo, "\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(tmp." +str(col.column_name.lower()) + "), 1, out[" + str(attrLen-1) + "]);"
+            print >>fo, "\t\t\tif(writeHeader == 1){"
+            print >>fo, "\t\t\t\theader.blockSize = header.tupleNum * " + str(col.column_others) + ";"
+            print >>fo, "\t\t\t\tfwrite(&header,sizeof(struct columnHeader),1,out[" + str(attrLen-1) + "]);"
+            print >>fo, "\t\t\t}"
+            print >>fo, "\t\t\tstrncpy(tmp." + str(col.column_name.lower()) + ",buf+prev,i-prev);"
+            print >>fo, "\t\t\tfwrite(&(tmp." + str(col.column_name.lower()) + "),sizeof(tmp." +str(col.column_name.lower()) + "), 1, out[" + str(attrLen-1) + "]);"
+
+        print >>fo, "\t\t}"
 
 
         print >>fo, "\t}\n" ### end of reading from input file
