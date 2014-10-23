@@ -1069,7 +1069,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
         if(format == UNCOMPRESSED){
             if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP || sn->tn->dataPos[index] == PINNED)
                 CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index], sn->tn->attrTotalSize[index], cudaMemcpyHostToDevice));
-            else if (sn->tn->dataPos[index] == UVA)
+            else if (sn->tn->dataPos[index] == UVA || sn->tn->dataPos[index] == GPU)
                 column[whereIndex] = sn->tn->content[index];
 
             int rel = where->exp[0].relation;
@@ -1126,7 +1126,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
             if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP || sn->tn->dataPos[index] == PINNED)
                 CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index], sn->tn->attrTotalSize[index], cudaMemcpyHostToDevice));
-            else if (sn->tn->dataPos[index] == UVA)
+            else if (sn->tn->dataPos[index] == UVA || sn->tn->dataPos[index] == GPU)
                 column[whereIndex] = sn->tn->content[index];
 
             CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuDictFilter, dNum * sizeof(int)));
@@ -1139,7 +1139,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
 
             if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP || sn->tn->dataPos[index] == PINNED)
                 CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index], sn->tn->attrTotalSize[index], cudaMemcpyHostToDevice));
-            else if (sn->tn->dataPos[index] == UVA)
+            else if (sn->tn->dataPos[index] == UVA || sn->tn->dataPos[index] == GPU)
                 column[whereIndex] = sn->tn->content[index];
 
             genScanFilter_rle<<<grid,block>>>(column[whereIndex],sn->tn->attrSize[index],sn->tn->attrType[index], totalTupleNum, gpuExp, where->andOr, gpuFilter);
@@ -1182,7 +1182,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
                 if(format == DICT){
                     if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP || sn->tn->dataPos[index] == PINNED)
                         CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index], sn->tn->attrTotalSize[index], cudaMemcpyHostToDevice));
-                    else if (sn->tn->dataPos[index] == UVA)
+                    else if (sn->tn->dataPos[index] == UVA || sn->tn->dataPos[index] == GPU)
                         column[whereIndex] = sn->tn->content[index];
 
                     struct dictHeader * dheader = (struct dictHeader *)sn->tn->content[index];
@@ -1201,7 +1201,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct statistic *pp){
                 }else{
                     if(sn->tn->dataPos[index] == MEM || sn->tn->dataPos[index] == MMAP || sn->tn->dataPos[index] == PINNED)
                         CUDA_SAFE_CALL_NO_SYNC(cudaMemcpy(column[whereIndex], sn->tn->content[index], sn->tn->attrTotalSize[index], cudaMemcpyHostToDevice));
-                    else if (sn->tn->dataPos[index] == UVA)
+                    else if (sn->tn->dataPos[index] == UVA || sn->tn->dataPos[index] == GPU)
                         column[whereIndex] = sn->tn->content[index];
                 }
 
