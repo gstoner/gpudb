@@ -191,7 +191,7 @@ __global__ static void build_groupby_key_soa(char ** content, int gbColNum, int 
  * Count the number of groups 
  */
 
-__global__ void count_group_num(int *num, int tupleNum, int *totalCount){
+__global__ static void count_group_num(int *num, int tupleNum, int *totalCount){
         int stride = blockDim.x * gridDim.x;
         int offset = blockIdx.x * blockDim.x + threadIdx.x;
         int localCount = 0;
@@ -240,7 +240,7 @@ __device__ static float calMathExp(char **content, struct mathExp exp, int pos){
  * group by constant. Currently only support SUM function.
  */
 
-__global__ void agg_cal_cons(char ** content, int colNum, struct groupByExp* exp, int * gbType, int * gbSize, long tupleNum, int * key, int *psum,  char ** result){
+__global__ static void agg_cal_cons(char ** content, int colNum, struct groupByExp* exp, int * gbType, int * gbSize, long tupleNum, int * key, int *psum,  char ** result){
 
     int stride = blockDim.x * gridDim.x;
     int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -266,7 +266,7 @@ __global__ void agg_cal_cons(char ** content, int colNum, struct groupByExp* exp
  * gropu by
  */
 
-__global__ void agg_cal(char ** content, int colNum, struct groupByExp* exp, int * gbType, int * gbSize, long tupleNum, int * key, int *psum,  char ** result){
+__global__ static void agg_cal(char ** content, int colNum, struct groupByExp* exp, int * gbType, int * gbSize, long tupleNum, int * key, int *psum,  char ** result){
 
         int stride = blockDim.x * gridDim.x;
         int index = blockIdx.x * blockDim.x + threadIdx.x;
