@@ -165,7 +165,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
                 clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,&ndrEvt);
             else if(sn->tn->dataPos[index] == PINNED)
                 clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],column[whereIndex],0,0,sn->tn->attrTotalSize[index],0,0,&ndrEvt);
-            else if (sn->tn->dataPos[index] == UVA)
+            else if (sn->tn->dataPos[index] == UVA ||sn->tn->dataPos[index] == GPU)
                 column[whereIndex] = (cl_mem) sn->tn->content[index];
 
 #ifdef OPENCL_PROFILE
@@ -279,12 +279,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
                 clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,&ndrEvt);
             else if(sn->tn->dataPos[index] == PINNED)
                 clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],column[whereIndex],0,0,sn->tn->attrTotalSize[index],0,0,&ndrEvt);
-            else if (sn->tn->dataPos[index] == UVA){
+            else if (sn->tn->dataPos[index] == UVA || sn->tn->dataPos[index] == GPU){
                 column[whereIndex] = (cl_mem)sn->tn->content[index];
             }
 
 #ifdef OPENCL_PROFILE
-            if(sn->tn->dataPos[index] != UVA){
+            if(sn->tn->dataPos[index] != UVA && sn->tn->dataPos[index] != GPU){
 
                 clWaitForEvents(1, &ndrEvt);
                 clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
@@ -322,11 +322,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
             else if(sn->tn->dataPos[index] == PINNED)
                 clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],column[whereIndex],0,0,sn->tn->attrTotalSize[index],0,0,&ndrEvt);
                 
-            else if (sn->tn->dataPos[index] == UVA)
+            else if (sn->tn->dataPos[index] == UVA || sn->tn->dataPos[index] == GPU)
                 column[whereIndex] = (cl_mem)sn->tn->content[index];
 
 #ifdef OPENCL_PROFILE
-            if(sn->tn->dataPos[index] != UVA){
+            if(sn->tn->dataPos[index] != UVA && sn->tn->dataPos[index] != GPU){
 
                 clWaitForEvents(1, &ndrEvt);
                 clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
@@ -414,12 +414,12 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
                         clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,&ndrEvt);
                     else if(sn->tn->dataPos[index] == PINNED)
                         clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],column[whereIndex],0,0,sn->tn->attrTotalSize[index],0,0,&ndrEvt);
-                    else if (sn->tn->dataPos[index] == UVA){
+                    else if (sn->tn->dataPos[index] == UVA || sn->tn->dataPos[index] == GPU){
                         column[whereIndex] = (cl_mem)sn->tn->content[index];
                     }
 
 #ifdef OPENCL_PROFILE
-                    if(sn->tn->dataPos[index] != UVA){
+                    if(sn->tn->dataPos[index] != UVA && sn->tn->dataPos[index] != GPU){
 
                         clWaitForEvents(1, &ndrEvt);
                         clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
@@ -479,11 +479,11 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
                         clEnqueueWriteBuffer(context->queue,column[whereIndex],CL_TRUE,0,sn->tn->attrTotalSize[index],sn->tn->content[index],0,0,&ndrEvt);
                     else if(sn->tn->dataPos[index] == PINNED)
                         clEnqueueCopyBuffer(context->queue,(cl_mem)sn->tn->content[index],column[whereIndex],0,0,sn->tn->attrTotalSize[index],0,0,&ndrEvt);
-                    else if (sn->tn->dataPos[index] == UVA)
+                    else if (sn->tn->dataPos[index] == UVA || sn->tn->dataPos[index] == GPU)
                         column[whereIndex] = (cl_mem)sn->tn->content[index];
 
 #ifdef OPENCL_PROFILE
-                    if(sn->tn->dataPos[index] != UVA){
+                    if(sn->tn->dataPos[index] != UVA && sn->tn->dataPos[index] != GPU){
 
                         clWaitForEvents(1, &ndrEvt);
                         clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
@@ -804,7 +804,7 @@ struct tableNode * tableScan(struct scanNode *sn, struct clContext *context, str
                 scanCol[i] = (cl_mem)sn->tn->content[index];
 
 #ifdef OPENCL_PROFILE
-            if(sn->tn->dataPos[index] != UVA){
+            if(sn->tn->dataPos[index] != UVA && sn->tn->dataPos[index] != GPU){
 
                 clWaitForEvents(1, &ndrEvt);
                 clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
