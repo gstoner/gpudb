@@ -23,12 +23,6 @@
 #include "../include/gpuCudaLib.h"
 #include "scanImpl.cu"
 
-#define CHECK_POINTER(p)   do {                     \
-    if(p == NULL){                                  \
-        perror("Failed to allocate host memory");   \
-        exit(-1);                                   \
-    }} while(0)
-
 #define SHARED_SIZE_LIMIT 1024 
 
 __device__ static int gpu_strcmp(const char *s1, const char *s2, int len){

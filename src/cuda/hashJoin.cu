@@ -30,21 +30,6 @@
 #include "../include/gpuCudaLib.h"
 #include "scanImpl.cu"
 
-#define CHECK_POINTER(p)   do {                     \
-    if(p == NULL){                                  \
-        perror("Failed to allocate host memory");   \
-        exit(-1);                                   \
-    }} while(0)
-
-#define NP2(n)              do {                    \
-    n--;                                            \
-    n |= n >> 1;                                    \
-    n |= n >> 2;                                    \
-    n |= n >> 4;                                    \
-    n |= n >> 8;                                    \
-    n |= n >> 16;                                   \
-    n ++; } while (0) 
-
 /*
  * Count the number of dimension keys for each bucket.
  */

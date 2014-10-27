@@ -23,12 +23,6 @@
 #include "../include/common.h"
 #include "../include/gpuOpenclLib.h"
 
-#define CHECK_POINTER(p)   do {                     \
-    if(p == NULL){                                  \
-        perror("Failed to allocate host memory");   \
-        exit(-1);                                   \
-    }} while(0)
-
 #define SHARED_SIZE_LIMIT 1024 
 #define NTHREAD  (SHARED_SIZE_LIMIT/2)
 

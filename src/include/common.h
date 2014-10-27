@@ -21,6 +21,22 @@
 #define BLOCKNUM    (100*1024*1024)
 #define HSIZE 131072
 
+#define CHECK_POINTER(p)   do {                     \
+    if(p == NULL){                                  \
+        perror("Failed to allocate host memory");   \
+        exit(-1);                                   \
+    }} while(0)
+
+#define NP2(n)              do {                    \
+    n--;                                            \
+    n |= n >> 1;                                    \
+    n |= n >> 2;                                    \
+    n |= n >> 4;                                    \
+    n |= n >> 8;                                    \
+    n |= n >> 16;                                   \
+    n ++; } while (0) 
+
+
 enum {
 
 /* data format */
@@ -46,6 +62,7 @@ enum {
     AND ,
     OR,
     EXP,
+    EXPSUB,                 /* the where exp is a math exp, and the column is correlated */
 
 /* supported groupby function */
     MIN,
@@ -135,6 +152,20 @@ struct scanNode{
     struct whereCondition * filter; /* the where conditioin */
     int keepInGpu;                  /* whether all the results should be kept in GPU memory or not */
 
+};
+
+/*
+ * For dedup, we currently only support integers
+ */
+
+struct dedupNode{
+    struct tableNode *tn;
+    int index;                      /* the index of the column that needs to be deduped*/
+};
+
+struct vecNode{
+    struct tableNode *tn;
+    int index;
 };
 
 struct mathExp {

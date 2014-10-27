@@ -24,11 +24,6 @@
 #include "../include/cudaHash.h"
 #include "scanImpl.cu"
 
-#define CHECK_POINTER(p)   do {                     \
-    if(p == NULL){                                  \
-        perror("Failed to allocate host memory");   \
-        exit(-1);                                   \
-    }} while(0)
 
 /*
  * Transform integer to string using one single gpu thread.

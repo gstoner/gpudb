@@ -23,13 +23,6 @@
 #include "../include/cpuOpenclLib.h"
 #include "scanImpl.cpp"
 
-#define CHECK_POINTER(p)   do {                     \
-    if(p == NULL){                                  \
-        perror("Failed to allocate host memory");   \
-        exit(-1);                                   \
-    }} while(0)
-
-
 /* 
  * groupBy: group by the data and calculate. 
  * 
