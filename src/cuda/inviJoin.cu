@@ -167,12 +167,6 @@ static void buildHashPlan(long size, int * pass){
 	*pass = 3*size / gpuMem + 1; 
 }
 
-static void joinPlan(struct joinNode *jNode,  int * pass){
-	int gpuMem = getGpuGlobalMem(0);
-
-	*pass = 1;
-}
-
 
 struct tableNode * inviJoin(struct joinNode *jNode, struct statistic *pp){
 

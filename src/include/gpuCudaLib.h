@@ -64,4 +64,92 @@ static double getCurrentTime(void){
     return curr;
 }
 
+
+/*
+ * Transform integer to string using one single gpu thread.
+ */
+
+__device__ static char * gpuItoa(int value, char* result, int base){
+
+        if (base < 2 || base > 36) {
+                *result = '\0';
+                return result;
+        }
+
+        char* ptr = result, *ptr1 = result, tmp_char;
+        int tmp_value;
+
+        do {
+                tmp_value = value;
+                value /= base;
+                *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz" [35 + (tmp_value - value * base)];
+        } while ( value );
+
+        if (tmp_value < 0)
+                *ptr++ = '-';
+
+        *ptr-- = '\0';
+
+        while(ptr1 < ptr) {
+                tmp_char = *ptr;
+                *ptr--= *ptr1;
+                *ptr1++ = tmp_char;
+        }
+        return result;
+
+}
+
+ 
+/* 
+ *  * string copy using one gpu thread. 
+ *   */ 
+ 
+__device__ static char * gpuStrcpy(char * dst, const char * src){ 
+ 
+    char * orig = dst; 
+    while(*src) 
+            *dst++ = *src++; 
+    *dst = '\0'; 
+ 
+    return orig; 
+} 
+ 
+__device__ static char* gpuStrncat(char *dest, const char *src, size_t n) 
+{ 
+    int dest_len = 0; 
+    int i; 
+ 
+    char * tmp = dest; 
+    while(*tmp != '\0'){ 
+        tmp++; 
+        dest_len ++;
+    }
+
+    for (i = 0 ; i < n && src[i] != '\0' ; i++)
+        dest[dest_len + i] = src[i];
+    dest[dest_len + i] = '\0';
+    return dest;
+}
+
+
+__device__ static char * gpuStrcat(char * dest, const char * src){
+    char *tmp =dest;
+    int dest_len = 0;
+    int i;
+
+    while (*tmp!= '\0'){
+        tmp++ ;
+        dest_len ++;
+    }
+
+    for(i=0; src[i] !='\0'; i++){
+        dest[dest_len + i] = src[i];
+    }
+
+    dest[dest_len + i] = '\0';
+
+    return dest;
+}
+
+
 #endif
