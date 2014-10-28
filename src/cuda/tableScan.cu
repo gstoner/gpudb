@@ -309,42 +309,6 @@ __global__ static void genScanFilter_and_leq(char *col, int colSize, long tupleN
     }
 }
 
-__global__ static void genScanFilter_and_soa(char *col, int colSize, int  colType, long tupleNum, struct whereExp * where, int * filter){
-
-    int stride = blockDim.x * gridDim.x;
-    int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    int rel = where->relation;
-    int con;
-
-    for(long i = tid; i<tupleNum;i+=stride){
-        int cmp = 0;
-        for(int j=0;j<colSize;j++){
-            int pos = j*tupleNum + i; 
-            if(col[pos] > where->content[j]){
-                cmp = 1;
-                break;
-            }else if (col[pos] < where->content[j]){
-                cmp = -1;
-                break;
-            }
-        }
-
-        if (rel == EQ){
-            con = (cmp == 0);
-        }else if(rel == LTH){
-            con = (cmp <0);
-        }else if(rel == GTH){
-            con = (cmp >0);
-        }else if (rel == LEQ){
-            con = (cmp <=0);
-        }else if (rel == GEQ){
-            con = (cmp >=0);
-        }
-
-        filter[i] &= con;
-    }
-}
-
 __global__ static void genScanFilter_init_int_eq(char *col, long tupleNum, int where, int * filter){
     int stride = blockDim.x * gridDim.x;
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -668,45 +632,6 @@ __global__ static void genScanFilter_or_leq(char *col, int colSize, long tupleNu
     }
 }
 
-/*
- * This is only for testing the performance of soa in certain cases.
- */
-
-__global__ static void genScanFilter_or_soa(char *col, int colSize, int  colType, long tupleNum, struct whereExp * where, int * filter){
-
-    int stride = blockDim.x * gridDim.x;
-    int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    int rel = where->relation;
-    int con;
-
-    for(long i = tid; i<tupleNum;i+=stride){
-        int cmp = 0;
-        for(int j=0;j<colSize;j++){
-            int pos = j*tupleNum + i; 
-            if(col[pos] > where->content[j]){
-                cmp = 1;
-                break;
-            }else if (col[pos] < where->content[j]){
-                cmp = -1;
-                break;
-            }
-        }
-
-        if (rel == EQ){
-            con = (cmp == 0);
-        }else if(rel == LTH){
-            con = (cmp <0);
-        }else if(rel == GTH){
-            con = (cmp >0);
-        }else if (rel == LEQ){
-            con = (cmp <=0);
-        }else if (rel == GEQ){
-            con = (cmp >=0);
-        }
-
-        filter[i] |= con;
-    }
-}
 
 __global__ static void genScanFilter_or_int_eq(char *col, long tupleNum, int where, int * filter){
     int stride = blockDim.x * gridDim.x;
@@ -882,22 +807,6 @@ __global__ static void scan_other(char *col, int colSize, long tupleNum, int *ps
     }
 }
 
-__global__ static void scan_other_soa(char *col, int colSize, long tupleNum, int *psum, long resultNum, int * filter, char * result){
-    int stride = blockDim.x * gridDim.x;
-    int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    int tNum = psum[tid];
-
-    for(long i = tid; i<tupleNum;i+=stride){
-        
-        if(filter[i] == 1){
-            for(int j=0;j<colSize;j++){
-                long inPos = j*tupleNum + i;
-                long outPos = j*resultNum + tNum;
-                result[outPos] = col[inPos];
-            }
-        }
-    }
-}
 
 __global__ static void scan_int(char *col, int colSize, long tupleNum, int *psum, long resultNum, int * filter, char * result){
     int stride = blockDim.x * gridDim.x;

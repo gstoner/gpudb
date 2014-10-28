@@ -101,6 +101,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
 
 
     cl_mem gpu_hashNum;
+    cl_mem gpu_groupNum;
     cl_mem gpu_psum;
     cl_mem gpuGbCount;
 
@@ -207,6 +208,23 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
         pp->kernel += 1e-6 * (endTime - startTime);
 #endif
 
+
+        gpu_groupNum = clCreateBuffer(context->context,CL_MEM_READ_WRITE, sizeof(int)*HSIZE,NULL,&error);
+
+        context->kernel = clCreateKernel(context->program,"cl_memset_int",0);
+
+        int tmp = HSIZE;
+        clSetKernelArg(context->kernel,0,sizeof(cl_mem), (void*)&gpu_groupNum);
+        clSetKernelArg(context->kernel,1,sizeof(int), (void*)&tmp);
+
+        error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
+#ifdef OPENCL_PROFILE
+        clWaitForEvents(1, &ndrEvt);
+        clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_START,sizeof(cl_ulong),&startTime,0);
+        clGetEventProfilingInfo(ndrEvt,CL_PROFILING_COMMAND_END,sizeof(cl_ulong),&endTime,0);
+        pp->kernel += 1e-6 * (endTime - startTime);
+#endif
+
         context->kernel = clCreateKernel(context->program, "build_groupby_key",0);
         clSetKernelArg(context->kernel,0,sizeof(cl_mem),(void *)&gpuContent);
         clSetKernelArg(context->kernel,1,sizeof(cl_mem),(void *)&gpuOffset);
@@ -217,6 +235,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct clContext * context, 
         clSetKernelArg(context->kernel,6,sizeof(long),(void *)&gpuTupleNum);
         clSetKernelArg(context->kernel,7,sizeof(cl_mem),(void *)&gpuGbKey);
         clSetKernelArg(context->kernel,8,sizeof(cl_mem),(void *)&gpu_hashNum);
+        clSetKernelArg(context->kernel,9,sizeof(cl_mem),(void *)&gpu_groupNum);
 
         error = clEnqueueNDRangeKernel(context->queue, context->kernel, 1, 0, &globalSize,&localSize,0,0,&ndrEvt);
 #ifdef OPENCL_PROFILE

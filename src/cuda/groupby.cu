@@ -113,7 +113,7 @@ __device__ static char * gpuStrcat(char * dest, const char * src){
  * Combine the group by columns to build the group by keys. 
  */
 
-__global__ static void build_groupby_key(char ** content, int gbColNum, int * gbIndex, int * gbType, int * gbSize, long tupleNum, int * key, int *num){
+__global__ static void build_groupby_key(char ** content, int gbColNum, int * gbIndex, int * gbType, int * gbSize, long tupleNum, int * key, int *num, int* groupNum){
 
     int stride = blockDim.x * gridDim.x;
     int offset = blockIdx.x * blockDim.x + threadIdx.x;
@@ -140,44 +140,7 @@ __global__ static void build_groupby_key(char ** content, int gbColNum, int * gb
         int hkey = StringHash(buf) % HSIZE;
         key[i]= hkey;
         num[hkey] = 1;
-    }
-}
-
-/*
- * This is for testing only. 
- */
-
-__global__ static void build_groupby_key_soa(char ** content, int gbColNum, int * gbIndex, int * gbType, int * gbSize, long tupleNum, int * key, int *num){
-
-    int stride = blockDim.x * gridDim.x;
-    int offset = blockIdx.x * blockDim.x + threadIdx.x;
-
-    for(long i = offset; i< tupleNum; i+= stride){
-        char buf[128] = {0};
-        for (int j=0; j< gbColNum; j++){
-            char tbuf[32]={0};
-            int index = gbIndex[j];
-
-            if (index == -1){
-                gpuItoa(1,tbuf,10);
-                gpuStrncat(buf,tbuf,1);
-
-            }else if (gbType[j] == STRING){
-                for(int k=0;k<gbSize[j];k++){
-                    long pos = k*tupleNum + i;
-                    buf[k] = content[index][pos];
-                }
-                gpuStrncat(buf,tbuf,gbSize[j]);
-
-            }else if (gbType[j] == INT){
-                int key = ((int *)(content[index]))[i];
-                gpuItoa(key,tbuf,10);
-                gpuStrcat(buf,tbuf);
-            }
-        }
-        int hkey = StringHash(buf) % HSIZE;
-        key[i]= hkey;
-        num[hkey] = 1;
+        atomicAdd(&(groupNum[hkey]), 1);
     }
 }
 
@@ -235,7 +198,7 @@ __device__ static float calMathExp(char **content, struct mathExp exp, int pos){
  * group by constant. Currently only support SUM function.
  */
 
-__global__ static void agg_cal_cons(char ** content, int colNum, struct groupByExp* exp, int * gbType, int * gbSize, long tupleNum, int * key, int *psum,  char ** result){
+__global__ static void agg_cal_cons(char ** content, int colNum, struct groupByExp* exp, long tupleNum, char ** result){
 
     int stride = blockDim.x * gridDim.x;
     int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -249,6 +212,10 @@ __global__ static void agg_cal_cons(char ** content, int colNum, struct groupByE
             if (func == SUM){
                 float tmpRes = calMathExp(content, exp[j].exp, i);
                 buf[j] += tmpRes;
+            }else if (func == AVG){
+
+                float tmpRes = calMathExp(content, exp[j].exp, i)/tupleNum;
+                buf[j] += tmpRes;
             }
         }
     }
@@ -261,39 +228,42 @@ __global__ static void agg_cal_cons(char ** content, int colNum, struct groupByE
  * gropu by
  */
 
-__global__ static void agg_cal(char ** content, int colNum, struct groupByExp* exp, int * gbType, int * gbSize, long tupleNum, int * key, int *psum,  char ** result){
+__global__ static void agg_cal(char ** content, int colNum, struct groupByExp* exp, int * gbType, int * gbSize, long tupleNum, int * key, int *psum, int * groupNum, char ** result){
 
-        int stride = blockDim.x * gridDim.x;
-        int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride = blockDim.x * gridDim.x;
+    int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-        for(int i=index;i<tupleNum;i+=stride){
+    for(int i=index;i<tupleNum;i+=stride){
 
-            int hKey = key[i];
-            int offset = psum[hKey];
+        int hKey = key[i];
+        int offset = psum[hKey];
 
-            for(int j=0;j<colNum;j++){
-                int func = exp[j].func;
-                if(func ==NOOP){
-                    int type = exp[j].exp.opType;
+        for(int j=0;j<colNum;j++){
+            int func = exp[j].func;
+            if(func ==NOOP){
+                int type = exp[j].exp.opType;
 
-                    if(type == CONS){
-                        int value = exp[j].exp.opValue;
-                        ((int *)result[j])[offset] = value;
-                    }else{
-                        int index = exp[j].exp.opValue;
-                        int attrSize = gbSize[j];
-                        if(attrSize == sizeof(int))
-                            ((int *)result[j])[offset] = ((int*)content[index])[i];
-                        else
-                            memcpy(result[j] + offset*attrSize, content[index] + i * attrSize, attrSize);
-                    }
-
-                }else if (func == SUM){
-                    float tmpRes = calMathExp(content, exp[j].exp, i);
-                    atomicAdd(& ((float *)result[j])[offset], tmpRes);
+                if(type == CONS){
+                    int value = exp[j].exp.opValue;
+                    ((int *)result[j])[offset] = value;
+                }else{
+                    int index = exp[j].exp.opValue;
+                    int attrSize = gbSize[j];
+                    if(attrSize == sizeof(int))
+                        ((int *)result[j])[offset] = ((int*)content[index])[i];
+                    else
+                        memcpy(result[j] + offset*attrSize, content[index] + i * attrSize, attrSize);
                 }
+
+            }else if (func == SUM ){
+                float tmpRes = calMathExp(content, exp[j].exp, i);
+                atomicAdd(& ((float *)result[j])[offset], tmpRes);
+            } else if (func == AVG){
+                float tmpRes = calMathExp(content, exp[j].exp, i)/groupNum[hKey];
+                atomicAdd(& ((float *)result[j])[offset], tmpRes);
             }
         }
+    }
 }
 
 
@@ -366,7 +336,7 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
     if(blockNum < 1024)
         grid = blockNum;
 
-    int *gpu_hashNum = NULL, *gpu_psum = NULL, *gpuGbCount = NULL;
+    int *gpu_hashNum = NULL, *gpu_psum = NULL, *gpuGbCount = NULL, *gpu_groupNum = NULL;
 
     CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void **)&gpuContent, gb->table->totalAttr * sizeof(char *)));
     column = (char **) malloc(sizeof(char *) * gb->table->totalAttr);
@@ -400,7 +370,10 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
         CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_hashNum,sizeof(int)*HSIZE));
         CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpu_hashNum,0,sizeof(int)*HSIZE));
 
-        build_groupby_key<<<grid,block>>>(gpuContent,gpuGbColNum, gpuGbIndex, gpuGbType,gpuGbSize,gpuTupleNum, gpuGbKey, gpu_hashNum);
+        CUDA_SAFE_CALL_NO_SYNC(cudaMalloc((void**)&gpu_groupNum,sizeof(int)*HSIZE));
+        CUDA_SAFE_CALL_NO_SYNC(cudaMemset(gpu_groupNum,0,sizeof(int)*HSIZE));
+
+        build_groupby_key<<<grid,block>>>(gpuContent,gpuGbColNum, gpuGbIndex, gpuGbType,gpuGbSize,gpuTupleNum, gpuGbKey, gpu_hashNum, gpu_groupNum);
         CUDA_SAFE_CALL_NO_SYNC(cudaDeviceSynchronize());
 
         CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuGbType));
@@ -469,11 +442,12 @@ struct tableNode * groupBy(struct groupByNode * gb, struct statistic * pp){
     gpuGbColNum = res->totalAttr;
 
     if(gbConstant !=1){
-        agg_cal<<<grid,block>>>(gpuContent, gpuGbColNum, gpuGbExp, gpuGbType, gpuGbSize, gpuTupleNum, gpuGbKey, gpu_psum,  gpuResult);
+        agg_cal<<<grid,block>>>(gpuContent, gpuGbColNum, gpuGbExp, gpuGbType, gpuGbSize, gpuTupleNum, gpuGbKey, gpu_psum, gpu_groupNum,gpuResult);
         CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpuGbKey));
         CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_psum));
+        CUDA_SAFE_CALL_NO_SYNC(cudaFree(gpu_groupNum));
     }else
-        agg_cal_cons<<<grid,block>>>(gpuContent, gpuGbColNum, gpuGbExp, gpuGbType, gpuGbSize, gpuTupleNum, gpuGbKey, gpu_psum, gpuResult);
+        agg_cal_cons<<<grid,block>>>(gpuContent, gpuGbColNum, gpuGbExp, gpuTupleNum,gpuResult);
 
     for(int i=0; i<gb->table->totalAttr;i++){
         if(gb->table->dataPos[i]==MEM)

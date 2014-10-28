@@ -1105,7 +1105,7 @@ unsigned int StringHash(const char* s)
 }
 
 
-__kernel void build_groupby_key(__global char * content, __global long * colOffset, int gbColNum, __global int * gbIndex, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *num){
+__kernel void build_groupby_key(__global char * content, __global long * colOffset, int gbColNum, __global int * gbIndex, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *num, __global int* groupNum){
 
     size_t stride = get_global_size(0);
     size_t tid = get_global_id(0);
@@ -1142,6 +1142,7 @@ __kernel void build_groupby_key(__global char * content, __global long * colOffs
                 int hkey = StringHash(buf) % HSIZE;
                 key[i]= hkey;
                 num[hkey] = 1;
+                atomic_add(&groupNum[hkey],1);
         }
 }
 
@@ -1231,8 +1232,11 @@ __kernel void agg_cal_cons(__global char * content, __global int* colOffset, int
                 for(int j=0;j<colNum;j++){
                         int func = gbFunc[j];
                         if (func == SUM){
-                                float tmpRes = calMathExp(content, colOffset,exp[j], mexp, i);
-                                buf[j] += tmpRes;
+                            float tmpRes = calMathExp(content, colOffset,exp[j], mexp, i);
+                            buf[j] += tmpRes;
+                        }else if (func == AVG){
+                            float tmpRes = calMathExp(content, colOffset,exp[j], mexp, i)/tupleNum;
+                            buf[j] += tmpRes;
                         }
                 }
         }
@@ -1241,7 +1245,7 @@ __kernel void agg_cal_cons(__global char * content, __global int* colOffset, int
                 AtomicAdd(&((__global float *)(result+resOffset[i]))[0], buf[i]);
 }
 
-__kernel void agg_cal(__global char * content, __global int *colOffset, int colNum, __global struct mathExp* exp, __global struct mathExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset, __global int *gbFunc){
+__kernel void agg_cal(__global char * content, __global int *colOffset, int colNum, __global struct mathExp* exp, __global struct mathExp *mexp, __global int * gbType, __global int * gbSize, long tupleNum, __global int * key, __global int *psum,  __global char * result, __global long * resOffset, __global int *gbFunc, __global int* groupNum){
 
     size_t stride = get_global_size(0);
     size_t index = get_global_id(0);
@@ -1270,6 +1274,9 @@ __kernel void agg_cal(__global char * content, __global int *colOffset, int colN
 
                         }else if (func == SUM){
                                 float tmpRes = calMathExp(content, colOffset, exp[j],mexp, i);
+                                AtomicAdd(& ((__global float *)(result+resOffset[j]))[offset], tmpRes);
+                        }else if (func == AVG){
+                                float tmpRes = calMathExp(content, colOffset, exp[j],mexp, i)/groupNum[hKey];
                                 AtomicAdd(& ((__global float *)(result+resOffset[j]))[offset], tmpRes);
                         }
                 }
