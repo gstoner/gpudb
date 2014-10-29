@@ -208,7 +208,7 @@ static void printCol(char *col, int size, int type,int tupleNum,int pos){
 
             float * cpuCol = (float*)col; 
             for(int i=0;i<tupleNum;i++){
-                printf("%d\n", ((float*)cpuCol)[i]);
+                printf("%f\n", ((float*)cpuCol)[i]);
             }
         }else if (type == STRING){
             char * cpuCol = col; 
